@@ -1,29 +1,34 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, requirePermission } from "@/lib/server/authz";
-import { d1All, d1First, d1Run } from "@/lib/server/d1-data";
+import {
+  deleteStudent,
+  listStudents,
+  saveStudent,
+  studentInputSchema,
+} from "@/lib/server/students";
 
-const studentInputSchema = z.object({
-  email: z.string().trim().email("Ingresa un correo válido.").max(320),
-  fullName: z.string().trim().min(2, "Ingresa el nombre completo.").max(120),
-  controlNumber: z.string().trim().max(48).optional().or(z.literal("")),
-});
+const studentIdSchema = z.string().trim().min(1).max(128);
 
 function jsonError(error: string, status: number) {
   return NextResponse.json({ error }, { status });
 }
 
+async function parseJson(request: Request) {
+  return request.json().catch(() => null);
+}
+
 export async function GET(request: Request) {
   try {
     await requirePermission(request, "users:manage");
-    const students = await d1All<Record<string, unknown>>(
-      `SELECT id, email, full_name, control_number, role, active, created_at
-       FROM app_profiles
-       WHERE role = 'student'
-       ORDER BY active DESC, full_name ASC
-       LIMIT 250`,
-    );
-    return NextResponse.json({ students });
+
+    const url = new URL(request.url);
+    const students = await listStudents({
+      query: url.searchParams.get("q") ?? "",
+      includeInactive: url.searchParams.get("includeInactive") === "true",
+    });
+
+    return NextResponse.json({ students, total: students.length });
   } catch (error) {
     return errorResponse(error);
   }
@@ -31,43 +36,77 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await requirePermission(request, "users:manage");
-    const body = await request.json().catch(() => null);
-    const parsed = studentInputSchema.safeParse(body);
+    const actor = await requirePermission(request, "users:manage");
+    const parsed = studentInputSchema.safeParse(await parseJson(request));
+
     if (!parsed.success) {
-      return jsonError(parsed.error.issues[0]?.message ?? "Revisa los datos del alumno.", 400);
+      return jsonError(
+        parsed.error.issues[0]?.message ?? "Revisa los datos del alumno.",
+        400,
+      );
     }
 
-    const input = {
-      email: parsed.data.email.toLowerCase(),
-      fullName: parsed.data.fullName,
-      controlNumber: parsed.data.controlNumber?.trim() || null,
-    };
-
-    const existing = await d1First<{ id: string }>("SELECT id FROM app_profiles WHERE lower(email) = lower(?) LIMIT 1", [input.email]);
-    const id = existing?.id ?? crypto.randomUUID();
-    await d1Run(
-      `INSERT INTO app_profiles (id, email, full_name, control_number, role, active, updated_at)
-       VALUES (?, ?, ?, ?, 'student', 1, ?)
-       ON CONFLICT (email) DO UPDATE SET
-        full_name = excluded.full_name,
-        control_number = excluded.control_number,
-        role = 'student',
-        active = 1,
-        updated_at = excluded.updated_at`,
-      [id, input.email, input.fullName, input.controlNumber, new Date().toISOString()],
-    );
-    const student = await d1First<Record<string, unknown>>(
-      "SELECT id, email, full_name, control_number, role, active, created_at FROM app_profiles WHERE id = ? LIMIT 1",
-      [id],
-    );
+    const result = await saveStudent(parsed.data, actor.id);
     return NextResponse.json(
       {
-        student,
-        message: "Alumno guardado. El acceso se gestiona en Cloudflare Access/Microsoft Entra.",
+        student: result.student,
+        created: result.created,
+        message: result.created
+          ? "Alumno dado de alta."
+          : "Alumno actualizado con los datos proporcionados.",
       },
-      { status: existing ? 200 : 201 },
+      { status: result.created ? 201 : 200 },
     );
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const actor = await requirePermission(request, "users:manage");
+    const body = await parseJson(request);
+    const id = studentIdSchema.safeParse(body?.id);
+    const { id: _id, ...studentBody } =
+      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const input = studentInputSchema.safeParse(studentBody);
+
+    if (!id.success) {
+      return jsonError("Selecciona un alumno válido.", 400);
+    }
+
+    if (!input.success) {
+      return jsonError(
+        input.error.issues[0]?.message ?? "Revisa los datos del alumno.",
+        400,
+      );
+    }
+
+    const result = await saveStudent(input.data, actor.id, id.data);
+    return NextResponse.json({
+      student: result.student,
+      message: "Alumno actualizado.",
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const actor = await requirePermission(request, "users:manage");
+    const body = await parseJson(request);
+    const id = studentIdSchema.safeParse(body?.id);
+
+    if (!id.success) {
+      return jsonError("Selecciona un alumno válido.", 400);
+    }
+
+    const student = await deleteStudent(id.data, actor.id);
+    return NextResponse.json({
+      id: student.id,
+      message: "Alumno eliminado.",
+    });
   } catch (error) {
     return errorResponse(error);
   }

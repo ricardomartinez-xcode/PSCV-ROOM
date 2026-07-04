@@ -67,8 +67,12 @@ export async function PATCH(request: Request) {
     const actor = await requirePermission(request, "users:manage");
     const body = await parseJson(request);
     const id = studentIdSchema.safeParse(body?.id);
-    const { id: _id, ...studentBody } =
-      body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+    const studentBody =
+      body && typeof body === "object"
+        ? Object.fromEntries(
+            Object.entries(body as Record<string, unknown>).filter(([key]) => key !== "id"),
+          )
+        : {};
     const input = studentInputSchema.safeParse(studentBody);
 
     if (!id.success) {

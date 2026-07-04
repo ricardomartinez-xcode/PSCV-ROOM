@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./student-directory.module.css";
 
 type Student = {
@@ -8,9 +9,7 @@ type Student = {
   email: string;
   full_name: string;
   control_number: string | null;
-  role: "student";
   active: number;
-  created_at: string;
   updated_at: string;
 };
 
@@ -23,8 +22,8 @@ type StudentForm = {
 };
 
 type ImportState = {
-  message?: string;
   error?: string;
+  message?: string;
   created?: number;
   updated?: number;
   stats?: {
@@ -35,12 +34,6 @@ type ImportState = {
     externalEmailRows: number;
   };
   errors?: Array<{ row: number; message: string }>;
-  preview?: Array<{
-    row: number;
-    email: string;
-    fullName: string;
-    controlNumber: string | null;
-  }>;
 };
 
 const EMPTY_FORM: StudentForm = {
@@ -51,19 +44,22 @@ const EMPTY_FORM: StudentForm = {
   active: true,
 };
 
-async function getResponseMessage(response: Response) {
-  const payload = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+async function responseMessage(response: Response) {
+  const payload = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    message?: string;
+  };
   return payload.error ?? payload.message ?? "No se pudo completar la operación.";
 }
 
-function formatDate(value: string) {
+function formattedDate(value: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? value
-    : new Intl.DateTimeFormat("es-MX", {
-        dateStyle: "medium",
-        timeStyle: "short",
-      }).format(date);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("es-MX", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
 }
 
 export function StudentDirectory() {
@@ -73,7 +69,7 @@ export function StudentDirectory() {
   const [includeInactive, setIncludeInactive] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [importState, setImportState] = useState<ImportState | null>(null);
@@ -94,13 +90,10 @@ export function StudentDirectory() {
       if (includeInactive) params.set("includeInactive", "true");
 
       const response = await fetch(`/api/admin/students?${params.toString()}`, {
-        credentials: "include",
         cache: "no-store",
+        credentials: "include",
       });
-
-      if (!response.ok) {
-        throw new Error(await getResponseMessage(response));
-      }
+      if (!response.ok) throw new Error(await responseMessage(response));
 
       const payload = (await response.json()) as { students?: Student[] };
       setStudents(payload.students ?? []);
@@ -119,7 +112,7 @@ export function StudentDirectory() {
     setForm(EMPTY_FORM);
   }
 
-  function editStudent(student: Student) {
+  function beginEdit(student: Student) {
     setForm({
       id: student.id,
       email: student.email,
@@ -127,16 +120,16 @@ export function StudentDirectory() {
       controlNumber: student.control_number ?? "",
       active: student.active === 1,
     });
-    setMessage(null);
+    setNotice(null);
     setError(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  async function submitStudent(event: React.FormEvent<HTMLFormElement>) {
+  async function saveStudent(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
+    setNotice(null);
     setError(null);
-    setMessage(null);
 
     try {
       const response = await fetch("/api/admin/students", {
@@ -151,13 +144,9 @@ export function StudentDirectory() {
           active: form.active,
         }),
       });
+      if (!response.ok) throw new Error(await responseMessage(response));
 
-      if (!response.ok) {
-        throw new Error(await getResponseMessage(response));
-      }
-
-      const payload = (await response.json()) as { message?: string };
-      setMessage(payload.message ?? "Alumno guardado.");
+      setNotice(await responseMessage(response));
       resetForm();
       await loadStudents();
     } catch (reason) {
@@ -168,15 +157,13 @@ export function StudentDirectory() {
   }
 
   async function removeStudent(student: Student) {
-    const confirmed = window.confirm(
-      `Eliminar a ${student.full_name}. Esta acción borra su perfil y sus preferencias asociadas.`,
-    );
-
-    if (!confirmed) return;
+    if (!window.confirm(`Eliminar a ${student.full_name}. Esta acción no se puede deshacer.`)) {
+      return;
+    }
 
     setSaving(true);
+    setNotice(null);
     setError(null);
-    setMessage(null);
 
     try {
       const response = await fetch("/api/admin/students", {
@@ -185,12 +172,9 @@ export function StudentDirectory() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: student.id }),
       });
+      if (!response.ok) throw new Error(await responseMessage(response));
 
-      if (!response.ok) {
-        throw new Error(await getResponseMessage(response));
-      }
-
-      setMessage("Alumno eliminado.");
+      setNotice(await responseMessage(response));
       if (form.id === student.id) resetForm();
       await loadStudents();
     } catch (reason) {
@@ -200,15 +184,15 @@ export function StudentDirectory() {
     }
   }
 
-  async function sendImport(action: "preview" | "apply") {
+  async function importCsv(action: "preview" | "apply") {
     if (!file) {
       setError("Selecciona un archivo CSV para continuar.");
       return;
     }
 
     setImporting(true);
+    setNotice(null);
     setError(null);
-    setMessage(null);
 
     try {
       const formData = new FormData();
@@ -220,18 +204,13 @@ export function StudentDirectory() {
         credentials: "include",
         body: formData,
       });
-
       const payload = (await response.json().catch(() => ({}))) as ImportState;
       setImportState(payload);
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? "No se pudo validar el archivo.");
-      }
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo procesar el archivo.");
 
       if (action === "apply") {
-        setMessage(
-          `Importación aplicada: ${payload.created ?? 0} altas y ${payload.updated ?? 0} actualizaciones.`,
-        );
+        setNotice(`Importación aplicada: ${payload.created ?? 0} altas y ${payload.updated ?? 0} actualizaciones.`);
         await loadStudents();
       }
     } catch (reason) {
@@ -248,16 +227,16 @@ export function StudentDirectory() {
           <p className={styles.eyebrow}>Administración</p>
           <h1>Alumnos y usuarios</h1>
           <p className={styles.subtitle}>
-            Da de alta, edita, desactiva o elimina perfiles de alumno. El acceso institucional se
-            administra en Cloudflare Access y Microsoft Entra.
+            Administra los perfiles de alumno. La política de inicio de sesión se controla en
+            Cloudflare Access y Microsoft Entra.
           </p>
         </div>
-        <a className={styles.backLink} href="/">
+        <Link className={styles.backLink} href="/">
           Volver a PSCV Room
-        </a>
+        </Link>
       </header>
 
-      {message ? <p className={styles.notice} role="status">{message}</p> : null}
+      {notice ? <p className={styles.notice} role="status">{notice}</p> : null}
       {error ? <p className={styles.error} role="alert">{error}</p> : null}
 
       <section className={styles.importCard} aria-labelledby="csv-title">
@@ -265,16 +244,14 @@ export function StudentDirectory() {
           <p className={styles.eyebrow}>Actualización masiva</p>
           <h2 id="csv-title">Importar padrón CSV</h2>
           <p>
-            Usa las columnas <strong>Correo electrónico</strong>, <strong>Nombre completo</strong> y{" "}
-            <strong>No de control</strong>. La importación agrega o actualiza por correo o número de
-            control; no elimina alumnos ausentes del archivo.
+            El archivo debe incluir Correo electrónico, Nombre completo y No de control. Primero
+            valida el padrón y después aplica la importación.
           </p>
         </div>
-
         <div className={styles.importActions}>
           <input
-            aria-label="Seleccionar padrón CSV"
             accept=".csv,text/csv"
+            aria-label="Seleccionar padrón CSV"
             onChange={(event) => {
               setFile(event.target.files?.[0] ?? null);
               setImportState(null);
@@ -285,22 +262,21 @@ export function StudentDirectory() {
             <button
               className={styles.secondaryButton}
               disabled={!file || importing}
-              onClick={() => void sendImport("preview")}
+              onClick={() => void importCsv("preview")}
               type="button"
             >
               {importing ? "Procesando…" : "Validar archivo"}
             </button>
             <button
               className={styles.primaryButton}
-              disabled={!file || importing || Boolean(importState?.error)}
-              onClick={() => void sendImport("apply")}
+              disabled={!file || importing || !importState || Boolean(importState.error)}
+              onClick={() => void importCsv("apply")}
               type="button"
             >
               Aplicar importación
             </button>
           </div>
         </div>
-
         {importState?.stats ? (
           <div className={styles.importSummary}>
             <span>{importState.stats.validRows} alumnos válidos</span>
@@ -309,7 +285,6 @@ export function StudentDirectory() {
             <span>{importState.stats.invalidRows} filas inválidas</span>
           </div>
         ) : null}
-
         {importState?.errors?.length ? (
           <ul className={styles.importErrors}>
             {importState.errors.slice(0, 8).map((item) => (
@@ -326,9 +301,7 @@ export function StudentDirectory() {
           <div className={styles.sectionHeading}>
             <div>
               <p className={styles.eyebrow}>{form.id ? "Edición" : "Alta individual"}</p>
-              <h2 id="student-form-title">
-                {form.id ? "Editar alumno" : "Agregar alumno"}
-              </h2>
+              <h2 id="student-form-title">{form.id ? "Editar alumno" : "Agregar alumno"}</h2>
             </div>
             {form.id ? (
               <button className={styles.textButton} onClick={resetForm} type="button">
@@ -337,7 +310,7 @@ export function StudentDirectory() {
             ) : null}
           </div>
 
-          <form className={styles.form} onSubmit={submitStudent}>
+          <form className={styles.form} onSubmit={saveStudent}>
             <label>
               Correo electrónico
               <input
@@ -348,40 +321,30 @@ export function StudentDirectory() {
                 value={form.email}
               />
             </label>
-
             <label>
               Nombre completo
               <input
                 autoComplete="name"
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, fullName: event.target.value }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))}
                 required
                 value={form.fullName}
               />
             </label>
-
             <label>
               Número de control
               <input
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, controlNumber: event.target.value }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, controlNumber: event.target.value }))}
                 value={form.controlNumber}
               />
             </label>
-
             <label className={styles.checkbox}>
               <input
                 checked={form.active}
-                onChange={(event) =>
-                  setForm((current) => ({ ...current, active: event.target.checked }))
-                }
+                onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
                 type="checkbox"
               />
               Perfil activo
             </label>
-
             <button className={styles.primaryButton} disabled={saving} type="submit">
               {saving ? "Guardando…" : form.id ? "Guardar cambios" : "Dar de alta"}
             </button>
@@ -396,12 +359,12 @@ export function StudentDirectory() {
               <p>{activeCount} activos de {students.length} mostrados</p>
             </div>
           </div>
-
           <div className={styles.filters}>
             <input
               aria-label="Buscar alumno"
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar por nombre, correo o control"
+              type="text"
               value={query}
             />
             <label className={styles.checkbox}>
@@ -416,13 +379,10 @@ export function StudentDirectory() {
               Buscar
             </button>
           </div>
-
           {loading ? <p className={styles.muted}>Cargando alumnos…</p> : null}
-
           {!loading && students.length === 0 ? (
             <p className={styles.muted}>No hay alumnos que coincidan con la búsqueda.</p>
           ) : null}
-
           <div className={styles.studentList}>
             {students.map((student) => (
               <article className={styles.studentRow} key={student.id}>
@@ -430,13 +390,12 @@ export function StudentDirectory() {
                   <strong>{student.full_name}</strong>
                   <span>{student.email}</span>
                   <span>
-                    Control: {student.control_number || "Sin número"} ·{" "}
-                    {student.active === 1 ? "Activo" : "Inactivo"}
+                    Control: {student.control_number || "Sin número"} · {student.active === 1 ? "Activo" : "Inactivo"}
                   </span>
-                  <small>Actualizado: {formatDate(student.updated_at)}</small>
+                  <small>Actualizado: {formattedDate(student.updated_at)}</small>
                 </div>
                 <div className={styles.rowActions}>
-                  <button className={styles.textButton} onClick={() => editStudent(student)} type="button">
+                  <button className={styles.textButton} onClick={() => beginEdit(student)} type="button">
                     Editar
                   </button>
                   <button

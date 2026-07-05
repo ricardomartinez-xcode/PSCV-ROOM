@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createD1BrowserClient } from "@/lib/d1/client";
+import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
 type AdminTab = "general" | "tasks" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
@@ -82,7 +83,8 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [adminTasks, setAdminTasks] = useState<AdminTaskRow[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
-  const visibleTabs = useMemo(() => tabs.filter((tab) => canSeeAdminTab(profile, tab.id)), [profile]);
+  const capabilities = useMemo(() => getSessionCapabilities(profile), [profile]);
+  const visibleTabs = useMemo(() => tabs.filter((tab) => canAccessAdminTab(capabilities, tab.id)), [capabilities]);
 
   useEffect(() => {
     if (!visibleTabs.some((tab) => tab.id === activeTab)) setActiveTab("general");
@@ -247,11 +249,11 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
       {activeTab === "tasks" ? <TasksPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
       {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
       {activeTab === "sections" ? <SectionsPanel sections={sections} onUpdate={(id, patch) => void updateSection(id, patch)} /> : null}
-      {activeTab === "materials" ? <MaterialUploadPanel canManageR2={Boolean(profile?.canManageR2 || profile?.role === "owner")} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+      {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
       {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} /> : null}
       {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
       {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
-      {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={Boolean(profile?.canManageR2 || profile?.role === "owner")} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+      {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
     </div>
   );
 }
@@ -929,19 +931,6 @@ function formatReportValue(value: string | number | boolean | null | undefined) 
   if (typeof value === "boolean") return value ? "Sí" : "No";
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return formatDateTime(value);
   return String(value);
-}
-
-function canSeeAdminTab(profile: AdminProfile, tab: AdminTab) {
-  if (!profile || profile.role === "owner") return true;
-  if (tab === "general") return true;
-  if (tab === "tasks") return profile.canEditTasks;
-  if (tab === "courses") return profile.canManageSettings;
-  if (tab === "sections" || tab === "materials") return profile.canManageMaterials;
-  if (tab === "users") return profile.canManageUsers;
-  if (tab === "notifications") return profile.canManageNotifications;
-  if (tab === "reports") return profile.canViewReports;
-  if (tab === "diagnostics") return profile.canManageR2 || profile.canViewReports;
-  return false;
 }
 
 function bucketDestinations(destinations: UploadDestination[]) {

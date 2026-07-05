@@ -28,11 +28,13 @@ import {
   X,
 } from "lucide-react";
 import { AdminHub } from "@/components/admin-hub";
+import { useAuthSession } from "@/components/auth-session-provider";
 import { MaterialLibrary } from "@/components/material-library";
 import { NotificationSettingsPanel } from "@/components/providers";
 import type { DeliveryType, GroupMember, Role, Task, TaskStatus } from "@/lib/domain";
 import { deliveryTypes, statuses } from "@/lib/domain";
-import { createD1BrowserClient, hasD1BrowserConfig } from "@/lib/d1/client";
+import { createD1BrowserClient } from "@/lib/d1/client";
+import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
 import { calculateDaysRemaining, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
@@ -206,48 +208,6 @@ const fallbackPrefs: UserPreferences = {
   theme: "system",
 };
 
-const hasD1Config = hasD1BrowserConfig();
-
-const demoProfile: Profile = {
-  id: "local-demo-admin",
-  email: "demo.admin@pscv.local",
-  fullName: "Administrador demo",
-  role: "owner",
-  preferences: fallbackPrefs,
-  canEditTasks: true,
-  canDeleteTasks: true,
-  canManageMaterials: true,
-  canManageUsers: true,
-  canManageSettings: true,
-  canManageGroup: true,
-  canManageNotifications: true,
-  canViewReports: true,
-  canManageR2: true,
-};
-
-const demoCourses: CourseConfig[] = [
-  { id: "aprendizaje", name: "Psicología del Aprendizaje", shortName: "Aprendizaje", color: "#2f77d0", icon: "book", cardSize: "medium", active: true },
-  { id: "evaluacion", name: "Evaluación Psicológica I", shortName: "Evaluación", color: "#7c3aed", icon: "clipboard", cardSize: "medium", active: true },
-  { id: "social", name: "Problemática Social Mexicana", shortName: "Social", color: "#d97706", icon: "users", cardSize: "medium", active: true },
-  { id: "grupales", name: "Procesos Grupales", shortName: "Grupales", color: "#0f9f8f", icon: "network", cardSize: "medium", active: true },
-  { id: "conducta", name: "Alteraciones de la Conducta", shortName: "Conducta", color: "#dc2626", icon: "brain", cardSize: "medium", active: true },
-];
-
-const demoSections: SectionConfig[] = [
-  { id: "conducta", name: "Alteraciones de la conducta", path: "Alteraciones de la conducta", color: "#dc2626", icon: "folder", cardSize: "medium", previewStyle: "thumbnail", active: true },
-  { id: "compendio", name: "Compendio de Psicologia", path: "Compendio de Psicologia", color: "#2f77d0", icon: "folder", cardSize: "medium", previewStyle: "thumbnail", active: true },
-  { id: "evaluacion", name: "Evaluacion Psicológica I", path: "Evaluacion Psicológica I", color: "#7c3aed", icon: "folder", cardSize: "medium", previewStyle: "thumbnail", active: true },
-  { id: "grupales", name: "Procesos Grupales", path: "Procesos Grupales", color: "#0f9f8f", icon: "folder", cardSize: "medium", previewStyle: "thumbnail", active: true },
-  { id: "aprendizaje", name: "Teorias del Aprendizaje", path: "Teorias del Aprendizaje", color: "#d97706", icon: "folder", cardSize: "medium", previewStyle: "thumbnail", active: true },
-];
-
-const demoTaskTypes: TaskTypeConfig[] = deliveryTypes.map((name) => ({
-  id: name.toLowerCase(),
-  name,
-  color: null,
-  icon: null,
-}));
-
 const fixedBooleanColumns: BooleanGroupColumn[] = [
   { id: "attended", label: "Asistencia", source: "attended", fixed: true },
   { id: "licenseIssue", label: "Licencia", source: "licenseIssue", fixed: true },
@@ -275,9 +235,8 @@ function newTaskForm(defaults: Partial<TaskForm> = {}): TaskForm {
 
 export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const d1Client = useMemo(() => createD1BrowserClient(), []);
-  const [ready, setReady] = useState(!hasD1Config);
-  const [email, setEmail] = useState<string | null>(hasD1Config ? null : demoProfile.email);
-  const [profile, setProfile] = useState<Profile | null>(hasD1Config ? null : demoProfile);
+  const { profile: sessionProfile, identity, clearSession } = useAuthSession();
+  const [profileOverride, setProfileOverride] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>("calendar");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -287,9 +246,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [notificationView, setNotificationView] = useState<"notifications" | "settings">("notifications");
   const [tasks, setTasks] = useState<UiTask[]>(initialTasks);
-  const [courses, setCourses] = useState<CourseConfig[]>(hasD1Config ? [] : demoCourses);
-  const [sections, setSections] = useState<SectionConfig[]>(hasD1Config ? [] : demoSections);
-  const [taskTypes, setTaskTypes] = useState<TaskTypeConfig[]>(hasD1Config ? [] : demoTaskTypes);
+  const [courses, setCourses] = useState<CourseConfig[]>([]);
+  const [sections, setSections] = useState<SectionConfig[]>([]);
+  const [taskTypes, setTaskTypes] = useState<TaskTypeConfig[]>([]);
   const [members, setMembers] = useState<UiGroupMember[]>(initialMembers);
   const [cursor, setCursor] = useState(new Date());
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTasks[0]?.id ?? null);
@@ -299,47 +258,31 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const [taskFormSource, setTaskFormSource] = useState<"calendar" | "tasks">("tasks");
   const [creatingTask, setCreatingTask] = useState(false);
 
+  const profile = profileOverride ?? sessionProfile;
+  const email = identity?.email ?? profile?.email ?? null;
   const prefs = profile?.preferences ?? fallbackPrefs;
-  const role: Role = profile?.role === "admin" || profile?.role === "owner" ? "admin" : "reader";
-  const canEditTasks = Boolean(profile?.role === "owner" || (profile?.role === "admin" && profile.canEditTasks));
+  const capabilities = useMemo(() => getSessionCapabilities(profile), [profile]);
+  const shellRole: Role = capabilities.isAdmin || capabilities.isOwner ? "admin" : "reader";
+  const taskActionRole: Role = capabilities.canEditTasks ? "admin" : "reader";
+  const roleLabel = getRoleLabel(profile);
+  const canViewCompleted = capabilities.isAdmin || capabilities.isOwner;
 
   useEffect(() => {
-    if (!d1Client) {
-      setReady(true);
-      return;
-    }
-    let mounted = true;
-
-    d1Client.auth.getSession().then(({ data, error: sessionError }) => {
-      if (!mounted) return;
-      if (sessionError) setError(sessionError.message);
-      setEmail(data?.session?.user.email ?? null);
-      setReady(true);
-    });
-
-    const { data } = d1Client.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user.email ?? null);
-      setReady(true);
-    });
-
-    return () => {
-      mounted = false;
-      data.subscription.unsubscribe();
-    };
-  }, [d1Client]);
+    setProfileOverride(null);
+  }, [sessionProfile?.id]);
 
   useEffect(() => {
-    if (d1Client && email) void loadData(d1Client, email);
-  }, [d1Client, email]);
-
-  useEffect(() => {
-    if (d1Client && profile) void loadNotifications();
-    if (!d1Client) setNotifications([]);
+    if (profile) void loadData(d1Client);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [d1Client, profile?.id]);
 
   useEffect(() => {
-    if (!d1Client || !profile) return;
+    if (profile) void loadNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.id]);
+
+  useEffect(() => {
+    if (!profile) return;
     const refreshNotifications = () => {
       void loadNotifications();
     };
@@ -351,13 +294,11 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       window.clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [d1Client, profile?.id]);
+  }, [profile?.id]);
 
-  async function loadData(client: D1Browser, accountEmail: string) {
+  async function loadData(client: D1Browser) {
     setError(null);
-    const normalized = accountEmail.toLowerCase();
-    const [profileRes, coursesRes, sectionsRes, tasksRes, membersRes] = await Promise.all([
-      client.from("app_profiles").select("*").eq("email", normalized).maybeSingle(),
+    const [coursesRes, sectionsRes, tasksRes, membersRes] = await Promise.all([
       client.from("courses").select("*").order("sort_order"),
       client.from("material_sections").select("*").order("sort_order"),
       client
@@ -374,13 +315,12 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         .order("full_name"),
     ]);
 
-    const failure = profileRes.error || coursesRes.error || sectionsRes.error || tasksRes.error;
+    const failure = coursesRes.error || sectionsRes.error || tasksRes.error;
     if (failure) {
       setError(failure.message);
       return;
     }
 
-    if (profileRes.data) setProfile(toProfile(profileRes.data));
     setCourses((coursesRes.data ?? []).map(toCourse));
     setSections((sectionsRes.data ?? []).map(toSection));
     setTasks((tasksRes.data ?? []).map(toTask));
@@ -392,12 +332,17 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   async function signOut() {
-    if (d1Client) await d1Client.auth.signOut();
-    setEmail(null);
-    setProfile(null);
+    clearSession();
+    setProfileOverride(null);
     setNotifications([]);
     setNotificationOpen(false);
     setDrawerOpen(false);
+    try {
+      await d1Client.auth.signOut();
+    } catch {
+      // Supabase-compatible logout is best effort; Cloudflare Access owns the real session.
+    }
+    window.location.assign(ACCESS_LOGOUT_PATH);
   }
 
   async function loadNotifications() {
@@ -427,16 +372,6 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     } catch (notificationError) {
       setError(notificationError instanceof Error ? notificationError.message : "No se pudo actualizar el aviso.");
     }
-  }
-
-  function enterLocalDemo() {
-    setEmail(demoProfile.email);
-    setProfile(demoProfile);
-    setCourses(demoCourses);
-    setSections(demoSections);
-    setTaskTypes(demoTaskTypes);
-    setMembers(initialMembers);
-    setTab("calendar");
   }
 
   function openTaskForm(source: "calendar" | "tasks", dueDate?: string) {
@@ -525,7 +460,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
           setError(linkError instanceof Error ? linkError.message : "No se pudo enlazar el material.");
         }
       }
-      if (email) await loadData(d1Client, email);
+      await loadData(d1Client);
       setSelectedTaskId(taskId);
       setTaskFormOpen(false);
       if (body.calendarError) setError(`Tarea creada; calendario pendiente: ${body.calendarError}`);
@@ -605,7 +540,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       const body = await response.json().catch(() => ({})) as { error?: string; calendarError?: string | null };
       if (!response.ok) throw new Error(body.error ?? "No se pudo guardar la tarea.");
       if (form.materialId) await linkTaskMaterial(id, form.materialId);
-      if (email) await loadData(d1Client, email);
+      await loadData(d1Client);
       if (body.calendarError) setError(`Tarea guardada; calendario pendiente: ${body.calendarError}`);
       return true;
     } catch (saveError) {
@@ -615,7 +550,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   async function markDone(id: string) {
-    if (!d1Client || !canEditTasks) return;
+    if (!capabilities.canEditTasks) return;
     const response = await fetch(`/api/admin/tasks/${id}`, {
       method: "PATCH",
       credentials: "include",
@@ -625,28 +560,18 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     const body = await response.json().catch(() => ({})) as { error?: string; calendarError?: string | null };
     if (!response.ok) setError(body.error ?? "No se pudo marcar como entregada.");
     else {
-      if (email) await loadData(d1Client, email);
+      await loadData(d1Client);
       if (body.calendarError) setError(`Tarea entregada; calendario pendiente: ${body.calendarError}`);
     }
   }
 
-  if (!ready) {
-    return (
-      <main className="loginScreen">
-        <div className="loader" />
-      </main>
-    );
-  }
-
-  if (!email && !d1Client) {
+  if (!profile) {
     return (
       <main className="loginScreen authPage">
         <section className="loginCard authCard authCardSimple">
           <img src="/icon.svg" className="authLogoMain" alt="PSCV Room" />
           <h1 className="authTitle">PSCV Room</h1>
-          <button className="microsoftButton" onClick={enterLocalDemo} type="button">
-            Entrar en demo
-          </button>
+          <p>No tienes una sesión autorizada.</p>
         </section>
       </main>
     );
@@ -659,7 +584,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   });
 
   const activeTasks = normalizedTasks.filter((task) => task.status !== "Entregado" && task.status !== "Cancelado");
-  const listBase = role === "admin"
+  const listBase = shellRole === "admin"
     ? activeTasks
     : activeTasks.filter((task) => task.visibleToReaders);
   const visibleTasks = sortTasks(listBase);
@@ -678,7 +603,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const unreadNotifications = notifications.filter((notification) => !notification.read_at).length;
 
   function go(next: Tab) {
-    if (["completed", "group", "admin"].includes(next) && role !== "admin") return;
+    if (next === "completed" && !canViewCompleted) return;
+    if (next === "group" && !capabilities.canManageGroup) return;
+    if (next === "admin" && !capabilities.canAccessAdmin) return;
     setTab(next);
     setDrawerOpen(false);
   }
@@ -700,12 +627,11 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   function refreshCurrentData() {
-    if (!email || !d1Client) return;
-    void Promise.all([loadData(d1Client, email), loadNotifications()]);
+    void Promise.all([loadData(d1Client), loadNotifications()]);
   }
 
   return (
-    <main className={`mobileApp density-${prefs.taskDensity} ${role === "admin" ? "adminShell" : ""}`}>
+    <main className={`mobileApp density-${prefs.taskDensity} ${shellRole === "admin" ? "adminShell" : ""}`}>
       <header className="topAppBar">
         <button className="iconButton" aria-label="Abrir navegación" title="Navegación" onClick={() => setDrawerOpen(true)} type="button"><Menu size={23} /></button>
         <img src="/icon.svg" className="appLogo" alt="PSCV" />
@@ -739,9 +665,13 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       <Drawer
         open={drawerOpen}
         email={email ?? ""}
-        role={role}
+        role={shellRole}
+        roleLabel={roleLabel}
         active={activeNavTab}
-        sourceLabel={d1Client ? "D1 conectado" : "Demo local"}
+        sourceLabel="Cloudflare Access + D1"
+        canViewCompleted={canViewCompleted}
+        canManageGroup={capabilities.canManageGroup}
+        canAccessAdmin={capabilities.canAccessAdmin}
         onClose={() => setDrawerOpen(false)}
         onSelect={go}
         onSignOut={signOut}
@@ -766,28 +696,28 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       <section className="screen">
         {tab === "calendar" ? (
           <>
-            <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} role={role} onGo={go} />
-            <Calendar tasks={visibleTasks} cursor={cursor} setCursor={setCursor} selectedTask={calendarSelectedTask} onSelect={(id) => openTaskDetail(id, "calendar")} onCreateDate={role === "admin" ? (date) => openTaskForm("calendar", date) : undefined} />
+            <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} canViewCompleted={canViewCompleted} canManageGroup={capabilities.canManageGroup} onGo={go} />
+            <Calendar tasks={visibleTasks} cursor={cursor} setCursor={setCursor} selectedTask={calendarSelectedTask} onSelect={(id) => openTaskDetail(id, "calendar")} onCreateDate={capabilities.canEditTasks ? (date) => openTaskForm("calendar", date) : undefined} />
           </>
         ) : null}
         {tab === "tasks" ? (
           <>
-            <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} role={role} onGo={go} compact />
-            <TaskList tasks={shownTasks} role={role} selectedTask={listSelectedTask} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "tasks")} onDone={(id) => void markDone(id)} onCreate={role === "admin" ? () => openTaskForm("tasks") : undefined} />
+            <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} canViewCompleted={canViewCompleted} canManageGroup={capabilities.canManageGroup} onGo={go} compact />
+            <TaskList tasks={shownTasks} role={taskActionRole} selectedTask={listSelectedTask} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "tasks")} onDone={(id) => void markDone(id)} onCreate={capabilities.canEditTasks ? () => openTaskForm("tasks") : undefined} />
           </>
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
-        {tab === "group" ? <Group members={members} d1Client={d1Client} role={role} profile={profile} onError={setError} /> : null}
-        {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfile} onError={setError} /> : null}
-        {tab === "taskDetail" ? <TaskDetailScreen task={selectedTask} canEdit={canEditTasks} courses={courses} taskTypes={taskTypes} onBack={() => go(detailOrigin)} onDone={(id) => void markDone(id)} onSave={(id, form) => updateTaskFromDetail(id, form)} /> : null}
+        {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} profile={profile} onError={setError} /> : null}
+        {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
+        {tab === "taskDetail" ? <TaskDetailScreen task={selectedTask} canEdit={capabilities.canEditTasks} courses={courses} taskTypes={taskTypes} onBack={() => go(detailOrigin)} onDone={(id) => void markDone(id)} onSave={(id, form) => updateTaskFromDetail(id, form)} /> : null}
         {tab === "admin" ? (
           <AdminHub
             courses={courses}
             sections={sections}
             profile={profile}
             d1Client={d1Client}
-            reload={() => email && d1Client ? loadData(d1Client, email) : Promise.resolve()}
+            reload={() => loadData(d1Client)}
             onCourses={setCourses}
             onSections={setSections}
             onError={setError}
@@ -807,10 +737,10 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onSubmit={(form) => void createTask(form)}
       />
 
-      <nav className={`bottomNav ${role === "admin" ? "adminBottomNav" : ""}`}>
+      <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`}>
         <button className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
         <button className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
-        {role === "admin" ? (
+        {capabilities.canAccessAdmin ? (
           <button className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
         ) : null}
         <button className={activeNavTab === "materials" ? "active" : ""} onClick={() => go("materials")} type="button"><FolderOpen size={22} />Materiales</button>
@@ -819,7 +749,33 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   );
 }
 
-function Drawer({ open, email, role, active, sourceLabel, onClose, onSelect, onSignOut }: { open: boolean; email: string; role: Role; active: Tab; sourceLabel: string; onClose: () => void; onSelect: (tab: Tab) => void; onSignOut: () => void }) {
+function Drawer({
+  open,
+  email,
+  role,
+  roleLabel,
+  active,
+  sourceLabel,
+  canViewCompleted,
+  canManageGroup,
+  canAccessAdmin,
+  onClose,
+  onSelect,
+  onSignOut,
+}: {
+  open: boolean;
+  email: string;
+  role: Role;
+  roleLabel: string;
+  active: Tab;
+  sourceLabel: string;
+  canViewCompleted: boolean;
+  canManageGroup: boolean;
+  canAccessAdmin: boolean;
+  onClose: () => void;
+  onSelect: (tab: Tab) => void;
+  onSignOut: () => void;
+}) {
   return (
     <>
       <div className={`scrim ${open ? "show" : ""}`} onClick={onClose} />
@@ -829,6 +785,7 @@ function Drawer({ open, email, role, active, sourceLabel, onClose, onSelect, onS
           <div>
             <strong>{role === "admin" ? "PSCV-ADMIN" : "PSCV-ROOM"}</strong>
             <span className="drawerSource">{sourceLabel}</span>
+            <span className="drawerSource">{roleLabel}</span>
           </div>
         </div>
         <nav className="drawerNav">
@@ -836,9 +793,9 @@ function Drawer({ open, email, role, active, sourceLabel, onClose, onSelect, onS
           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
-          {role === "admin" ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
-          {role === "admin" ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
-          {role === "admin" ? <DrawerItem icon={<SlidersHorizontal size={20} />} label="Configuración" active={active === "admin"} onClick={() => onSelect("admin")} /> : null}
+          {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
+          {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
+          {canAccessAdmin ? <DrawerItem icon={<SlidersHorizontal size={20} />} label="Configuración" active={active === "admin"} onClick={() => onSelect("admin")} /> : null}
         </nav>
         <div className="drawerFooter">
           <div className="offline"><span>Online</span><u>{sourceLabel}</u></div>
@@ -930,7 +887,23 @@ function DrawerItem({ icon, label, active, onClick }: { icon: React.ReactNode; l
   return <button className={`drawerItem ${active ? "active" : ""}`} onClick={onClick} type="button"><span>{icon}</span>{label}</button>;
 }
 
-function WorkspaceOverview({ tasks, completedCount, membersCount, role, onGo, compact = false }: { tasks: UiTask[]; completedCount: number; membersCount: number; role: Role; onGo: (tab: Tab) => void; compact?: boolean }) {
+function WorkspaceOverview({
+  tasks,
+  completedCount,
+  membersCount,
+  canViewCompleted,
+  canManageGroup,
+  onGo,
+  compact = false,
+}: {
+  tasks: UiTask[];
+  completedCount: number;
+  membersCount: number;
+  canViewCompleted: boolean;
+  canManageGroup: boolean;
+  onGo: (tab: Tab) => void;
+  compact?: boolean;
+}) {
   const today = new Date().toISOString().slice(0, 10);
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.daysRemaining < 0).length;
@@ -948,14 +921,14 @@ function WorkspaceOverview({ tasks, completedCount, membersCount, role, onGo, co
         <span>Hoy</span>
         <strong>{dueToday}</strong>
       </button>
-      {role === "admin" ? (
+      {canViewCompleted ? (
         <button className="overviewMetric" onClick={() => onGo("completed")} type="button">
           <CheckCircle2 size={18} />
           <span>Entregadas</span>
           <strong>{completedCount}</strong>
         </button>
       ) : null}
-      {role === "admin" ? (
+      {canManageGroup ? (
         <button className="overviewMetric" onClick={() => onGo("group")} type="button">
           <Users size={18} />
           <span>Alumnos</span>
@@ -1446,6 +1419,11 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
       }
 
       onError(columnRes.error?.message ?? valueRes.error?.message ?? null);
+      setColumns(fixedBooleanColumns);
+      setValues({});
+      setUsingRemote(false);
+      setStorageReady(true);
+      return;
     }
 
     try {
@@ -1602,7 +1580,7 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
       <section className="groupToolbar">
         <div>
           <strong>Lista de grupo</strong>
-          <span>{members.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Demo local"}</span>
+          <span>{members.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Sin sincronización remota"}</span>
         </div>
         <label>
           <input value={newColumnLabel} onChange={(event) => setNewColumnLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void addColumn(); }} placeholder="Nuevo encabezado" />
@@ -1726,26 +1704,6 @@ function asOne<T>(value: T | T[] | null | undefined): T | null { return Array.is
 function cardSize(value: unknown): CardSize { return value === "compact" || value === "large" ? value : "medium"; }
 function delivery(value: unknown): DeliveryType { const text = String(value ?? "Tarea"); return deliveryTypes.includes(text as DeliveryType) ? text as DeliveryType : "Tarea"; }
 function status(value: unknown): TaskStatus { const text = String(value ?? "Pendiente"); return statuses.includes(text as TaskStatus) ? text as TaskStatus : "Pendiente"; }
-function toProfile(row: Record<string, unknown>): Profile {
-  const role = row.role === "owner" ? "owner" : row.role === "admin" ? "admin" : "student";
-  const owner = role === "owner";
-  return {
-    id: String(row.id),
-    email: String(row.email),
-    fullName: String(row.full_name ?? row.email),
-    role,
-    preferences: normalizePreferences(row.preferences),
-    canEditTasks: owner || Boolean(row.can_edit_tasks),
-    canDeleteTasks: owner || Boolean(row.can_delete_tasks),
-    canManageMaterials: owner || Boolean(row.can_manage_materials),
-    canManageUsers: owner || Boolean(row.can_manage_users),
-    canManageSettings: owner || Boolean(row.can_manage_settings),
-    canManageGroup: owner || Boolean(row.can_manage_group),
-    canManageNotifications: owner || Boolean(row.can_manage_notifications),
-    canViewReports: owner || Boolean(row.can_view_reports),
-    canManageR2: owner || Boolean(row.can_manage_r2),
-  };
-}
 function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true) }; }
 function toSection(row: Record<string, unknown>): SectionConfig { return { id: String(row.id), name: String(row.name), path: String(row.path), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "folder"), cardSize: cardSize(row.card_size), previewStyle: String(row.preview_style ?? "thumbnail"), active: Boolean(row.active ?? true) }; }
 function toTask(row: Record<string, unknown>): UiTask {
@@ -1869,15 +1827,4 @@ function materialUrl(material: MaterialOption) {
 
 function cleanMaterialTitle(value: string) {
   return value.replace(/^_+/, "").replace(/\.pdf$/i, ".pdf");
-}
-
-function normalizePreferences(value: unknown): UserPreferences {
-  const input = typeof value === "object" && value ? value as Partial<UserPreferences> : {};
-  return {
-    calendarView: input.calendarView === "week" || input.calendarView === "day" ? input.calendarView : "month",
-    taskDensity: cardSize(input.taskDensity),
-    materialPreviewSize: input.materialPreviewSize === "small" || input.materialPreviewSize === "large" ? input.materialPreviewSize : "medium",
-    showCompleted: Boolean(input.showCompleted),
-    theme: input.theme === "light" || input.theme === "dark" ? input.theme : "system",
-  };
 }

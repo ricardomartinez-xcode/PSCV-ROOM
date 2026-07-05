@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AuthSessionProvider } from "@/components/auth-session-provider";
 import styles from "./notification-delivery.module.css";
 
 type AppNotification = {
@@ -265,9 +266,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   }), [ready, preferences, localPreferences, permission, message, emailBusy, updateLocalPreferences, requestBrowserPermission, updateEmailPreference]);
 
   return (
-    <NotificationDeliveryContext.Provider value={delivery}>
-      {children}
-    </NotificationDeliveryContext.Provider>
+    <AuthSessionProvider>
+      <NotificationDeliveryContext.Provider value={delivery}>
+        {children}
+      </NotificationDeliveryContext.Provider>
+    </AuthSessionProvider>
   );
 }
 

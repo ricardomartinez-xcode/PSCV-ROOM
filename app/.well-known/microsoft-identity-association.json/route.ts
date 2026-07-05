@@ -1,4 +1,4 @@
-const body = '{"associatedApplications":[{"applicationId":"58b58f77-37b0-44e4-86d6-41bff30199b7"}]}';
+const body = '{"associatedApplications":[{"applicationId":"a91388a3-de7a-4685-9070-1bdac5e1c9c6"}]}';
 
 export function GET(): Response {
   return new Response(body, {

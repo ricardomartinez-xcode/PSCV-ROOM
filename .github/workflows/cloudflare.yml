@@ -26,6 +26,8 @@ jobs:
         run: npm run lint
       - name: Type check
         run: npm run typecheck
+      - name: Test deployment configuration
+        run: npm test
       - name: Build OpenNext Worker
         run: npm run cf:build
 
@@ -51,5 +53,5 @@ jobs:
             echo "::error::Missing CLOUDFLARE_API_TOKEN in the selected GitHub environment."
             exit 1
           fi
-      - name: Deploy Worker
-        run: npm run cf:build && npx wrangler deploy --config wrangler.jsonc --keep-vars
+      - name: Deploy Worker and static Next assets
+        run: npm run cf:deploy -- --keep-vars

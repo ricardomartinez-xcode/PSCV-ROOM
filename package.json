@@ -15,14 +15,14 @@
     "cf:build": "opennextjs-cloudflare build",
     "cf:dev": "npm run cf:build && wrangler dev --port 8788",
     "cf:dev:remote": "npm run cf:build && wrangler dev --remote --port 8788",
-    "cf:deploy": "npm run cf:build && wrangler deploy",
+    "cf:deploy": "opennextjs-cloudflare deploy --config wrangler.jsonc",
     "cf:deploy:staging": "npm run cf:build && wrangler deploy --env staging",
     "cf:types": "wrangler types"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",
     "jose": "^6.1.3",
-    "lucide-react": "^1.18.0",
+    "lucide-react": "^0.468.0",
     "next": "^15.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

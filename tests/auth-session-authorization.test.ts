@@ -20,6 +20,14 @@ test("authorization normalizes imported student emails without allowing a domain
   assert.match(authzSource, /Perfil inactivo/);
 });
 
+test("profile resolution uses a short-lived per-identity cache and an indexed email fast path", () => {
+  assert.match(authzSource, /const PROFILE_CACHE_TTL_MS = 15_000;/);
+  assert.match(authzSource, /const profileLoads = new Map<string, Promise<ServerProfile>>\(\);/);
+  assert.match(authzSource, /WHERE email = \? COLLATE NOCASE LIMIT 1/);
+  assert.match(authzSource, /const pendingLoad = profileLoads\.get\(cacheKey\);/);
+  assert.match(authzSource, /return trimmedEmailMatch \?\? subjectMatch;/);
+});
+
 test("Ricardo is enforced as the active PSCV Room owner", () => {
   assert.match(authzSource, /const OWNER_EMAIL = "ricardo_mtzh@outlook\.com";/);
   assert.match(authzSource, /role = 'owner'/);

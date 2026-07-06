@@ -32,10 +32,20 @@ export type ServerProfile = {
 
 export type AccessIdentity = { email: string; subject: string };
 
+type CachedProfile = {
+  profile: ServerProfile;
+  expiresAt: number;
+};
+
 const OWNER_EMAIL = "ricardo_mtzh@outlook.com";
 const OWNER_PROFILE_ID = "owner-ricardo-outlook";
 const OWNER_FULL_NAME = "Ricardo Martínez Hernández";
+const PROFILE_CACHE_TTL_MS = 15_000;
+const PROFILE_CACHE_MAX_ENTRIES = 500;
+
 const accessJwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+const profileCache = new Map<string, CachedProfile>();
+const profileLoads = new Map<string, Promise<ServerProfile>>();
 
 export class HttpError extends Error {
   constructor(public status: number, message: string) {
@@ -49,6 +59,34 @@ function enabled(value: number | boolean | null | undefined) {
 
 function normalizeEmail(value: unknown) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+function profileCacheKey(identity: AccessIdentity) {
+  return `${identity.email}\u0000${identity.subject}`;
+}
+
+function getCachedProfile(key: string) {
+  const cached = profileCache.get(key);
+  if (!cached) return null;
+
+  if (cached.expiresAt <= Date.now()) {
+    profileCache.delete(key);
+    return null;
+  }
+
+  return cached.profile;
+}
+
+function cacheProfile(key: string, profile: ServerProfile) {
+  if (profileCache.size >= PROFILE_CACHE_MAX_ENTRIES && !profileCache.has(key)) {
+    const oldestKey = profileCache.keys().next().value;
+    if (oldestKey !== undefined) profileCache.delete(oldestKey);
+  }
+
+  profileCache.set(key, {
+    profile,
+    expiresAt: Date.now() + PROFILE_CACHE_TTL_MS,
+  });
 }
 
 function getAccessJwks(issuer: string) {
@@ -69,6 +107,7 @@ export async function getCurrentIdentity(request: Request): Promise<AccessIdenti
     if (process.env.NODE_ENV === "production" && env.ALLOW_DEV_AUTH !== "1") {
       throw new HttpError(500, "AUTH_MODE development no está permitido en producción.");
     }
+
     const email = normalizeEmail(env.DEV_AUTH_EMAIL);
     if (!email) throw new HttpError(401, "DEV_AUTH_EMAIL no configurado.");
     return { email, subject: `development:${email}` };
@@ -77,13 +116,17 @@ export async function getCurrentIdentity(request: Request): Promise<AccessIdenti
   const token = request.headers.get("cf-access-jwt-assertion");
   const teamDomain = env.ACCESS_TEAM_DOMAIN?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
   const audience = env.ACCESS_AUD?.trim();
+
   if (!token) throw new HttpError(401, "Sesión de Cloudflare Access no encontrada.");
-  if (!teamDomain || !audience) throw new HttpError(500, "Cloudflare Access no está configurado.");
+  if (!teamDomain || !audience) {
+    throw new HttpError(500, "Cloudflare Access no está configurado.");
+  }
 
   const issuer = `https://${teamDomain}`;
   const { payload } = await jwtVerify(token, getAccessJwks(issuer), { issuer, audience });
   const email = normalizeEmail(payload.email);
   const subject = typeof payload.sub === "string" ? payload.sub : "";
+
   if (!email || !subject) throw new HttpError(401, "Token de Access incompleto.");
   return { email, subject };
 }
@@ -95,39 +138,81 @@ const PROFILE_SELECT = `SELECT id, email, full_name, role, active, auth_user_id,
   FROM app_profiles`;
 
 async function findProfile(db: D1Database, identity: AccessIdentity) {
-  if (identity.email === OWNER_EMAIL) {
-    return db
-      .prepare(`${PROFILE_SELECT}
-        WHERE lower(trim(email)) = ?
-        ORDER BY CASE WHEN lower(email) = ? THEN 0 ELSE 1 END
-        LIMIT 1`)
-      .bind(OWNER_EMAIL, OWNER_EMAIL)
-      .first<ServerProfile>();
-  }
-
-  return db
-    .prepare(`${PROFILE_SELECT}
-      WHERE lower(trim(email)) = ? OR auth_user_id = ?
-      ORDER BY CASE
-        WHEN lower(email) = ? THEN 0
-        WHEN lower(trim(email)) = ? THEN 1
-        WHEN auth_user_id = ? THEN 2
-        ELSE 3
-      END
-      LIMIT 1`)
-    .bind(identity.email, identity.subject, identity.email, identity.email, identity.subject)
+  // app_profiles.email is UNIQUE COLLATE NOCASE. This is the normal indexed fast path.
+  const exactEmailMatch = await db
+    .prepare(`${PROFILE_SELECT} WHERE email = ? COLLATE NOCASE LIMIT 1`)
+    .bind(identity.email)
     .first<ServerProfile>();
+
+  if (exactEmailMatch) return exactEmailMatch;
+
+  // Imports from legacy files can contain whitespace. Keep that compatibility as a
+  // slower fallback, while allowing a stable Access subject to recover renamed mailboxes.
+  const [trimmedEmailMatch, subjectMatch] = await Promise.all([
+    db
+      .prepare(`${PROFILE_SELECT} WHERE lower(trim(email)) = ? LIMIT 1`)
+      .bind(identity.email)
+      .first<ServerProfile>(),
+    db
+      .prepare(`${PROFILE_SELECT} WHERE auth_user_id = ? LIMIT 1`)
+      .bind(identity.subject)
+      .first<ServerProfile>(),
+  ]);
+
+  return trimmedEmailMatch ?? subjectMatch;
+}
+
+function ownerProfileNeedsSync(profile: ServerProfile, identity: AccessIdentity) {
+  return (
+    normalizeEmail(profile.email) !== OWNER_EMAIL ||
+    profile.auth_user_id !== identity.subject ||
+    profile.full_name !== OWNER_FULL_NAME ||
+    profile.role !== "owner" ||
+    !enabled(profile.active) ||
+    !enabled(profile.can_edit_tasks) ||
+    !enabled(profile.can_delete_tasks) ||
+    !enabled(profile.can_manage_materials) ||
+    !enabled(profile.can_manage_users) ||
+    !enabled(profile.can_manage_settings) ||
+    !enabled(profile.can_manage_group) ||
+    !enabled(profile.can_manage_notifications) ||
+    !enabled(profile.can_view_reports) ||
+    !enabled(profile.can_manage_r2)
+  );
+}
+
+function asOwnerProfile(profile: ServerProfile, identity: AccessIdentity): ServerProfile {
+  return {
+    ...profile,
+    email: OWNER_EMAIL,
+    full_name: OWNER_FULL_NAME,
+    role: "owner",
+    active: 1,
+    auth_user_id: identity.subject,
+    can_edit_tasks: 1,
+    can_delete_tasks: 1,
+    can_manage_materials: 1,
+    can_manage_users: 1,
+    can_manage_settings: 1,
+    can_manage_group: 1,
+    can_manage_notifications: 1,
+    can_view_reports: 1,
+    can_manage_r2: 1,
+  };
 }
 
 async function ensureOwnerProfile(
   db: D1Database,
   identity: AccessIdentity,
   existingProfile: ServerProfile | null,
-) {
-  if (existingProfile && normalizeEmail(existingProfile.email) === OWNER_EMAIL) {
+): Promise<ServerProfile | null> {
+  if (existingProfile) {
+    if (!ownerProfileNeedsSync(existingProfile, identity)) return existingProfile;
+
     await db
       .prepare(`UPDATE app_profiles
-        SET auth_user_id = ?,
+        SET email = ?,
+          auth_user_id = ?,
           full_name = ?,
           role = 'owner',
           active = 1,
@@ -142,9 +227,10 @@ async function ensureOwnerProfile(
           can_manage_r2 = 1,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?`)
-      .bind(identity.subject, OWNER_FULL_NAME, existingProfile.id)
+      .bind(OWNER_EMAIL, identity.subject, OWNER_FULL_NAME, existingProfile.id)
       .run();
-    return;
+
+    return asOwnerProfile(existingProfile, identity);
   }
 
   await db
@@ -171,22 +257,46 @@ async function ensureOwnerProfile(
       updated_at = CURRENT_TIMESTAMP`)
     .bind(OWNER_PROFILE_ID, identity.subject, OWNER_EMAIL, OWNER_FULL_NAME)
     .run();
+
+  // A first owner login is rare. Re-read once so a concurrent bootstrap or an
+  // existing record with a different primary key is returned exactly as stored.
+  return null;
 }
 
-export async function requireProfileForIdentity(identity: AccessIdentity): Promise<ServerProfile> {
+async function resolveProfileForIdentity(identity: AccessIdentity): Promise<ServerProfile> {
   const db = await getD1();
   let profile = await findProfile(db, identity);
 
-  // The owner is a fixed, verified identity. All other users must already exist
-  // as active rows in app_profiles; a matching email domain is never enough.
+  // The owner is a fixed, verified identity. Everyone else must already have an
+  // active app_profiles row; a matching email domain is never enough.
   if (identity.email === OWNER_EMAIL) {
-    await ensureOwnerProfile(db, identity, profile);
-    profile = await findProfile(db, identity);
+    const ensuredOwner = await ensureOwnerProfile(db, identity, profile);
+    profile = ensuredOwner ?? (await findProfile(db, identity));
   }
 
   if (!profile) throw new HttpError(403, "Perfil no encontrado o no autorizado.");
   if (!enabled(profile.active)) throw new HttpError(403, "Perfil inactivo.");
+
+  cacheProfile(profileCacheKey(identity), profile);
   return profile;
+}
+
+export async function requireProfileForIdentity(identity: AccessIdentity): Promise<ServerProfile> {
+  const cacheKey = profileCacheKey(identity);
+  const cached = getCachedProfile(cacheKey);
+  if (cached) return cached;
+
+  const pendingLoad = profileLoads.get(cacheKey);
+  if (pendingLoad) return pendingLoad;
+
+  const load = resolveProfileForIdentity(identity);
+  profileLoads.set(cacheKey, load);
+
+  try {
+    return await load;
+  } finally {
+    profileLoads.delete(cacheKey);
+  }
 }
 
 export async function requireProfile(request: Request): Promise<ServerProfile> {
@@ -210,7 +320,10 @@ export async function requirePermission(request: Request, permission: Permission
     "r2:manage": "can_manage_r2",
   };
 
-  if (!enabled(profile[grants[permission]] as number)) throw new HttpError(403, "No autorizado.");
+  if (!enabled(profile[grants[permission]] as number)) {
+    throw new HttpError(403, "No autorizado.");
+  }
+
   return profile;
 }
 
@@ -218,6 +331,7 @@ export function errorResponse(error: unknown) {
   if (error instanceof HttpError) {
     return Response.json({ error: error.message }, { status: error.status });
   }
+
   return Response.json(
     { error: error instanceof Error ? error.message : "Error inesperado." },
     { status: 500 },

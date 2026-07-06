@@ -70,7 +70,7 @@ npm run dev
 Para producción, los bindings principales viven en `wrangler.jsonc`: `DB` para D1 y `MATERIALS_BUCKET` para R2. El dominio protegido por Cloudflare Access es:
 
 ```txt
-https://pscv-room.rlead.xyz
+https://app.rlead.xyz
 ```
 
 Si quieres generar URLs públicas directas para materiales, configura:

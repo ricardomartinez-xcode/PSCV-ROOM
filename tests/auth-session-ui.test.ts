@@ -14,7 +14,10 @@ const authGateSource = readFileSync(new URL("../components/auth-gate.tsx", impor
 const providerSource = readFileSync(new URL("../components/providers.tsx", import.meta.url), "utf8");
 const authzSource = readFileSync(new URL("../lib/server/authz.ts", import.meta.url), "utf8");
 
-function profile(role: AuthSessionProfile["role"], permissions: Partial<AuthSessionProfile> = {}): AuthSessionProfile {
+function profile(
+  role: AuthSessionProfile["role"],
+  permissions: Partial<AuthSessionProfile> = {},
+): AuthSessionProfile {
   return {
     id: `${role}-1`,
     email: `${role}@example.com`,
@@ -117,5 +120,8 @@ test("administrative server routes keep requirePermission authorization", () => 
 
   assert.match(authzSource, /if \(profile\.role === "owner"\) return profile;/);
   assert.match(authzSource, /if \(profile\.role !== "admin"\) throw new HttpError\(403, "No autorizado\."\);/);
-  assert.match(authzSource, /if \(!enabled\(profile\[grants\[permission\]\] as number\)\) throw new HttpError\(403, "No autorizado\."\);/);
+  assert.match(
+    authzSource,
+    /if \(!enabled\(profile\[grants\[permission\]\] as number\)\) \{\s*throw new HttpError\(403, "No autorizado\."\);\s*\}/,
+  );
 });

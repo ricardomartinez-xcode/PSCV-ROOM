@@ -15,7 +15,8 @@ test("exposes a guarded student directory with CRUD and CSV import", async () =>
   assert.match(studentsApi, /export async function DELETE/);
   assert.match(studentsApi, /requirePermission\(request, "users:manage"\)/);
   assert.match(importApi, /TextDecoder\("windows-1252"\)/);
-  assert.match(importApi, /action === "apply"/);
+  assert.match(importApi, /const action = form\.get\("action"\) === "apply" \? "apply" : "preview";/);
+  assert.match(importApi, /action: "apply"/);
   assert.match(page, /StudentDirectory/);
   assert.match(helper, /role !== "student"/);
   assert.match(helper, /DELETE FROM app_profiles WHERE id = \? AND role = 'student'/);

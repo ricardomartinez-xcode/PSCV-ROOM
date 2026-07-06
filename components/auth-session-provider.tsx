@@ -26,6 +26,8 @@ type AuthSessionContextValue = {
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 const SESSION_TIMEOUT_MS = 12_000;
+const SESSION_TIMEOUT_MESSAGE =
+  "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.rlead.xyz apunta al Worker pscv-room.";
 
 export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -45,14 +47,33 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const refreshSession = useCallback(async () => {
     setLoading(true);
     setError(null);
+
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), SESSION_TIMEOUT_MS);
+    let timedOut = false;
+    let settled = false;
+
+    // AbortController is normally enough, but this UI watchdog also releases the
+    // gate if a browser/proxy leaves the request pending after navigation.
+    const timeout = window.setTimeout(() => {
+      if (settled) return;
+      timedOut = true;
+      controller.abort();
+      setProfile(null);
+      setIdentity(null);
+      setStatus(null);
+      setError(SESSION_TIMEOUT_MESSAGE);
+      setLoading(false);
+    }, SESSION_TIMEOUT_MS);
+
     try {
       const response = await fetch("/api/auth/session", {
         credentials: "include",
         cache: "no-store",
         signal: controller.signal,
       });
+
+      if (timedOut) return;
+
       const payload = (await response.json().catch(() => ({}))) as SessionPayload;
       setStatus(response.status);
 
@@ -66,18 +87,20 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       setProfile(toProfile(payload.profile));
       setIdentity({ email: payload.identity.email });
     } catch (sessionError) {
+      if (timedOut) return;
+
       setProfile(null);
       setIdentity(null);
       setStatus(null);
-      const timedOut = sessionError instanceof DOMException && sessionError.name === "AbortError";
       setError(
-        timedOut
-          ? "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.rlead.xyz apunta al Worker pscv-room."
-          : sessionError instanceof Error ? sessionError.message : "No se pudo validar tu sesión.",
+        sessionError instanceof Error
+          ? sessionError.message
+          : "No se pudo validar tu sesión.",
       );
     } finally {
+      settled = true;
       window.clearTimeout(timeout);
-      setLoading(false);
+      if (!timedOut) setLoading(false);
     }
   }, []);
 
@@ -85,15 +108,18 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     void refreshSession();
   }, [refreshSession]);
 
-  const value = useMemo<AuthSessionContextValue>(() => ({
-    profile,
-    identity,
-    loading,
-    error,
-    status,
-    refreshSession,
-    clearSession,
-  }), [profile, identity, loading, error, status, refreshSession, clearSession]);
+  const value = useMemo<AuthSessionContextValue>(
+    () => ({
+      profile,
+      identity,
+      loading,
+      error,
+      status,
+      refreshSession,
+      clearSession,
+    }),
+    [profile, identity, loading, error, status, refreshSession, clearSession],
+  );
 
   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
 }

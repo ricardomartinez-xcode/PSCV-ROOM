@@ -17,7 +17,10 @@
   },
   "vars": {
     "APP_NAME": "PSCV Room 2.0",
-    "AUTH_MODE": "cloudflare-access"
+    "AUTH_MODE": "cloudflare-access",
+    "AUTH_IDENTITY_PROVIDER": "azureAD",
+    "ACCESS_TEAM_DOMAIN": "relead.cloudflareaccess.com",
+    "ACCESS_AUD": "73917fb49392c9e1560043d25052f153e248a38288f890bf2cc69cf5db3c5e41"
   },
   "d1_databases": [
     {

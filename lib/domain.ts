@@ -10,6 +10,7 @@ export type TaskStatus =
 
 export type DeliveryType =
   | "Tarea"
+  | "Evento"
   | "Lectura"
   | "Examen"
   | "Exposición"
@@ -91,6 +92,7 @@ export const statuses: TaskStatus[] = [
 
 export const deliveryTypes: DeliveryType[] = [
   "Tarea",
+  "Evento",
   "Lectura",
   "Examen",
   "Exposición",

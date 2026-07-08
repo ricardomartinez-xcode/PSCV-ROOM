@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, requirePermission } from "@/lib/server/authz";
 import { d1First, d1Run, executeDataQuery } from "@/lib/server/d1-data";
+import { dismissEventReminders, syncEventReminders } from "@/lib/server/event-reminders";
 
 const taskPatchSchema = z.object({
   title: z.string().min(1).optional(),
@@ -20,8 +21,16 @@ const taskPatchSchema = z.object({
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+type TaskRow = Record<string, unknown> & {
+  id: string;
+  title: string;
+  due_date: string;
+  due_time?: string | null;
+  task_type_id?: string | null;
+};
+
 async function getTaskRow(id: string) {
-  return d1First<Record<string, unknown>>("SELECT * FROM tasks WHERE id = ? LIMIT 1", [id]);
+  return d1First<TaskRow>("SELECT * FROM tasks WHERE id = ? LIMIT 1", [id]);
 }
 
 async function writeAudit(input: {
@@ -79,6 +88,19 @@ export async function PATCH(request: Request, context: RouteContext) {
       single: true,
     });
     if (result.error) throw new Error(result.error.message);
+
+    const after = ((result.data as TaskRow | null) ?? (await getTaskRow(id))) as TaskRow | null;
+    if (after) {
+      await syncEventReminders({
+        taskId: after.id,
+        title: after.title,
+        dueDate: after.due_date,
+        dueTime: after.due_time,
+        taskTypeId: after.task_type_id,
+        actorId: profile.id,
+      });
+    }
+
     await writeAudit({ actorId: profile.id, action: "task.update", entityId: id, before, after: result.data });
     return NextResponse.json({ ok: true, task: result.data });
   } catch (error) {
@@ -102,6 +124,8 @@ export async function DELETE(request: Request, context: RouteContext) {
       single: true,
     });
     if (result.error) throw new Error(result.error.message);
+
+    await dismissEventReminders(id);
     await writeAudit({ actorId: profile.id, action: "task.archive", entityId: id, before, after: result.data });
     return NextResponse.json({ ok: true, task: result.data });
   } catch (error) {

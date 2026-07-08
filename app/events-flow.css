@@ -1,0 +1,37 @@
+/* Event flow polish: shared add action and all-day event highlight. */
+.taskCreateDock span {
+  font-size: 0;
+}
+
+.taskCreateDock span::after {
+  content: "Añadir";
+  font-size: 14px;
+}
+
+.calendarPane .dayCell:has(.calendarEvent[style*="#7c3aed"]),
+.calendarPane .dayCell:has(.calendarEvent[style*="#7C3AED"]),
+.calendarPane .dayCell:has(.calendarEvent[style*="124, 58, 237"]),
+.calendarPane .dayCell:has(.calendarEvent[style*="rgb(124, 58, 237)"]) {
+  background:
+    linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(124, 58, 237, 0.06)),
+    var(--surface, #ffffff);
+  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.28);
+}
+
+.calendarPane .dayCell:has(.calendarEvent[style*="#7c3aed"]) .dateNumber,
+.calendarPane .dayCell:has(.calendarEvent[style*="#7C3AED"]) .dateNumber,
+.calendarPane .dayCell:has(.calendarEvent[style*="124, 58, 237"]) .dateNumber,
+.calendarPane .dayCell:has(.calendarEvent[style*="rgb(124, 58, 237)"]) .dateNumber {
+  color: #5b21b6;
+  font-weight: 800;
+}
+
+.calendarEvent[style*="#7c3aed"],
+.calendarEvent[style*="#7C3AED"],
+.calendarEvent[style*="124, 58, 237"],
+.calendarEvent[style*="rgb(124, 58, 237)"] {
+  background: rgba(124, 58, 237, 0.14) !important;
+  border-color: rgba(124, 58, 237, 0.42) !important;
+  color: #3b0764;
+  font-weight: 700;
+}

@@ -15,7 +15,7 @@
     "cf:build": "opennextjs-cloudflare build",
     "cf:dev": "npm run cf:build && wrangler dev --port 8788",
     "cf:dev:remote": "npm run cf:build && wrangler dev --remote --port 8788",
-    "cf:deploy": "opennextjs-cloudflare deploy --config wrangler.jsonc",
+    "cf:deploy": "npm run cf:build && wrangler deploy --config wrangler.jsonc",
     "cf:deploy:staging": "npm run cf:build && wrangler deploy --env staging",
     "cf:types": "wrangler types"
   },

@@ -22,7 +22,8 @@ type SyncEventReminderInput = {
 
 function toMexicoCityScheduledIso(dueDate: string, daysOffset: number) {
   const [year, month, day] = dueDate.split("-").map(Number);
-  const base = new Date(Date.UTC(year, month - 1, day, MEXICO_CITY_UTC_OFFSET_HOURS, 0, 0));
+  const [hour, minute, second] = DEFAULT_REMINDER_TIME.split(":").map(Number);
+  const base = new Date(Date.UTC(year, month - 1, day, hour + MEXICO_CITY_UTC_OFFSET_HOURS, minute, second));
   base.setUTCDate(base.getUTCDate() + daysOffset);
   return base.toISOString();
 }

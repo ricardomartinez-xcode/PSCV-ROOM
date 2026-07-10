@@ -1,9 +1,8 @@
+import { resolveEventReminderSchedule } from "@/lib/event-reminder-schedule";
 import { d1First, d1Run } from "@/lib/server/d1-data";
 
 const EVENT_TASK_TYPE_NAME = "Evento";
 const EVENT_REMINDER_KINDS = ["event_reminder_day_before", "event_reminder_day_of"] as const;
-const MEXICO_CITY_UTC_OFFSET_HOURS = 6;
-const DEFAULT_REMINDER_TIME = "08:00:00";
 
 type EventReminderKind = (typeof EVENT_REMINDER_KINDS)[number];
 
@@ -19,44 +18,6 @@ type SyncEventReminderInput = {
   taskTypeId?: string | null;
   actorId?: string | null;
 };
-
-function targetDateKey(dueDate: string, daysOffset: number) {
-  const [year, month, day] = dueDate.split("-").map(Number);
-  const target = new Date(Date.UTC(year, month - 1, day + daysOffset));
-  return target.toISOString().slice(0, 10);
-}
-
-function mexicoCityDateKey(date: Date) {
-  return new Date(date.getTime() - MEXICO_CITY_UTC_OFFSET_HOURS * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
-}
-
-function toMexicoCityScheduledDate(dueDate: string, daysOffset: number) {
-  const [year, month, day] = dueDate.split("-").map(Number);
-  const [hour, minute, second] = DEFAULT_REMINDER_TIME.split(":").map(Number);
-  return new Date(Date.UTC(
-    year,
-    month - 1,
-    day + daysOffset,
-    hour + MEXICO_CITY_UTC_OFFSET_HOURS,
-    minute,
-    second,
-  ));
-}
-
-export function resolveEventReminderSchedule(
-  dueDate: string,
-  daysOffset: number,
-  now = new Date(),
-) {
-  const reminderDate = targetDateKey(dueDate, daysOffset);
-  const today = mexicoCityDateKey(now);
-  if (reminderDate < today) return null;
-
-  const scheduled = toMexicoCityScheduledDate(dueDate, daysOffset);
-  return scheduled.getTime() <= now.getTime() ? now.toISOString() : scheduled.toISOString();
-}
 
 function displayDateTime(input: Pick<SyncEventReminderInput, "dueDate" | "dueTime">) {
   const time = input.dueTime?.slice(0, 5) || "todo el día";

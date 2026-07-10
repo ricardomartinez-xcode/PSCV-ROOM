@@ -13,13 +13,22 @@ function changedRows(result: D1Result) {
   return typeof changes === "number" ? changes : Number(changes ?? 0);
 }
 
-async function processDelivery(row: DeliveryRow, env: CloudflareEnv): Promise<DeliveryOutcome> {
+async function processDelivery(
+  row: DeliveryRow,
+  env: CloudflareEnv,
+  staleBefore: string,
+): Promise<DeliveryOutcome> {
   const queuedAt = new Date().toISOString();
   const queued = await env.DB.prepare(
-    `INSERT OR IGNORE INTO push_deliveries (
+    `INSERT INTO push_deliveries (
        notification_id, subscription_id, delivered_at, status_code, displayed_at
-     ) VALUES (?, ?, ?, 0, NULL)`,
-  ).bind(row.notification_id, row.subscription_id, queuedAt).run();
+     ) VALUES (?, ?, ?, 0, NULL)
+     ON CONFLICT(notification_id, subscription_id) DO UPDATE SET
+       delivered_at = excluded.delivered_at,
+       displayed_at = NULL
+     WHERE push_deliveries.status_code = 0
+       AND push_deliveries.delivered_at <= ?`,
+  ).bind(row.notification_id, row.subscription_id, queuedAt, staleBefore).run();
 
   if (changedRows(queued) === 0) return "skipped";
 
@@ -80,6 +89,7 @@ async function processDelivery(row: DeliveryRow, env: CloudflareEnv): Promise<De
 export async function processDuePushNotifications(env: CloudflareEnv) {
   const now = new Date();
   const earliest = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString();
+  const staleBefore = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
   const result = await env.DB.prepare(
     `SELECT n.id AS notification_id, s.id AS subscription_id, s.endpoint
        FROM notifications n
@@ -93,15 +103,20 @@ export async function processDuePushNotifications(env: CloudflareEnv) {
         AND n.kind <> 'push_test'
         AND n.scheduled_for <= ?
         AND n.scheduled_for >= ?
-        AND d.notification_id IS NULL
+        AND (
+          d.notification_id IS NULL
+          OR (d.status_code = 0 AND d.delivered_at <= ?)
+        )
       ORDER BY n.scheduled_for ASC
       LIMIT 200`,
-  ).bind(now.toISOString(), earliest).all<DeliveryRow>();
+  ).bind(now.toISOString(), earliest, staleBefore).all<DeliveryRow>();
 
   const counters = { delivered: 0, deactivated: 0, failed: 0, skipped: 0 };
   const rows = result.results ?? [];
   for (let index = 0; index < rows.length; index += 8) {
-    const outcomes = await Promise.all(rows.slice(index, index + 8).map((row) => processDelivery(row, env)));
+    const outcomes = await Promise.all(
+      rows.slice(index, index + 8).map((row) => processDelivery(row, env, staleBefore)),
+    );
     for (const outcome of outcomes) counters[outcome] += 1;
   }
 

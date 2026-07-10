@@ -1,16 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
-import { DetailDateNormalizer } from "@/components/detail-date-normalizer";
+import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
 import "./globals.css";
 import "./responsive.css";
 import "./evolution.css";
 import "./auth.css";
 import "./material-library.css";
 import "./admin-hub.css";
-import "./admin-diagnostics.css";
 import "./admin-fixes.css";
 import "./workspace.css";
-import "./operational-polish.css";
 import "./events-flow.css";
 
 export const metadata: Metadata = {
@@ -35,8 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="es">
       <body>
-        <Providers>{children}</Providers>
-        <DetailDateNormalizer />
+        <Providers>
+          <PushNotificationsBootstrap />
+          {children}
+        </Providers>
       </body>
     </html>
   );

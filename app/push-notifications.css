@@ -1,0 +1,114 @@
+.pushNotificationsFab {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1200;
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #176f87;
+  color: #fff;
+  font-size: 21px;
+  box-shadow: 0 10px 30px rgb(16 58 72 / 28%);
+  cursor: pointer;
+}
+
+.pushNotificationsPanel {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1200;
+  width: min(360px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid rgb(32 141 172 / 25%);
+  border-radius: 18px;
+  background: rgb(255 255 255 / 97%);
+  color: #17313a;
+  box-shadow: 0 18px 50px rgb(16 58 72 / 24%);
+  backdrop-filter: blur(14px);
+}
+
+.pushNotificationsPanel strong {
+  display: block;
+  padding-right: 28px;
+  font-size: 1rem;
+}
+
+.pushNotificationsPanel p {
+  margin: 10px 0 0;
+  color: #49636c;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.pushNotificationsClose {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: #49636c;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.pushNotificationsActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.pushNotificationsPanel button:not(.pushNotificationsClose) {
+  min-height: 40px;
+  margin-top: 14px;
+  padding: 8px 14px;
+  border: 1px solid #b8ccd2;
+  border-radius: 10px;
+  background: #fff;
+  color: #24434d;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pushNotificationsActions button {
+  margin-top: 0 !important;
+}
+
+.pushNotificationsPanel .pushNotificationsPrimary {
+  border-color: #176f87;
+  background: #176f87;
+  color: #fff;
+}
+
+.pushNotificationsMessage {
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: #eef7f9;
+}
+
+@media (max-width: 540px) {
+  .pushNotificationsPanel {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: calc(100vw - 20px - env(safe-area-inset-left) - env(safe-area-inset-right));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pushNotificationsFab,
+  .pushNotificationsPanel {
+    animation: pushNotificationsEnter 180ms ease-out;
+  }
+}
+
+@keyframes pushNotificationsEnter {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

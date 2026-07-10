@@ -8,6 +8,17 @@ import { sendPushWake } from "@/lib/server/web-push";
 const bodySchema = z.object({ endpoint: z.string().url().max(2048) });
 type SubscriptionRow = { id: string; endpoint: string };
 
+type PushResponse = { ok: boolean; status: number };
+
+async function removeFailedTest(env: CloudflareEnv, notificationId: string, subscriptionId: string) {
+  await env.DB.batch([
+    env.DB.prepare(
+      `DELETE FROM push_deliveries WHERE notification_id = ? AND subscription_id = ?`,
+    ).bind(notificationId, subscriptionId),
+    env.DB.prepare("DELETE FROM notifications WHERE id = ?").bind(notificationId),
+  ]);
+}
+
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
@@ -38,7 +49,14 @@ export async function POST(request: Request) {
       ).bind(notificationId, subscription.id, now),
     ]);
 
-    const response = await sendPushWake(subscription, env);
+    let response: PushResponse;
+    try {
+      response = await sendPushWake(subscription, env);
+    } catch (error) {
+      await removeFailedTest(env, notificationId, subscription.id);
+      throw error;
+    }
+
     const completedAt = new Date().toISOString();
     if (!response.ok) {
       await env.DB.batch([

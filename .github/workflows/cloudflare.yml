@@ -83,18 +83,47 @@ jobs:
             echo "::error::Missing CLOUDFLARE_API_TOKEN in the production GitHub environment."
             exit 1
           fi
+      - name: Prepare VAPID credentials
+        id: vapid
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler secret list --config wrangler.jsonc > /tmp/worker-secrets.json
+
+          rotate="false"
+          if [ -f .github/rotate-vapid-once ] || ! grep -q "VAPID_PRIVATE_KEY" /tmp/worker-secrets.json; then
+            rotate="true"
+          fi
+          echo "rotated=${rotate}" >> "$GITHUB_OUTPUT"
+
+          if [ "$rotate" = "true" ]; then
+            node scripts/generate-vapid-keys.mjs /tmp/vapid-private.key /tmp/vapid-public.key
+            npx wrangler secret put VAPID_PRIVATE_KEY --config wrangler.jsonc < /tmp/vapid-private.key
+          fi
       - name: Verify VAPID private key
         shell: bash
         run: |
-          npx wrangler secret list --config wrangler.jsonc > /tmp/worker-secrets.txt
-          if ! grep -q "VAPID_PRIVATE_KEY" /tmp/worker-secrets.txt; then
-            echo "::error::Missing VAPID_PRIVATE_KEY in the pscv-room Cloudflare Worker."
+          npx wrangler secret list --config wrangler.jsonc > /tmp/worker-secrets.json
+          if ! grep -q "VAPID_PRIVATE_KEY" /tmp/worker-secrets.json; then
+            echo "::error::VAPID_PRIVATE_KEY could not be stored in the pscv-room Worker."
             exit 1
           fi
       - name: Apply D1 migrations
         run: npx wrangler d1 migrations apply pscv-room --remote --config wrangler.jsonc
       - name: Deploy Worker and static Next assets
-        run: npm run cf:deploy -- --keep-vars
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.vapid.outputs.rotated }}" = "true" ]; then
+            public_key="$(cat /tmp/vapid-public.key)"
+            npm run cf:deploy -- --keep-vars --var "VAPID_PUBLIC_KEY:${public_key}"
+          else
+            npm run cf:deploy -- --keep-vars
+          fi
+      - name: Remove temporary VAPID files
+        if: always()
+        shell: bash
+        run: rm -f /tmp/vapid-private.key /tmp/vapid-public.key /tmp/worker-secrets.json
 
   report:
     if: always() && github.event_name != 'pull_request'

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, HttpError, requireProfile } from "@/lib/server/authz";
+import { errorResponse, requireProfile } from "@/lib/server/authz";
 import { d1Run } from "@/lib/server/d1-data";
+import { assertSameOrigin, validatePushEndpoint } from "@/lib/server/push-security";
 
 const subscriptionSchema = z.object({
   endpoint: z.string().url().max(2048),
@@ -9,26 +10,14 @@ const subscriptionSchema = z.object({
   keys: z.object({ p256dh: z.string().min(20).max(512), auth: z.string().min(8).max(256) }),
 });
 
-function assertSameOrigin(request: Request) {
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin) throw new HttpError(403, "Origen no permitido.");
-}
-
-function validateEndpoint(endpoint: string) {
-  const url = new URL(endpoint);
-  if (url.protocol !== "https:") throw new HttpError(400, "Endpoint push inválido.");
-  const hostname = url.hostname.toLowerCase();
-  if (hostname === "localhost" || hostname.endsWith(".local") || hostname === "127.0.0.1") {
-    throw new HttpError(400, "Endpoint push inválido.");
-  }
-}
+const endpointSchema = z.object({ endpoint: z.string().url().max(2048) });
 
 export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const profile = await requireProfile(request);
     const body = subscriptionSchema.parse(await request.json());
-    validateEndpoint(body.endpoint);
+    validatePushEndpoint(body.endpoint);
     const now = new Date().toISOString();
     await d1Run(
       `INSERT INTO push_subscriptions (
@@ -40,10 +29,11 @@ export async function POST(request: Request) {
          auth = excluded.auth,
          user_agent = excluded.user_agent,
          active = 1,
+         failure_count = 0,
          updated_at = excluded.updated_at`,
       [crypto.randomUUID(), profile.id, body.endpoint, body.keys.p256dh, body.keys.auth, request.headers.get("user-agent") ?? "", now, now],
     );
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return errorResponse(error);
   }
@@ -53,12 +43,13 @@ export async function DELETE(request: Request) {
   try {
     assertSameOrigin(request);
     const profile = await requireProfile(request);
-    const body = z.object({ endpoint: z.string().url() }).parse(await request.json());
+    const body = endpointSchema.parse(await request.json());
+    validatePushEndpoint(body.endpoint);
     await d1Run(
       `UPDATE push_subscriptions SET active = 0, updated_at = ? WHERE profile_id = ? AND endpoint = ?`,
       [new Date().toISOString(), profile.id, body.endpoint],
     );
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return errorResponse(error);
   }

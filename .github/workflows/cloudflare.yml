@@ -3,14 +3,13 @@ name: Cloudflare Workers
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Worker environment to deploy"
-        required: true
-        default: "staging"
-        type: choice
-        options: [staging, production]
+
+concurrency:
+  group: cloudflare-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -20,8 +19,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Install
-        run: npm install
+        run: npm ci
       - name: Lint
         run: npm run lint
       - name: Type check
@@ -32,10 +32,10 @@ jobs:
         run: npm run cf:build
 
   deploy:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: production
     env:
       CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -44,14 +44,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
       - name: Install
-        run: npm install
+        run: npm ci
       - name: Verify Cloudflare credential
         shell: bash
         run: |
           if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
-            echo "::error::Missing CLOUDFLARE_API_TOKEN in the selected GitHub environment."
+            echo "::error::Missing CLOUDFLARE_API_TOKEN in the production GitHub environment."
             exit 1
           fi
+      - name: Verify VAPID private key
+        shell: bash
+        run: |
+          npx wrangler secret list --config wrangler.jsonc > /tmp/worker-secrets.txt
+          if ! grep -q "VAPID_PRIVATE_KEY" /tmp/worker-secrets.txt; then
+            echo "::error::Missing VAPID_PRIVATE_KEY in the pscv-room Cloudflare Worker."
+            exit 1
+          fi
+      - name: Apply D1 migrations
+        run: npx wrangler d1 migrations apply pscv-room --remote --config wrangler.jsonc
       - name: Deploy Worker and static Next assets
         run: npm run cf:deploy -- --keep-vars

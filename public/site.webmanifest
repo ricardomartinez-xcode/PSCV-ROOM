@@ -1,17 +1,22 @@
 {
+  "id": "/",
   "name": "PSCV Room 2.0",
   "short_name": "PSCV Room",
   "description": "Calendario, tareas y materiales de Psicología 6°.",
+  "lang": "es-MX",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f6f7fb",
   "theme_color": "#208dac",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

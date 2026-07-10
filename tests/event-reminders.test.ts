@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveEventReminderSchedule } from "../lib/server/event-reminders.ts";
+import { resolveEventReminderSchedule } from "../lib/event-reminder-schedule.ts";
 
 const now = new Date("2026-07-10T15:00:00.000Z");
 

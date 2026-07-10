@@ -9,7 +9,14 @@ type ScheduledContext = {
 const worker = {
   fetch: handler.fetch,
   scheduled(_controller: unknown, env: CloudflareEnv, ctx: ScheduledContext) {
-    ctx.waitUntil(processDuePushNotifications(env));
+    ctx.waitUntil(
+      processDuePushNotifications(env)
+        .then((result) => console.info("push-delivery", result))
+        .catch((error) => {
+          console.error("push-delivery-failed", error);
+          throw error;
+        }),
+    );
   },
 };
 

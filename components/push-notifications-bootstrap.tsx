@@ -31,12 +31,19 @@ function isStandaloneDisplay() {
     || Boolean((navigator as NavigatorWithStandalone).standalone);
 }
 
+function supportsPush() {
+  return "serviceWorker" in navigator
+    && "PushManager" in window
+    && "Notification" in window;
+}
+
 function sameApplicationServerKey(subscription: PushSubscription, publicKey: string) {
   const currentKey = subscription.options.applicationServerKey;
-  if (!currentKey) return false;
+  if (!currentKey) return true;
   const actual = new Uint8Array(currentKey);
   const expected = decodeApplicationServerKey(publicKey);
-  return actual.length === expected.length && actual.every((byte, index) => byte === expected[index]);
+  return actual.length === expected.length
+    && actual.every((byte, index) => byte === expected[index]);
 }
 
 async function readError(response: Response) {
@@ -55,13 +62,23 @@ export function PushNotificationsBootstrap() {
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const subscriptionRef = useRef<PushSubscription | null>(null);
 
-  const syncSubscription = useCallback(async (requestPermission: boolean) => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+  const syncSubscription = useCallback(async () => {
+    if (isIosDevice() && !isStandaloneDisplay()) {
+      setState("install-required");
+      setPanelOpen(true);
+      return;
+    }
+    if (!supportsPush()) {
       setState("unsupported");
       return;
     }
-    if (isIosDevice() && !isStandaloneDisplay()) {
-      setState("install-required");
+    if (Notification.permission === "default") {
+      setState("prompt");
+      setPanelOpen(true);
+      return;
+    }
+    if (Notification.permission !== "granted") {
+      setState("denied");
       setPanelOpen(true);
       return;
     }
@@ -72,21 +89,6 @@ export function PushNotificationsBootstrap() {
       ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
     registrationRef.current = registration;
     await navigator.serviceWorker.ready;
-
-    let permission = Notification.permission;
-    if (permission === "default" && requestPermission) {
-      permission = await Notification.requestPermission();
-    }
-    if (permission === "default") {
-      setState("prompt");
-      setPanelOpen(true);
-      return;
-    }
-    if (permission !== "granted") {
-      setState("denied");
-      setPanelOpen(true);
-      return;
-    }
 
     const configResponse = await fetch("/api/push/config", {
       credentials: "include",
@@ -129,10 +131,6 @@ export function PushNotificationsBootstrap() {
     let cancelled = false;
     const initialize = async () => {
       try {
-        if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-          if (!cancelled) setState("unsupported");
-          return;
-        }
         if (isIosDevice() && !isStandaloneDisplay()) {
           if (!cancelled) {
             setState("install-required");
@@ -140,9 +138,13 @@ export function PushNotificationsBootstrap() {
           }
           return;
         }
+        if (!supportsPush()) {
+          if (!cancelled) setState("unsupported");
+          return;
+        }
         registrationRef.current = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
         if (Notification.permission === "granted") {
-          await syncSubscription(false);
+          await syncSubscription();
         } else if (!cancelled) {
           setState(Notification.permission === "denied" ? "denied" : "prompt");
           setPanelOpen(Notification.permission !== "denied");
@@ -156,9 +158,10 @@ export function PushNotificationsBootstrap() {
       }
     };
     void initialize();
+
     const onFocus = () => {
-      if (!cancelled && Notification.permission === "granted") {
-        void syncSubscription(false).catch(() => undefined);
+      if (!cancelled && supportsPush() && Notification.permission === "granted") {
+        void syncSubscription().catch(() => undefined);
       }
     };
     window.addEventListener("focus", onFocus);
@@ -170,7 +173,26 @@ export function PushNotificationsBootstrap() {
 
   const activate = async () => {
     try {
-      await syncSubscription(true);
+      if (isIosDevice() && !isStandaloneDisplay()) {
+        setState("install-required");
+        setPanelOpen(true);
+        return;
+      }
+      if (!supportsPush()) {
+        setState("unsupported");
+        return;
+      }
+
+      // Keep this call directly inside the click handler. iOS requires a user gesture.
+      if (Notification.permission === "default") {
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") {
+          setState(permission === "denied" ? "denied" : "prompt");
+          setPanelOpen(true);
+          return;
+        }
+      }
+      await syncSubscription();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No fue posible activar las notificaciones.");
       setState("error");
@@ -202,20 +224,26 @@ export function PushNotificationsBootstrap() {
       const subscription = subscriptionRef.current
         ?? await registrationRef.current?.pushManager.getSubscription();
       if (subscription) {
-        await fetch("/api/push/subscribe", {
+        const response = await fetch("/api/push/subscribe", {
           method: "DELETE",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();
+        if (!response.ok) {
+          throw new Error("Se desactivó en el navegador, pero el servidor no pudo actualizarse.");
+        }
       }
       subscriptionRef.current = null;
       setMessage("Notificaciones desactivadas en este dispositivo.");
       setState("prompt");
       setPanelOpen(true);
     } catch (error) {
+      subscriptionRef.current = null;
       setMessage(error instanceof Error ? error.message : "No fue posible desactivar las notificaciones.");
+      setState("prompt");
+      setPanelOpen(true);
     }
   };
 
@@ -223,7 +251,12 @@ export function PushNotificationsBootstrap() {
 
   if (!panelOpen) {
     return (
-      <button className="pushNotificationsFab" type="button" onClick={() => setPanelOpen(true)} aria-label="Administrar notificaciones">
+      <button
+        className="pushNotificationsFab"
+        type="button"
+        onClick={() => setPanelOpen(true)}
+        aria-label="Administrar notificaciones"
+      >
         <span aria-hidden="true">🔔</span>
       </button>
     );
@@ -231,7 +264,14 @@ export function PushNotificationsBootstrap() {
 
   return (
     <aside className="pushNotificationsPanel" aria-live="polite">
-      <button className="pushNotificationsClose" type="button" onClick={() => setPanelOpen(false)} aria-label="Cerrar">×</button>
+      <button
+        className="pushNotificationsClose"
+        type="button"
+        onClick={() => setPanelOpen(false)}
+        aria-label="Cerrar"
+      >
+        ×
+      </button>
       <strong>Notificaciones de PSCV Room</strong>
 
       {state === "install-required" && (

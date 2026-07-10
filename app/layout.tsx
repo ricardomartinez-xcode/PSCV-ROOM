@@ -9,7 +9,7 @@ import "./material-library.css";
 import "./admin-hub.css";
 import "./admin-fixes.css";
 import "./workspace.css";
-import "./operational-polish.css";
+import "./notification-center.css";
 import "./events-flow.css";
 
 export const metadata: Metadata = {

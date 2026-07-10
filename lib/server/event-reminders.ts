@@ -20,12 +20,42 @@ type SyncEventReminderInput = {
   actorId?: string | null;
 };
 
-function toMexicoCityScheduledIso(dueDate: string, daysOffset: number) {
+function targetDateKey(dueDate: string, daysOffset: number) {
+  const [year, month, day] = dueDate.split("-").map(Number);
+  const target = new Date(Date.UTC(year, month - 1, day + daysOffset));
+  return target.toISOString().slice(0, 10);
+}
+
+function mexicoCityDateKey(date: Date) {
+  return new Date(date.getTime() - MEXICO_CITY_UTC_OFFSET_HOURS * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function toMexicoCityScheduledDate(dueDate: string, daysOffset: number) {
   const [year, month, day] = dueDate.split("-").map(Number);
   const [hour, minute, second] = DEFAULT_REMINDER_TIME.split(":").map(Number);
-  const base = new Date(Date.UTC(year, month - 1, day, hour + MEXICO_CITY_UTC_OFFSET_HOURS, minute, second));
-  base.setUTCDate(base.getUTCDate() + daysOffset);
-  return base.toISOString();
+  return new Date(Date.UTC(
+    year,
+    month - 1,
+    day + daysOffset,
+    hour + MEXICO_CITY_UTC_OFFSET_HOURS,
+    minute,
+    second,
+  ));
+}
+
+export function resolveEventReminderSchedule(
+  dueDate: string,
+  daysOffset: number,
+  now = new Date(),
+) {
+  const reminderDate = targetDateKey(dueDate, daysOffset);
+  const today = mexicoCityDateKey(now);
+  if (reminderDate < today) return null;
+
+  const scheduled = toMexicoCityScheduledDate(dueDate, daysOffset);
+  return scheduled.getTime() <= now.getTime() ? now.toISOString() : scheduled.toISOString();
 }
 
 function displayDateTime(input: Pick<SyncEventReminderInput, "dueDate" | "dueTime">) {
@@ -87,12 +117,18 @@ export async function syncEventReminders(input: SyncEventReminderInput) {
   const taskTypeName = await getTaskTypeName(input.taskTypeId);
   await dismissExistingEventReminders(input.taskId);
 
-  if (taskTypeName !== EVENT_TASK_TYPE_NAME) {
-    return;
-  }
+  if (taskTypeName !== EVENT_TASK_TYPE_NAME) return;
 
-  await insertReminder(input, "event_reminder_day_before", toMexicoCityScheduledIso(input.dueDate, -1));
-  await insertReminder(input, "event_reminder_day_of", toMexicoCityScheduledIso(input.dueDate, 0));
+  const now = new Date();
+  const dayBefore = resolveEventReminderSchedule(input.dueDate, -1, now);
+  const dayOf = resolveEventReminderSchedule(input.dueDate, 0, now);
+
+  if (dayBefore) {
+    await insertReminder(input, "event_reminder_day_before", dayBefore);
+  }
+  if (dayOf) {
+    await insertReminder(input, "event_reminder_day_of", dayOf);
+  }
 }
 
 export async function dismissEventReminders(taskId: string) {

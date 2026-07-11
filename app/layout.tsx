@@ -9,8 +9,8 @@ import "./material-library.css";
 import "./admin-hub.css";
 import "./admin-fixes.css";
 import "./workspace.css";
+import "./notification-center.css";
 import "./events-flow.css";
-import "./push-notifications.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",
@@ -35,8 +35,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="es">
       <body>
         <Providers>
-          <PushNotificationsBootstrap />
-          {children}
+          <PushNotificationsBootstrap>
+            {children}
+          </PushNotificationsBootstrap>
         </Providers>
       </body>
     </html>

@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
-type PushState =
+export type PushState =
   | "loading"
   | "unsupported"
   | "install-required"
@@ -15,6 +24,20 @@ type PushState =
 
 type PushConfig = { enabled?: boolean; publicKey?: string | null };
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+
+type PushNotificationsContextValue = {
+  state: PushState;
+  message: string;
+  activate: () => Promise<void>;
+  sendTest: () => Promise<void>;
+  deactivate: () => Promise<void>;
+};
+
+const PushNotificationsContext = createContext<PushNotificationsContextValue | null>(null);
+
+export function usePushNotifications() {
+  return useContext(PushNotificationsContext);
+}
 
 function decodeApplicationServerKey(value: string) {
   const padding = "=".repeat((4 - (value.length % 4)) % 4);
@@ -55,31 +78,34 @@ async function readError(response: Response) {
   }
 }
 
-export function PushNotificationsBootstrap() {
+function broadcastPermissionChange() {
+  window.dispatchEvent(new CustomEvent("pscv:notification-permission-changed"));
+}
+
+export function PushNotificationsBootstrap({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PushState>("loading");
-  const [panelOpen, setPanelOpen] = useState(false);
   const [message, setMessage] = useState("");
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const subscriptionRef = useRef<PushSubscription | null>(null);
 
   const syncSubscription = useCallback(async () => {
     if (isIosDevice() && !isStandaloneDisplay()) {
+      setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
       setState("install-required");
-      setPanelOpen(true);
       return;
     }
     if (!supportsPush()) {
+      setMessage("Este navegador no admite Web Push.");
       setState("unsupported");
       return;
     }
     if (Notification.permission === "default") {
       setState("prompt");
-      setPanelOpen(true);
       return;
     }
     if (Notification.permission !== "granted") {
+      setMessage("El permiso de notificaciones está bloqueado en el navegador o sistema.");
       setState("denied");
-      setPanelOpen(true);
       return;
     }
 
@@ -97,8 +123,8 @@ export function PushNotificationsBootstrap() {
     if (!configResponse.ok) throw new Error(await readError(configResponse));
     const config = await configResponse.json() as PushConfig;
     if (!config.enabled || !config.publicKey) {
+      setMessage("El servidor todavía no tiene disponible la configuración Web Push.");
       setState("server-unavailable");
-      setPanelOpen(true);
       return;
     }
 
@@ -123,23 +149,27 @@ export function PushNotificationsBootstrap() {
     if (!subscribeResponse.ok) throw new Error(await readError(subscribeResponse));
 
     subscriptionRef.current = subscription;
+    setMessage("");
     setState("active");
-    setPanelOpen(false);
   }, []);
 
   useEffect(() => {
     let cancelled = false;
+
     const initialize = async () => {
       try {
         if (isIosDevice() && !isStandaloneDisplay()) {
           if (!cancelled) {
+            setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
             setState("install-required");
-            setPanelOpen(true);
           }
           return;
         }
         if (!supportsPush()) {
-          if (!cancelled) setState("unsupported");
+          if (!cancelled) {
+            setMessage("Este navegador no admite Web Push.");
+            setState("unsupported");
+          }
           return;
         }
         registrationRef.current = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
@@ -147,48 +177,57 @@ export function PushNotificationsBootstrap() {
           await syncSubscription();
         } else if (!cancelled) {
           setState(Notification.permission === "denied" ? "denied" : "prompt");
-          setPanelOpen(Notification.permission !== "denied");
         }
       } catch (error) {
         if (!cancelled) {
           setMessage(error instanceof Error ? error.message : "No fue posible configurar las notificaciones.");
           setState("error");
-          setPanelOpen(true);
         }
       }
     };
+
     void initialize();
 
-    const onFocus = () => {
-      if (!cancelled && supportsPush() && Notification.permission === "granted") {
-        void syncSubscription().catch(() => undefined);
+    const refreshPermission = () => {
+      if (cancelled || !supportsPush()) return;
+      if (Notification.permission === "granted") {
+        void syncSubscription().catch((error: unknown) => {
+          if (cancelled) return;
+          setMessage(error instanceof Error ? error.message : "No fue posible configurar las notificaciones.");
+          setState("error");
+        });
+      } else {
+        setState(Notification.permission === "denied" ? "denied" : "prompt");
       }
     };
-    window.addEventListener("focus", onFocus);
+
+    window.addEventListener("focus", refreshPermission);
+    window.addEventListener("pscv:notification-permission-changed", refreshPermission);
     return () => {
       cancelled = true;
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", refreshPermission);
+      window.removeEventListener("pscv:notification-permission-changed", refreshPermission);
     };
   }, [syncSubscription]);
 
-  const activate = async () => {
+  const activate = useCallback(async () => {
     try {
       if (isIosDevice() && !isStandaloneDisplay()) {
+        setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
         setState("install-required");
-        setPanelOpen(true);
         return;
       }
       if (!supportsPush()) {
+        setMessage("Este navegador no admite Web Push.");
         setState("unsupported");
         return;
       }
 
-      // Keep this call directly inside the click handler. iOS requires a user gesture.
       if (Notification.permission === "default") {
         const permission = await Notification.requestPermission();
+        broadcastPermissionChange();
         if (permission !== "granted") {
           setState(permission === "denied" ? "denied" : "prompt");
-          setPanelOpen(true);
           return;
         }
       }
@@ -196,11 +235,10 @@ export function PushNotificationsBootstrap() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "No fue posible activar las notificaciones.");
       setState("error");
-      setPanelOpen(true);
     }
-  };
+  }, [syncSubscription]);
 
-  const sendTest = async () => {
+  const sendTest = useCallback(async () => {
     try {
       setMessage("Enviando prueba…");
       const subscription = subscriptionRef.current
@@ -217,9 +255,9 @@ export function PushNotificationsBootstrap() {
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "La prueba no pudo enviarse.");
     }
-  };
+  }, []);
 
-  const deactivate = async () => {
+  const deactivate = useCallback(async () => {
     try {
       const subscription = subscriptionRef.current
         ?? await registrationRef.current?.pushManager.getSubscription();
@@ -236,73 +274,26 @@ export function PushNotificationsBootstrap() {
         }
       }
       subscriptionRef.current = null;
-      setMessage("Notificaciones desactivadas en este dispositivo.");
+      setMessage("Notificaciones con la app cerrada desactivadas en este dispositivo.");
       setState("prompt");
-      setPanelOpen(true);
     } catch (error) {
       subscriptionRef.current = null;
       setMessage(error instanceof Error ? error.message : "No fue posible desactivar las notificaciones.");
       setState("prompt");
-      setPanelOpen(true);
     }
-  };
+  }, []);
 
-  if (state === "loading" || state === "unsupported") return null;
-
-  if (!panelOpen) {
-    return (
-      <button
-        className="pushNotificationsFab"
-        type="button"
-        onClick={() => setPanelOpen(true)}
-        aria-label="Administrar notificaciones"
-      >
-        <span aria-hidden="true">🔔</span>
-      </button>
-    );
-  }
+  const value = useMemo<PushNotificationsContextValue>(() => ({
+    state,
+    message,
+    activate,
+    sendTest,
+    deactivate,
+  }), [state, message, activate, sendTest, deactivate]);
 
   return (
-    <aside className="pushNotificationsPanel" aria-live="polite">
-      <button
-        className="pushNotificationsClose"
-        type="button"
-        onClick={() => setPanelOpen(false)}
-        aria-label="Cerrar"
-      >
-        ×
-      </button>
-      <strong>Notificaciones de PSCV Room</strong>
-
-      {state === "install-required" && (
-        <p>En iPhone o iPad, abre Compartir, selecciona “Agregar a inicio” y después abre PSCV Room desde el nuevo icono.</p>
-      )}
-      {state === "prompt" && (
-        <>
-          <p>Recibe recordatorios de eventos y tareas aunque la aplicación esté cerrada.</p>
-          <button className="pushNotificationsPrimary" type="button" onClick={activate}>Activar notificaciones</button>
-        </>
-      )}
-      {state === "subscribing" && <p>Configurando este dispositivo…</p>}
-      {state === "active" && (
-        <>
-          <p>Las notificaciones están activas en este dispositivo.</p>
-          <div className="pushNotificationsActions">
-            <button className="pushNotificationsPrimary" type="button" onClick={sendTest}>Enviar prueba</button>
-            <button type="button" onClick={deactivate}>Desactivar</button>
-          </div>
-        </>
-      )}
-      {state === "denied" && (
-        <p>El permiso está bloqueado. Actívalo desde los ajustes de notificaciones del sistema o del navegador y vuelve a abrir PSCV Room.</p>
-      )}
-      {state === "server-unavailable" && (
-        <p>El servidor todavía no tiene configurada la clave privada VAPID. La aplicación puede instalarse, pero no enviar notificaciones.</p>
-      )}
-      {state === "error" && (
-        <button className="pushNotificationsPrimary" type="button" onClick={activate}>Reintentar</button>
-      )}
-      {message && <p className="pushNotificationsMessage">{message}</p>}
-    </aside>
+    <PushNotificationsContext.Provider value={value}>
+      {children}
+    </PushNotificationsContext.Provider>
   );
 }

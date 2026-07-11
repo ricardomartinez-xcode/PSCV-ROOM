@@ -17,6 +17,10 @@
   border-top: 0;
 }
 
+.setting > div:first-child {
+  min-width: 0;
+}
+
 .setting strong {
   color: #182230;
   display: block;
@@ -30,6 +34,15 @@
   font-size: 0.76rem;
   line-height: 1.35;
   margin: 3px 0 0;
+}
+
+.settingActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .toggle {
@@ -86,10 +99,16 @@
   border-radius: 8px;
   color: #344054;
   cursor: pointer;
+  flex: 0 0 auto;
   font: inherit;
   font-size: .78rem;
   font-weight: 700;
   padding: 7px 10px;
+}
+
+.secondaryButton {
+  background: #ffffff;
+  color: #475467;
 }
 
 .enableButton:disabled {
@@ -102,4 +121,14 @@
   border-radius: 8px;
   margin: 2px 0 0;
   padding: 9px;
+}
+
+@media (max-width: 430px) {
+  .setting {
+    align-items: flex-start;
+  }
+
+  .settingActions {
+    max-width: 128px;
+  }
 }

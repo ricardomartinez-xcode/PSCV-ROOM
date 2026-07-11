@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
+import { usePushNotifications, type PushState } from "@/components/push-notifications-bootstrap";
 import styles from "./notification-delivery.module.css";
 
 type AppNotification = {
@@ -89,13 +90,23 @@ export function Providers({ children }: { children: React.ReactNode }) {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setPermission("unsupported");
-      permissionRef.current = "unsupported";
-      return;
-    }
-    setPermission(window.Notification.permission);
-    permissionRef.current = window.Notification.permission;
+    const syncPermission = () => {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        setPermission("unsupported");
+        permissionRef.current = "unsupported";
+        return;
+      }
+      setPermission(window.Notification.permission);
+      permissionRef.current = window.Notification.permission;
+    };
+
+    syncPermission();
+    window.addEventListener("focus", syncPermission);
+    window.addEventListener("pscv:notification-permission-changed", syncPermission);
+    return () => {
+      window.removeEventListener("focus", syncPermission);
+      window.removeEventListener("pscv:notification-permission-changed", syncPermission);
+    };
   }, []);
 
   const playTone = useCallback(() => {
@@ -220,6 +231,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     const nextPermission = await window.Notification.requestPermission();
     setPermission(nextPermission);
     permissionRef.current = nextPermission;
+    window.dispatchEvent(new CustomEvent("pscv:notification-permission-changed"));
     if (nextPermission === "granted") {
       updateLocalPreferences({ browserEnabled: true });
       setMessage("Avisos del navegador activados.");
@@ -274,8 +286,42 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 }
 
+function pushDescription(state: PushState) {
+  switch (state) {
+    case "loading":
+      return "Comprobando la configuración de este dispositivo.";
+    case "unsupported":
+      return "Este navegador no admite notificaciones Web Push.";
+    case "install-required":
+      return "En iPhone o iPad, agrega PSCV Room a inicio y ábrelo desde el icono instalado.";
+    case "prompt":
+      return "Recibe recordatorios aunque PSCV Room esté cerrado.";
+    case "subscribing":
+      return "Configurando la suscripción de este dispositivo.";
+    case "active":
+      return "Los recordatorios en segundo plano están activos.";
+    case "denied":
+      return "El permiso está bloqueado en el navegador o sistema.";
+    case "server-unavailable":
+      return "El servicio Web Push no está disponible temporalmente.";
+    case "error":
+      return "No se pudo completar la configuración Web Push.";
+  }
+}
+
+function pushActionLabel(state: PushState) {
+  if (state === "subscribing") return "Configurando…";
+  if (state === "error") return "Reintentar";
+  if (state === "denied") return "Bloqueado";
+  if (state === "install-required") return "Instalar app";
+  if (state === "unsupported" || state === "server-unavailable") return "No disponible";
+  if (state === "loading") return "Comprobando…";
+  return "Activar";
+}
+
 export function NotificationSettingsPanel() {
   const delivery = useNotificationDelivery();
+  const push = usePushNotifications();
 
   if (!delivery) {
     return (
@@ -287,13 +333,58 @@ export function NotificationSettingsPanel() {
 
   const { preferences, localPreferences, permission, message, emailBusy } = delivery;
   const controlsDisabled = !delivery.ready;
+  const pushDisabled = !push
+    || controlsDisabled
+    || push.state === "loading"
+    || push.state === "subscribing"
+    || push.state === "unsupported"
+    || push.state === "install-required"
+    || push.state === "denied"
+    || push.state === "server-unavailable";
 
   return (
     <div className={styles.settingsPanel}>
       <div className={styles.setting}>
         <div>
-          <strong>Navegador</strong>
-          <small>Notificación nativa cuando PSCV Room está abierto.</small>
+          <strong>Con la app cerrada</strong>
+          <small>{push ? pushDescription(push.state) : "Cargando Web Push."}</small>
+        </div>
+        {push?.state === "active" ? (
+          <div className={styles.settingActions}>
+            <button
+              type="button"
+              className={styles.enableButton}
+              onClick={() => void push.sendTest()}
+              disabled={controlsDisabled}
+            >
+              Probar
+            </button>
+            <button
+              type="button"
+              className={`${styles.enableButton} ${styles.secondaryButton}`}
+              onClick={() => void push.deactivate()}
+              disabled={controlsDisabled}
+            >
+              Desactivar
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={styles.enableButton}
+            onClick={() => void push?.activate()}
+            disabled={pushDisabled}
+            aria-label="Activar notificaciones con la aplicación cerrada"
+          >
+            {push ? pushActionLabel(push.state) : "Cargando…"}
+          </button>
+        )}
+      </div>
+
+      <div className={styles.setting}>
+        <div>
+          <strong>Mientras usas la app</strong>
+          <small>Notificación nativa cuando PSCV Room permanece abierto.</small>
         </div>
         {permission === "granted" ? (
           <label className={styles.toggle} title="Notificaciones del navegador">
@@ -355,6 +446,7 @@ export function NotificationSettingsPanel() {
       </div>
 
       {controlsDisabled ? <p className={styles.message}>La configuración se habilitará cuando termine de cargar tu sesión.</p> : null}
+      {push?.message ? <p className={styles.message}>{push.message}</p> : null}
       {message ? <p className={styles.message}>{message}</p> : null}
     </div>
   );

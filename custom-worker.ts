@@ -2,6 +2,7 @@
 import handler from "./.open-next/worker.js";
 import { processDuePushNotifications } from "./lib/server/push-delivery";
 import { ensureAutomaticReminders } from "./lib/server/automatic-reminders";
+import { processDueReminderEmails } from "./lib/server/reminder-email-delivery";
 
 type ScheduledContext = {
   waitUntil(promise: Promise<unknown>): void;
@@ -20,11 +21,30 @@ function runScheduledJob(
 
 const worker = {
   fetch: handler.fetch,
-  scheduled(_controller: unknown, env: CloudflareEnv, ctx: ScheduledContext) {
-    // Push delivery must not depend on reminder generation.
-    // A partial reminder failur should never block OS-level notifications.
-    ctx.waitUntil(runScheduledJob("push-delivery", () => processDuePushNotifications(env)));
-    ctx.waitUntil(runScheduledJob("automatic-reminders", () => ensureAutomaticReminders(env)));
+
+  scheduled(
+    _controller: unknown,
+    env: CloudflareEnv,
+    ctx: ScheduledContext,
+  ) {
+    // Ningún canal debe bloquear a los demás.
+    ctx.waitUntil(
+      runScheduledJob("push-delivery", () =>
+        processDuePushNotifications(env),
+      ),
+    );
+
+    ctx.waitUntil(
+      runScheduledJob("reminder-email-delivery", () =>
+        processDueReminderEmails(env),
+      ),
+    );
+
+    ctx.waitUntil(
+      runScheduledJob("automatic-reminders", () =>
+        ensureAutomaticReminders(env),
+      ),
+    );
   },
 };
 

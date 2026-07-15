@@ -2,6 +2,7 @@
 import handler from "./.open-next/worker.js";
 import { processDuePushNotifications } from "./lib/server/push-delivery";
 import { ensureAutomaticReminders } from "./lib/server/automatic-reminders";
+import { processDueReminderEmails } from "./lib/server/reminder-email-delivery";
 
 type ScheduledContext = {
   waitUntil(promise: Promise<unknown>): void;
@@ -13,10 +14,12 @@ const worker = {
     ctx.waitUntil(
       ensureAutomaticReminders(env)
         .then((result) => console.info("automatic-reminders", result))
+        .then(() => processDueReminderEmails(env))
+        .then((result) => console.info("reminder-email-delivery", result))
         .then(() => processDuePushNotifications(env))
         .then((result) => console.info("push-delivery", result))
         .catch((error) => {
-          console.error("push-delivery-failed", error);
+          console.error("scheduled-notification-delivery-failed", error);
           throw error;
         }),
     );

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
+import { TaskMaterialExperience } from "@/components/task-material-experience";
 import "./globals.css";
 import "./responsive.css";
 import "./evolution.css";
@@ -13,6 +14,7 @@ import "./notification-center.css";
 import "./events-flow.css";
 import "./admin-modern.css";
 import "./mobile-calendar.css";
+import "./task-material-experience.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",
@@ -38,6 +40,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <Providers>
           <PushNotificationsBootstrap>
+            <TaskMaterialExperience />
             {children}
           </PushNotificationsBootstrap>
         </Providers>

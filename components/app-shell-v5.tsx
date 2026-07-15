@@ -115,11 +115,17 @@ type TaskTypeConfig = {
 };
 
 type TaskForm = {
+  itemKind: "task" | "event";
   title: string;
   courseId: string;
   typeId: string;
   dueDate: string;
   dueTime: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  location: string;
   status: TaskStatus;
   priority: string;
   visible: boolean;
@@ -216,11 +222,17 @@ const fixedBooleanColumns: BooleanGroupColumn[] = [
 
 function newTaskForm(defaults: Partial<TaskForm> = {}): TaskForm {
   return {
+    itemKind: "task",
     title: "",
     courseId: "",
     typeId: "",
     dueDate: new Date().toISOString().slice(0, 10),
     dueTime: "23:59",
+    startDate: new Date().toISOString().slice(0, 10),
+    startTime: "09:00",
+    endDate: new Date().toISOString().slice(0, 10),
+    endTime: "10:00",
+    location: "",
     status: "Pendiente",
     priority: "Media",
     visible: true,
@@ -378,6 +390,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     setTaskFormSource(source);
     setTaskForm(newTaskForm({
       dueDate: dueDate || new Date().toISOString().slice(0, 10),
+      startDate: dueDate || new Date().toISOString().slice(0, 10),
+      endDate: dueDate || new Date().toISOString().slice(0, 10),
       courseId: courses[0]?.id || "",
       typeId: taskTypes[0]?.id || "",
     }));
@@ -399,14 +413,18 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       const course = courses.find((item) => item.id === form.courseId);
       const type = taskTypes.find((item) => item.id === form.typeId);
       const id = `local-${Date.now()}`;
-      const dueDate = form.dueDate || new Date().toISOString().slice(0, 10);
-      const dueTime = form.dueTime || "23:59";
+      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || new Date().toISOString().slice(0, 10));
+      const dueTime = form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59");
       const nextTask: UiTask = {
         id,
         courseId: course?.id,
         taskTypeId: type?.id,
         priority: form.priority,
         course: course?.name ?? "Sin materia",
+        itemKind: form.itemKind,
+        startsAt: form.itemKind === "event" ? `${form.startDate}T${form.startTime}:00` : undefined,
+        endsAt: form.itemKind === "event" ? `${form.endDate}T${form.endTime}:00` : undefined,
+        location: form.itemKind === "event" ? form.location.trim() : undefined,
         dueDate,
         dueTime,
         title,
@@ -439,8 +457,12 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
           title,
           course_id: form.courseId || null,
           task_type_id: form.typeId || null,
-          due_date: form.dueDate,
-          due_time: form.dueTime || "23:59",
+          due_date: form.itemKind === "event" ? form.startDate : form.dueDate,
+          due_time: form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59"),
+          item_kind: form.itemKind,
+          starts_at: form.itemKind === "event" ? `${form.startDate}T${form.startTime}:00` : null,
+          ends_at: form.itemKind === "event" ? `${form.endDate}T${form.endTime}:00` : null,
+          location: form.itemKind === "event" ? (form.location.trim() || null) : null,
           status: form.status,
           priority: form.priority,
           visible_to_students: form.visible,
@@ -491,14 +513,18 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     if (!d1Client) {
       const course = courses.find((item) => item.id === form.courseId);
       const type = taskTypes.find((item) => item.id === form.typeId);
-      const dueDate = form.dueDate || new Date().toISOString().slice(0, 10);
-      const dueTime = form.dueTime || "23:59";
+      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || new Date().toISOString().slice(0, 10));
+      const dueTime = form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59");
       setTasks((current) => current.map((task) => task.id === id ? {
         ...task,
         courseId: course?.id,
         taskTypeId: type?.id,
         priority: form.priority,
         course: course?.name ?? task.course,
+        itemKind: form.itemKind,
+        startsAt: form.itemKind === "event" ? `${form.startDate}T${form.startTime}:00` : undefined,
+        endsAt: form.itemKind === "event" ? `${form.endDate}T${form.endTime}:00` : undefined,
+        location: form.itemKind === "event" ? form.location.trim() : undefined,
         dueDate,
         dueTime,
         title,
@@ -526,8 +552,12 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
           title,
           course_id: form.courseId || null,
           task_type_id: form.typeId || null,
-          due_date: form.dueDate,
-          due_time: form.dueTime || "23:59",
+          due_date: form.itemKind === "event" ? form.startDate : form.dueDate,
+          due_time: form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59"),
+          item_kind: form.itemKind,
+          starts_at: form.itemKind === "event" ? `${form.startDate}T${form.startTime}:00` : null,
+          ends_at: form.itemKind === "event" ? `${form.endDate}T${form.endTime}:00` : null,
+          location: form.itemKind === "event" ? (form.location.trim() || null) : null,
           status: form.status,
           priority: form.priority,
           visible_to_students: form.visible,
@@ -1113,8 +1143,14 @@ function TaskDetailScreen({
           <dl className="detailGrid">
             <DetailField label="Actividad / tarea" value={task.title} />
             <DetailField label="Materia" value={task.course} />
-            <DetailField label="Fecha de entrega" value={dateTime} icon={<CalendarClock size={17} />} />
-            <DetailField label="Hora" value={formatTaskTime(task.dueTime)} icon={<Clock size={17} />} />
+            {task.itemKind === "event" ? (<>
+              <DetailField label="Inicio" value={task.startsAt ? formatTaskDateTime(task.startsAt.slice(0, 10), task.startsAt.slice(11, 16)) : dateTime} icon={<CalendarClock size={17} />} />
+              <DetailField label="Fin" value={task.endsAt ? formatTaskDateTime(task.endsAt.slice(0, 10), task.endsAt.slice(11, 16)) : "Sin fin indicado"} icon={<Clock size={17} />} />
+              {task.location ? <DetailField label="Lugar" value={task.location} /> : null}
+            </>) : (<>
+              <DetailField label="Fecha de entrega" value={dateTime} icon={<CalendarClock size={17} />} />
+              <DetailField label="Hora" value={formatTaskTime(task.dueTime)} icon={<Clock size={17} />} />
+            </>)}
             <DetailField label="Material necesario" value={task.materialNeeded || "Sin material indicado"} wide />
             {task.linkedMaterials?.length ? (
               <DetailField label="Materiales del bucket" wide>
@@ -1133,6 +1169,34 @@ function TaskDetailScreen({
         )}
       </section>
     </div>
+  );
+}
+
+function ActivityKindFields({ form, courses, taskTypes, onChange }: { form: TaskForm; courses: CourseConfig[]; taskTypes: TaskTypeConfig[]; onChange: TaskFormChange }) {
+  return (
+    <>
+      <div className="activityKindSwitch wide" role="group" aria-label="Tipo de actividad">
+        <button type="button" className={form.itemKind === "task" ? "active" : ""} onClick={() => onChange("itemKind", "task")}><ListTodo size={18} />Tarea</button>
+        <button type="button" className={form.itemKind === "event" ? "active event" : "event"} onClick={() => onChange("itemKind", "event")}><CalendarDays size={18} />Evento</button>
+      </div>
+      <label className="wide">Título<input value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
+      <label>Materia<select value={form.courseId} onChange={(event) => onChange("courseId", event.target.value)}>{courses.length ? courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>) : <option value="">Sin materias</option>}</select></label>
+      <label>Tipo<select value={form.typeId} onChange={(event) => onChange("typeId", event.target.value)}>{taskTypes.length ? taskTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">Tarea</option>}</select></label>
+      {form.itemKind === "event" ? (
+        <>
+          <label>Fecha de inicio<input type="date" value={form.startDate} onChange={(event) => onChange("startDate", event.target.value)} required /></label>
+          <label>Hora de inicio<input type="time" value={form.startTime} onChange={(event) => onChange("startTime", event.target.value)} required /></label>
+          <label>Fecha de fin<input type="date" min={form.startDate} value={form.endDate} onChange={(event) => onChange("endDate", event.target.value)} required /></label>
+          <label>Hora de fin<input type="time" value={form.endTime} onChange={(event) => onChange("endTime", event.target.value)} required /></label>
+          <label className="wide">Lugar<input value={form.location} onChange={(event) => onChange("location", event.target.value)} placeholder="Aula, enlace o ubicación" /></label>
+        </>
+      ) : (
+        <>
+          <label>Fecha de entrega<input type="date" value={form.dueDate} onChange={(event) => onChange("dueDate", event.target.value)} required /></label>
+          <label>Hora de entrega<input type="time" value={form.dueTime} onChange={(event) => onChange("dueTime", event.target.value)} /></label>
+        </>
+      )}
+    </>
   );
 }
 
@@ -1157,11 +1221,7 @@ function TaskEditForm({
 }) {
   return (
     <form className="taskForm detailEditForm" onSubmit={onSubmit}>
-      <label className="wide">Título<input value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
-      <label>Materia<select value={form.courseId} onChange={(event) => onChange("courseId", event.target.value)}>{courses.length ? courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>) : <option value="">Sin materias</option>}</select></label>
-      <label>Tipo<select value={form.typeId} onChange={(event) => onChange("typeId", event.target.value)}>{taskTypes.length ? taskTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">Tarea</option>}</select></label>
-      <label>Fecha<input type="date" value={form.dueDate} onChange={(event) => onChange("dueDate", event.target.value)} required /></label>
-      <label>Hora<input type="time" value={form.dueTime} onChange={(event) => onChange("dueTime", event.target.value)} /></label>
+      <ActivityKindFields form={form} courses={courses} taskTypes={taskTypes} onChange={onChange} />
       <label>Estado<select value={form.status} onChange={(event) => onChange("status", event.target.value as TaskStatus)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
       <label>Prioridad<select value={form.priority} onChange={(event) => onChange("priority", event.target.value)}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
       <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
@@ -1298,12 +1358,12 @@ function TaskList({
           if (!rows.length) return null;
           return (
             <section className="typeGroup" key={type}>
-              <h2 className="groupTitle" style={{ color: rows[0].taskTypeColor ?? undefined }}><ListTodo size={22} />{type}</h2>
+              <h2 className="groupTitle" style={{ color: rows[0].taskTypeColor ?? undefined }}>{type === "Evento" ? <CalendarDays size={22} /> : <ListTodo size={22} />}{type}</h2>
               {rows.map((task) => (
-                <article className={`dataRow taskRow card-${density} ${selectedTask?.id === task.id ? "selected" : ""}`} style={{ borderLeft: `5px solid ${task.courseColor ?? "#4285dc"}` }} key={task.id}>
+                <article className={`dataRow taskRow card-${density} ${task.itemKind === "event" ? "eventRow" : ""} ${selectedTask?.id === task.id ? "selected" : ""}`} style={{ borderLeft: `5px solid ${task.courseColor ?? "#4285dc"}` }} key={task.id}>
                   <button className="taskRowButton" onClick={() => onSelect(task.id)} type="button" aria-label={`Ver detalles de ${task.title}`}>
                     <span className="rowMain"><strong>{task.title}</strong><span>{task.course}</span></span>
-                    <span className="rowDue">{formatTaskDateTime(task.dueDate, task.dueTime)}</span>
+                    <span className="rowDue">{task.itemKind === "event" && task.startsAt ? `Inicio ${formatTaskDateTime(task.startsAt.slice(0, 10), task.startsAt.slice(11, 16))}${task.endsAt ? ` · Fin ${formatTaskDateTime(task.endsAt.slice(0, 10), task.endsAt.slice(11, 16))}` : ""}` : formatTaskDateTime(task.dueDate, task.dueTime)}</span>
                   </button>
                   <div className="rowSide">
                     <span className="days">D{task.daysRemaining}</span>
@@ -1320,7 +1380,7 @@ function TaskList({
       {onCreate ? (
         <button className="taskCreateDock" onClick={onCreate} type="button">
           <Plus size={18} />
-          <span>Nueva tarea</span>
+          <span>Nueva actividad</span>
         </button>
       ) : null}
     </div>
@@ -1362,16 +1422,12 @@ function TaskCreateModal({
         <div className="taskCreateHead">
           <div>
             <p className="eyebrow">{source === "calendar" ? "Calendario" : "Tareas"}</p>
-            <h2 id="task-create-title">Nueva tarea</h2>
+            <h2 id="task-create-title">{form.itemKind === "event" ? "Nuevo evento" : "Nueva tarea"}</h2>
           </div>
           <button className="iconButton modalCloseButton" aria-label="Cerrar formulario" title="Cerrar" onClick={onClose} type="button"><X size={20} /></button>
         </div>
         <form className="taskForm taskCreateForm" onSubmit={submit}>
-          <label className="wide">Título<input value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
-          <label>Materia<select value={form.courseId} onChange={(event) => onChange("courseId", event.target.value)}>{courses.length ? courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>) : <option value="">Sin materias</option>}</select></label>
-          <label>Tipo<select value={form.typeId} onChange={(event) => onChange("typeId", event.target.value)}>{taskTypes.length ? taskTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">Tarea</option>}</select></label>
-          <label>Fecha<input type="date" value={form.dueDate} onChange={(event) => onChange("dueDate", event.target.value)} required /></label>
-          <label>Hora<input type="time" value={form.dueTime} onChange={(event) => onChange("dueTime", event.target.value)} /></label>
+          <ActivityKindFields form={form} courses={courses} taskTypes={taskTypes} onChange={onChange} />
           <label>Estado<select value={form.status} onChange={(event) => onChange("status", event.target.value as TaskStatus)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label>Prioridad<select value={form.priority} onChange={(event) => onChange("priority", event.target.value)}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
           <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
@@ -1380,7 +1436,7 @@ function TaskCreateModal({
           <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
           <label className="wide">Notas<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
           <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
-          <button className="primaryAction" disabled={busy || !form.title.trim()} type="submit">{busy ? "Creando..." : "Crear tarea"}</button>
+          <button className="primaryAction" disabled={busy || !form.title.trim()} type="submit">{busy ? "Creando..." : form.itemKind === "event" ? "Crear evento" : "Crear tarea"}</button>
         </form>
       </section>
     </>
@@ -1718,6 +1774,10 @@ function toTask(row: Record<string, unknown>): UiTask {
     taskTypeId: row.task_type_id ? String(row.task_type_id) : type?.id ? String(type.id) : undefined,
     priority: row.priority ? String(row.priority) : "Media",
     course: String(course?.name ?? "Sin materia"),
+    itemKind: String(row.item_kind ?? "task") === "event" || String(type?.name ?? "") === "Evento" ? "event" : "task",
+    startsAt: row.starts_at ? String(row.starts_at) : undefined,
+    endsAt: row.ends_at ? String(row.ends_at) : undefined,
+    location: row.location ? String(row.location) : undefined,
     dueDate,
     dueTime: String(row.due_time ?? "23:59").slice(0, 5),
     title: String(row.title ?? "Sin título"),
@@ -1805,11 +1865,17 @@ function toMaterialOption(value: unknown): MaterialOption {
 
 function taskToForm(task: UiTask, courses: CourseConfig[], taskTypes: TaskTypeConfig[]): TaskForm {
   return newTaskForm({
+    itemKind: task.itemKind ?? (task.deliveryType === "Evento" ? "event" : "task"),
     title: task.title,
     courseId: task.courseId ?? courses.find((course) => course.name === task.course)?.id ?? courses[0]?.id ?? "",
     typeId: task.taskTypeId ?? taskTypes.find((type) => type.name === task.deliveryType)?.id ?? taskTypes[0]?.id ?? "",
     dueDate: task.dueDate,
     dueTime: task.dueTime || "23:59",
+    startDate: task.startsAt?.slice(0, 10) ?? task.dueDate,
+    startTime: task.startsAt?.slice(11, 16) ?? task.dueTime ?? "09:00",
+    endDate: task.endsAt?.slice(0, 10) ?? task.dueDate,
+    endTime: task.endsAt?.slice(11, 16) ?? "10:00",
+    location: task.location ?? "",
     status: task.status,
     priority: task.priority ?? "Media",
     visible: task.visibleToReaders,

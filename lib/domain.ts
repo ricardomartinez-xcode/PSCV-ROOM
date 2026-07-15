@@ -22,6 +22,10 @@ export type DeliveryType =
 export type Task = {
   id: string;
   course: string;
+  itemKind?: "task" | "event";
+  startsAt?: string;
+  endsAt?: string;
+  location?: string;
   dueDate: string;
   dueTime: string;
   title: string;

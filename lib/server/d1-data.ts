@@ -97,7 +97,7 @@ const tableConfigs: Record<string, TableConfig> = {
   },
   tasks: {
     id: true,
-    columns: ["id", "legacy_id", "course_id", "task_type_id", "title", "description", "material_needed", "material_url", "platform_url", "notes", "due_date", "due_time", "status", "priority", "visible_to_students", "calendar_event_id", "last_sync_at", "created_by", "updated_by", "archived_at", "created_at", "updated_at"],
+    columns: ["id", "legacy_id", "course_id", "task_type_id", "title", "description", "material_needed", "material_url", "platform_url", "notes", "due_date", "due_time", "item_kind", "starts_at", "ends_at", "location", "status", "priority", "visible_to_students", "calendar_event_id", "last_sync_at", "created_by", "updated_by", "archived_at", "created_at", "updated_at"],
     bool: ["visible_to_students"],
   },
   materials: {

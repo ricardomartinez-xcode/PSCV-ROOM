@@ -11,6 +11,7 @@ import "./admin-fixes.css";
 import "./workspace.css";
 import "./notification-center.css";
 import "./events-flow.css";
+import "./admin-modern.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",

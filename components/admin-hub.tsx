@@ -346,9 +346,9 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
   }
 
   return (
-    <section className="adminCard">
+    <section className="adminCard adminModule adminNoticesModule">
       <div className="adminCardHead">
-        <div><h3>Avisos</h3><p>Crea avisos persistentes y recordatorios para tareas próximas.</p></div>
+        <div><p className="adminModuleEyebrow">Comunicación</p><h3>Avisos</h3><p>Crea avisos persistentes y recordatorios para tareas próximas.</p></div>
         <button type="button" onClick={() => void generateDueNotifications()} disabled={busy}>{busy ? "Procesando..." : "Crear recordatorios (3 días)"}</button>
       </div>
       <div className="adminNoticeHelp">
@@ -397,9 +397,9 @@ function ReportsPanel({ onError }: { onError: (error: string | null) => void }) 
   }
 
   return (
-    <section className="reportsGrid">
-      <article className="adminCard">
-        <div className="adminCardHead"><div><h3>Reportes</h3><p>Tareas, materiales, seguimiento y auditoría operativa.</p></div><button type="button" onClick={() => void loadReports()}>{loading ? "Cargando..." : "Recargar"}</button></div>
+    <section className="reportsGrid adminModule adminReportsModule">
+      <article className="adminCard adminReportsLead">
+        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Análisis operativo</p><h3>Reportes</h3><p>Tareas, materiales, seguimiento y auditoría operativa.</p></div><button type="button" onClick={() => void loadReports()}>{loading ? "Cargando..." : "Recargar"}</button></div>
         <ReportTable title="Tareas" rows={payload?.tasks ?? []} />
       </article>
       <article className="adminCard"><ReportTable title="Materiales" rows={payload?.materials ?? []} /></article>
@@ -491,10 +491,10 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
   const healthOk = Boolean(snapshot?.health?.ok && snapshot.health.auth?.configured && snapshot.health.integrations?.d1 && snapshot.health.integrations?.r2);
 
   return (
-    <section className="diagnosticsLayout">
+    <section className="diagnosticsLayout adminModule adminDiagnosticsModule">
       <article className="adminCard diagnosticCard">
         <div className="adminCardHead">
-          <div><h3>Estado operativo</h3><p>{snapshot ? `Revisado ${formatDateTime(snapshot.checkedAt)}` : "Sin revisión cargada"}</p></div>
+          <div><p className="adminModuleEyebrow">Infraestructura</p><h3>Estado operativo</h3><p>{snapshot ? `Revisado ${formatDateTime(snapshot.checkedAt)}` : "Sin revisión cargada"}</p></div>
           <button type="button" onClick={() => void loadDiagnostics()}>{loading ? "Revisando..." : "Revisar"}</button>
         </div>
         <div className="diagnosticPills">
@@ -593,8 +593,8 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
   }
 
   return (
-    <section className="adminCard">
-      <div className="adminCardHead"><div><h3>Materias</h3><p>Agrega materias y controla cuáles aparecen para alumnos.</p></div></div>
+    <section className="adminCard adminModule adminCoursesModule">
+      <div className="adminCardHead"><div><p className="adminModuleEyebrow">Catálogo académico</p><h3>Materias</h3><p>Agrega materias y controla cuáles aparecen para alumnos.</p></div></div>
       <form className="adminInlineForm courseCreateForm" onSubmit={submit}>
         <label className="wide">Nombre<input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Nombre de la materia" required /></label>
         <label>Nombre corto<input value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} placeholder="Corto" /></label>
@@ -775,8 +775,8 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
   }
 
   return (
-    <section className="adminCard">
-      <div className="adminCardHead"><div><h3>Usuarios</h3><p>Agrega alumnos y mantén sus datos de acceso escolar.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div>
+    <section className="adminCard adminModule adminUsersModule">
+      <div className="adminCardHead"><div><p className="adminModuleEyebrow">Accesos y permisos</p><h3>Usuarios</h3><p>Agrega alumnos y mantén sus datos de acceso escolar.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div>
       <form className="adminInlineForm studentCreateForm" onSubmit={submit}>
         <label>No. Control<input value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="28699" /></label>
         <label>Correo<input type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} placeholder="alumno@univdep.edu.mx" required /></label>

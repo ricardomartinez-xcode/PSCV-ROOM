@@ -8,33 +8,11 @@
   font-size: 14px;
 }
 
-.calendarPane .dayCell:has(.calendarEvent[style*="#7c3aed"]),
-.calendarPane .dayCell:has(.calendarEvent[style*="#7C3AED"]),
-.calendarPane .dayCell:has(.calendarEvent[style*="124, 58, 237"]),
-.calendarPane .dayCell:has(.calendarEvent[style*="rgb(124, 58, 237)"]) {
-  background:
-    linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(124, 58, 237, 0.06)),
-    var(--surface, #ffffff);
-  box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.28);
-}
-
-.calendarPane .dayCell:has(.calendarEvent[style*="#7c3aed"]) .dateNumber,
-.calendarPane .dayCell:has(.calendarEvent[style*="#7C3AED"]) .dateNumber,
-.calendarPane .dayCell:has(.calendarEvent[style*="124, 58, 237"]) .dateNumber,
-.calendarPane .dayCell:has(.calendarEvent[style*="rgb(124, 58, 237)"]) .dateNumber {
-  color: #5b21b6;
-  font-weight: 800;
-}
-
-.calendarEvent[style*="#7c3aed"],
-.calendarEvent[style*="#7C3AED"],
-.calendarEvent[style*="124, 58, 237"],
-.calendarEvent[style*="rgb(124, 58, 237)"] {
-  background: rgba(124, 58, 237, 0.14) !important;
-  border-color: rgba(124, 58, 237, 0.42) !important;
-  color: #3b0764;
-  font-weight: 700;
-}
+.calendarPane .dayCell.hasCalendarEvent{background:linear-gradient(135deg,rgba(109,40,217,.12),rgba(109,40,217,.035)),var(--surface,#fff);box-shadow:inset 0 0 0 1px rgba(109,40,217,.2)}
+.calendarPane .dayCell.hasCalendarEvent .dayNumber{color:#5b21b6;font-weight:900}
+.calendarEvent.calendarEventItem{grid-template-columns:auto auto minmax(0,1fr);border-left-color:#6d28d9!important;border-color:rgba(109,40,217,.38)!important;background:#f3e8ff!important;color:#3b0764}
+.calendarEvent.calendarEventItem span,.calendarEvent.calendarEventItem strong{color:#4c1d95}
+.calendarEvent.calendarEventItem::before{content:"Evento";align-self:start;border-radius:999px;background:#6d28d9;color:#fff;padding:2px 5px;font-size:8px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
 
 .adminNoticeForm{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important}.adminNoticeForm .wide{grid-column:1/-1}.adminNoticeForm label{align-content:start}.adminNoticeForm textarea{min-height:110px!important}.adminNoticeForm .primaryAction{grid-column:1/-1;min-height:44px}@media(max-width:720px){.adminNoticeForm{grid-template-columns:1fr!important}.adminNoticeForm .wide,.adminNoticeForm .primaryAction{grid-column:auto}}
 

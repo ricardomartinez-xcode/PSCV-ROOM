@@ -8,7 +8,7 @@ const materialLinkSchema = z.object({
   materialIds: z.array(z.string().min(1)).min(1).max(50).optional(),
 }).superRefine((value, ctx) => {
   if (!value.materialId && !value.materialIds?.length) {
-    ctx.addIssue({ code: z"custom", message: "Se requiere al menos un material." });
+    ctx.addIssue({ code: "custom", message: "Se requiere al menos un material." });
   }
 });
 
@@ -17,7 +17,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function audit(actorId: string, action: string, taskId: string, materialId: string, before: boolean) {
   await d1Run(
     `INSERT INTO audit_log (id, actor_id, action, entity, entity_id, before_data, after_data)
-     VALUES (?, ?, ?, "task_materials", ?, ?, ?).replace('"task_materials'', "'task_materials'"),
+     VALUES (?, ?, ?, 'task_materials', ?, ?, ?)`,
     [
       crypto.randomUUID(),
       actorId,
@@ -27,6 +27,10 @@ async function audit(actorId: string, action: string, taskId: string, materialId
       before ? null : JSON.stringify({ task_id: taskId, material_id: materialId }),
     ],
   );
+}
+
+function materialIdsFromPayload(payload: z.infer<typeof materialLinkSchema>) {
+  return [...new Set(payload.materialIds ?? [payload.materialId!])];
 }
 
 export async function GET(request: Request, context: RouteContext) {
@@ -52,7 +56,7 @@ export async function POST(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const profile = await requirePermission(request, "tasks:edit");
     const payload = materialLinkSchema.parse(await request.json());
-    const materialIds = [...new Set(payload.materialIds ?? [payload.materialId!])];
+    const materialIds = materialIdsFromPayload(payload);
 
     for (const materialId of materialIds) {
       await d1Run(
@@ -74,7 +78,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const profile = await requirePermission(request, "tasks:edit");
     const payload = materialLinkSchema.parse(await request.json());
-    const materialIds = [...new Set(payload.materialIds ?? [payload.materialId!])];
+    const materialIds = materialIdsFromPayload(payload);
 
     for (const materialId of materialIds) {
       await d1Run("DELETE FROM task_materials WHERE task_id = ? AND material_id = ?", [id, materialId]);

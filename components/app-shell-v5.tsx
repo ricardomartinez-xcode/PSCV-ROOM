@@ -974,6 +974,13 @@ function WorkspaceOverview({
   );
 }
 
+function eventIncludesDate(task: UiTask, date: string) {
+  if (!date || task.itemKind !== "event") return false;
+  const start = task.startsAt?.slice(0, 10) ?? task.dueDate;
+  const end = task.endsAt?.slice(0, 10) ?? start;
+  return date >= start && date <= end;
+}
+
 function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDate }: { tasks: UiTask[]; cursor: Date; setCursor: (date: Date) => void; selectedTask: UiTask | null; onSelect: (id: string) => void; onCreateDate?: (date: string) => void }) {
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -990,10 +997,11 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
         <div className="monthGrid">
           {cells.map((day, index) => {
             const key = day ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
-            const dayTasks = tasks.filter((task) => task.dueDate === key);
+            const dayTasks = tasks.filter((task) => task.itemKind === "event" ? eventIncludesDate(task, key) : task.dueDate === key);
+            const hasEvent = dayTasks.some((task) => task.itemKind === "event");
             return (
               <div
-                className={`dayCell ${day && onCreateDate ? "canCreateTask" : ""}`}
+                className={`dayCell ${day && onCreateDate ? "canCreateTask" : ""} ${hasEvent ? "hasCalendarEvent" : ""}`}
                 key={`${key}-${index}`}
                 title={day && onCreateDate ? "Crear tarea en esta fecha" : undefined}
               >
@@ -1013,8 +1021,8 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
                 <div className="eventStack">
                   {dayTasks.slice(0, 3).map((task) => (
                     <button
-                      className={`calendarEvent ${selectedTask?.id === task.id ? "selected" : ""}`}
-                      style={{ borderLeftColor: task.taskTypeColor ?? task.courseColor ?? "#4285dc" } as CSSProperties}
+                      className={`calendarEvent ${task.itemKind === "event" ? "calendarEventItem" : "calendarTaskItem"} ${selectedTask?.id === task.id ? "selected" : ""}`}
+                      style={{ borderLeftColor: task.itemKind === "event" ? "#6d28d9" : (task.taskTypeColor ?? task.courseColor ?? "#4285dc") } as CSSProperties}
                       key={task.id}
                       title={`${task.dueTime} ${task.title}`}
                       onClick={(event) => {

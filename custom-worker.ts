@@ -2,23 +2,48 @@
 import handler from "./.open-next/worker.js";
 import { processDuePushNotifications } from "./lib/server/push-delivery";
 import { ensureAutomaticReminders } from "./lib/server/automatic-reminders";
+import { processDueReminderEmails } from "./lib/server/reminder-email-delivery";
 
 type ScheduledContext = {
   waitUntil(promise: Promise<unknown>): void;
 };
 
+function runScheduledJob(
+  label: string,
+  job: () => Promise<unknown>,
+) {
+  return job()
+    .then((result) => console.info(label, result))
+    .catch((error) => {
+      console.error(`${label}-failed`, error);
+    });
+}
+
 const worker = {
   fetch: handler.fetch,
-  scheduled(_controller: unknown, env: CloudflareEnv, ctx: ScheduledContext) {
+
+  scheduled(
+    _controller: unknown,
+    env: CloudflareEnv,
+    ctx: ScheduledContext,
+  ) {
+    // Ningún canal debe bloquear a los demás.
     ctx.waitUntil(
-      ensureAutomaticReminders(env)
-        .then((result) => console.info("automatic-reminders", result))
-        .then(() => processDuePushNotifications(env))
-        .then((result) => console.info("push-delivery", result))
-        .catch((error) => {
-          console.error("push-delivery-failed", error);
-          throw error;
-        }),
+      runScheduledJob("push-delivery", () =>
+        processDuePushNotifications(env),
+      ),
+    );
+
+    ctx.waitUntil(
+      runScheduledJob("reminder-email-delivery", () =>
+        processDueReminderEmails(env),
+      ),
+    );
+
+    ctx.waitUntil(
+      runScheduledJob("automatic-reminders", () =>
+        ensureAutomaticReminders(env),
+      ),
     );
   },
 };

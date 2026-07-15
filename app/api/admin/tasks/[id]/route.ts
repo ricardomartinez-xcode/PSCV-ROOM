@@ -10,6 +10,10 @@ const taskPatchSchema = z.object({
   task_type_id: z.string().nullable().optional(),
   due_date: z.string().min(1).optional(),
   due_time: z.string().min(1).optional(),
+  item_kind: z.enum(["task", "event"]).optional(),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+  location: z.string().trim().nullable().optional(),
   status: z.string().min(1).optional(),
   priority: z.string().min(1).optional(),
   visible_to_students: z.boolean().optional(),
@@ -27,6 +31,9 @@ type TaskRow = Record<string, unknown> & {
   due_date: string;
   due_time?: string | null;
   task_type_id?: string | null;
+  item_kind?: "task" | "event";
+  starts_at?: string | null;
+  ends_at?: string | null;
 };
 
 async function getTaskRow(id: string) {
@@ -79,6 +86,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const patch = taskPatchSchema.parse(await request.json());
     const before = await getTaskRow(id);
     if (!before) return NextResponse.json({ error: "Tarea no encontrada." }, { status: 404 });
+    const nextKind=patch.item_kind??before.item_kind??"task";const nextStart=patch.starts_at===undefined?before.starts_at:patch.starts_at;const nextEnd=patch.ends_at===undefined?before.ends_at:patch.ends_at;if(nextKind==="event"&&(!nextStart||!nextEnd||nextEnd<=nextStart))return NextResponse.json({error:"El evento requiere un fin posterior al inicio."},{status:400});
 
     const result = await executeDataQuery(request, {
       table: "tasks",
@@ -97,6 +105,9 @@ export async function PATCH(request: Request, context: RouteContext) {
         dueDate: after.due_date,
         dueTime: after.due_time,
         taskTypeId: after.task_type_id,
+        itemKind: after.item_kind,
+        startsAt: after.starts_at,
+        endsAt: after.ends_at,
         actorId: profile.id,
       });
     }

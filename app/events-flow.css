@@ -35,3 +35,5 @@
   color: #3b0764;
   font-weight: 700;
 }
+
+.adminNoticeForm{grid-template-columns:repeat(2,minmax(0,1fr))!important;align-items:start!important}.adminNoticeForm .wide{grid-column:1/-1}.adminNoticeForm label{align-content:start}.adminNoticeForm textarea{min-height:110px!important}.adminNoticeForm .primaryAction{grid-column:1/-1;min-height:44px}@media(max-width:720px){.adminNoticeForm{grid-template-columns:1fr!important}.adminNoticeForm .wide,.adminNoticeForm .primaryAction{grid-column:auto}}

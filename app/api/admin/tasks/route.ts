@@ -10,6 +10,10 @@ const taskCreateSchema = z.object({
   task_type_id: z.string().nullable(),
   due_date: z.string().min(1),
   due_time: z.string().min(1),
+  item_kind: z.enum(["task", "event"]).default("task"),
+  starts_at: z.string().nullable().optional(),
+  ends_at: z.string().nullable().optional(),
+  location: z.string().trim().nullable().optional(),
   status: z.string().min(1),
   priority: z.string().min(1),
   visible_to_students: z.boolean(),
@@ -25,12 +29,16 @@ type CreatedTaskRow = {
   due_date?: string;
   due_time?: string | null;
   task_type_id?: string | null;
+  item_kind?: "task" | "event";
+  starts_at?: string | null;
+  ends_at?: string | null;
 };
 
 export async function POST(request: Request) {
   try {
     const profile = await requirePermission(request, "tasks:edit");
     const input = taskCreateSchema.parse(await request.json());
+    if (input.item_kind === "event" && (!input.starts_at || !input.ends_at || input.ends_at <= input.starts_at)) return NextResponse.json({ error: "El evento requiere un fin posterior al inicio." }, { status: 400 });
     const result = await executeDataQuery(request, {
       table: "tasks",
       action: "insert",
@@ -51,6 +59,9 @@ export async function POST(request: Request) {
         dueDate: task.due_date ?? input.due_date,
         dueTime: task.due_time ?? input.due_time,
         taskTypeId: task.task_type_id ?? input.task_type_id,
+        itemKind: task.item_kind ?? input.item_kind,
+        startsAt: task.starts_at ?? input.starts_at,
+        endsAt: task.ends_at ?? input.ends_at,
         actorId: profile.id,
       });
     }

@@ -1,4 +1,4 @@
-const CACHE_VERSION = "pscv-push-v3";
+const CACHE_VERSION = "pscv-push-v4";
 const APP_ICON_URL = "/icon.svg";
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -67,15 +67,16 @@ self.addEventListener("push", (event) => {
       "Tienes una notificación nueva. Abre PSCV Room para verla.",
       320,
     );
-    const url = safeAppUrl(notification?.action_url || notification?.url || "/");
     const rawId = typeof notification?.id === "string" ? notification.id.slice(0, 160) : "";
+    const fallbackUrl = rawId ? `/?notification=${encodeURIComponent(rawId)}` : "/";
+    const url = safeAppUrl(notification?.action_url || notification?.url || fallbackUrl);
     const tag = rawId ? `pscv-${rawId}` : `${CACHE_VERSION}-generic`;
     await self.registration.showNotification(title, {
       body,
       icon: APP_ICON_URL,
       tag,
       renotify: false,
-      data: { url },
+      data: { url, notificationId: rawId || null },
     });
   })());
 });

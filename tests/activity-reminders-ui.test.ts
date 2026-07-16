@@ -24,7 +24,7 @@ test("only active activity reminder kinds are generated", () => {
 
 test("cron reconciles before delivery", () => {
   const reconciliation = worker.indexOf("await runScheduledJob(\n    \"automatic-reminders\"");
-  const delivery = worker.indexOf("await Promise.all");
+  const delivery = worker.indexOf("const pushDelivery = await runScheduledJob");
   assert.ok(reconciliation >= 0);
   assert.ok(delivery > reconciliation);
 });

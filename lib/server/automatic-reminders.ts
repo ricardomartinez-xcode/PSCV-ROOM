@@ -6,6 +6,7 @@ import {
   syncEventReminders,
   type ReminderSyncResult,
 } from "@/lib/server/event-reminders";
+import { processTaskPushNotifications } from "@/lib/server/push-delivery";
 
 type Row = {
   id: string;
@@ -69,10 +70,16 @@ export async function ensureAutomaticReminders(env: CloudflareEnv) {
     }));
   }
 
+  const pushDelivery = await processTaskPushNotifications(
+    env,
+    activities.map((activity) => activity.id),
+  );
+
   return {
     scanned: activities.length,
     synchronized: activities.length,
     window: { start, end },
+    pushDelivery,
     ...totals,
   };
 }

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { AuthSessionProvider } from "@/components/auth-session-provider";
 import { usePushNotifications, type PushState } from "@/components/push-notifications-bootstrap";
+import { notificationActionUrl } from "@/lib/notification-action";
 import styles from "./notification-delivery.module.css";
 
 type AppNotification = {
@@ -82,12 +83,12 @@ function safeClientActionPath(value: string | null | undefined) {
 }
 
 async function showSystemNotification(notification: AppNotification) {
-  const actionPath = safeClientActionPath(notification.action_url);
+  const actionPath = safeClientActionPath(notification.action_url ?? notificationActionUrl(notification.id));
   const options: NotificationOptions = {
     body: notification.body || "Tienes un aviso nuevo en PSCV Room.",
     icon: "/icon.svg",
     tag: `pscv-${notification.id}`,
-    data: { url: actionPath },
+    data: { url: actionPath, notificationId: notification.id },
   };
 
   if ("serviceWorker" in navigator) {
@@ -212,11 +213,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       const local = localPreferencesRef.current;
       if (!local.browserEnabled || permissionRef.current !== "granted") return;
 
-      if (document.visibilityState === "hidden") {
-        void Promise.all(fresh.slice(0, 3).map(showSystemNotification)).catch(() => {
-          // The browser can reject a native notification even after permission was granted.
-        });
-      }
+      void Promise.all(fresh.map(showSystemNotification)).catch(() => {
+        // The browser can reject a native notification even after permission was granted.
+      });
       playTone();
     } catch {
       // Polling is best effort. The in-app notification center remains available.

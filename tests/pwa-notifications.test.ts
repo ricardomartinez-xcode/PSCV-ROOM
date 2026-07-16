@@ -36,10 +36,10 @@ test("service-worker mutations are same-origin and do not follow redirects", () 
 test("system notifications share stable tags and service-worker navigation data", () => {
   assert.match(serviceWorker, /tag,/);
   assert.match(serviceWorker, /renotify: false/);
-  assert.match(serviceWorker, /data: \{ url \}/);
+  assert.match(serviceWorker, /data: \{ url, notificationId: rawId \|\| null \}/);
   assert.match(providers, /registration\.showNotification/);
   assert.match(providers, /tag: `pscv-\$\{notification\.id\}`/);
-  assert.match(providers, /data: \{ url: actionPath \}/);
+  assert.match(providers, /data: \{ url: actionPath, notificationId: notification\.id \}/);
 });
 
 test("the manifest does not advertise an unsafe maskable icon", () => {

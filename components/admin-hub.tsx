@@ -371,11 +371,12 @@ function GeneralPanel({ stats, onNavigate }: { stats: { courses: number; section
 
 function MetricCard({ icon: Icon, label, value, help, onClick }: { icon: LucideIcon; label: string; value: string | number; help: string; onClick: () => void }) { return <button type="button" className="metricCard" aria-label={`Abrir ${label}`} onClick={onClick}><span className="metricCardIcon"><Icon size={18} aria-hidden="true" /></span><span>{label}</span><strong>{value}</strong><small>{help}</small><ChevronRight className="metricCardChevron" size={18} aria-hidden="true" /></button>; }
 
-function notificationResultLabel(inserted: number, email?: EmailDispatchResult) {
-  if (!email) return `${inserted} avisos creados`;
-  if (!email.configured) return `${inserted} avisos creados · correo no configurado`;
+function notificationResultLabel(inserted: number, systemDeliveryQueued: boolean, email?: EmailDispatchResult) {
+  const system = systemDeliveryQueued ? " · entrega al sistema iniciada" : "";
+  if (!email) return `${inserted} avisos creados${system}`;
+  if (!email.configured) return `${inserted} avisos creados${system} · correo no configurado`;
   const failed = email.failed ? ` · ${email.failed} fallidos` : "";
-  return `${inserted} avisos creados · ${email.delivered} correos enviados${failed}`;
+  return `${inserted} avisos creados${system} · ${email.delivered} correos enviados${failed}`;
 }
 
 function NotificationsPanel({ onError }: { onError: (error: string | null) => void }) {
@@ -416,9 +417,9 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, body, audience, priority, kind }),
       });
-      const payload = await response.json() as { inserted?: number; email?: EmailDispatchResult; error?: string };
+      const payload = await response.json() as { inserted?: number; systemDeliveryQueued?: boolean; email?: EmailDispatchResult; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "No se pudo enviar el aviso.");
-      setResult(notificationResultLabel(payload.inserted ?? 0, payload.email));
+      setResult(notificationResultLabel(payload.inserted ?? 0, Boolean(payload.systemDeliveryQueued), payload.email));
       setTitle("");
       setBody("");
       await loadRecent();
@@ -461,7 +462,7 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
       <div className="adminNoticeHelp">
         <p><strong>Recordatorios:</strong> sincroniza avisos para cada alumno y cada tarea visible, pendiente y con vencimiento hoy o mañana. No crea recordatorios de dos o tres días antes ni duplica uno vigente.</p>
         <p><strong>Nueva tarea / Tarea actualizada:</strong> son avisos automáticos dirigidos a alumnos. Por eso no aparecen en la campana del administrador. El historial inferior agrupa las filas individuales por entrega.</p>
-        <p><strong>Entrega:</strong> la campana funciona dentro de PSCV Room y Web Push mantiene los avisos del sistema con la app cerrada en Android, Windows e iOS compatibles. En iPhone/iPad debe instalarse en Inicio; el sonido dentro de la app requiere permiso.</p>
+        <p><strong>Entrega:</strong> cada aviso y recordatorio intenta enviarse de inmediato como notificación del sistema y también permanece en la campana. Web Push funciona con la app cerrada en Android, Windows e iOS compatibles. En iPhone/iPad debe instalarse en Inicio; el sistema siempre requiere permiso.</p>
       </div>
       <form className="adminNoticeForm" onSubmit={sendNotification}>
         <label className="wide">Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Aviso para el grupo" required /></label>

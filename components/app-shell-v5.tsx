@@ -41,6 +41,7 @@ import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
+import { NOTIFICATION_QUERY_PARAM } from "@/lib/notification-action";
 import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
@@ -237,6 +238,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notificationDetail, setNotificationDetail] = useState<AppNotification | null>(null);
   const [notificationView, setNotificationView] = useState<"notifications" | "settings">("notifications");
   const [tasks, setTasks] = useState<UiTask[]>(initialTasks);
   const [courses, setCourses] = useState<CourseConfig[]>([]);
@@ -289,6 +291,44 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile?.id]);
+
+  useEffect(() => {
+    if (!notifications.length) return;
+    const url = new URL(window.location.href);
+    const notificationId = url.searchParams.get(NOTIFICATION_QUERY_PARAM);
+    if (!notificationId) return;
+    const notification = notifications.find((item) => item.id === notificationId);
+    if (!notification) return;
+
+    url.searchParams.delete(NOTIFICATION_QUERY_PARAM);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+    setNotificationOpen(false);
+    setNotificationView("notifications");
+    setNotificationDetail(notification);
+    void updateNotifications([notification.id], "read");
+  }, [notifications]);
+
+  useEffect(() => {
+    if (!tasks.length) return;
+    const url = new URL(window.location.href);
+    const taskId = url.searchParams.get("task");
+    if (!taskId || !tasks.some((task) => task.id === taskId)) return;
+
+    url.searchParams.delete("task");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+    setSelectedTaskId(taskId);
+    setDetailOrigin("tasks");
+    setTab("taskDetail");
+    setDrawerOpen(false);
+  }, [tasks]);
 
   async function loadData(client: D1Browser) {
     setError(null);
@@ -635,6 +675,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     : null;
   const activeNavTab = tab === "taskDetail" ? detailOrigin : tab;
   const unreadNotifications = notifications.filter((notification) => !notification.read_at).length;
+  const notificationDetailOpen = Boolean(notificationDetail);
 
   function go(next: Tab) {
     if (next === "completed" && !canViewCompleted) return;
@@ -658,7 +699,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     setNotificationView("notifications");
     if (notification.entity === "tasks" && notification.entity_id) {
       openTaskDetail(notification.entity_id, "tasks");
+      return;
     }
+    setNotificationDetail(notification);
   }
 
   function refreshCurrentData() {
@@ -668,7 +711,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   return (
     <main className={`mobileApp density-${prefs.taskDensity} ${shellRole === "admin" ? "adminShell" : ""}`}>
       <a className="skipLink" href="#main-content">Saltar al contenido</a>
-      <header className="topAppBar" inert={drawerOpen || notificationOpen ? true : undefined}>
+      <header className="topAppBar" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button className="iconButton" aria-label="Abrir navegación" title="Navegación" onClick={() => setDrawerOpen(true)} type="button"><Menu size={23} /></button>
         <img src="/icon.svg" className="appLogo" alt="PSCV" />
         <div className="barTitle">
@@ -728,8 +771,12 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onRead={(ids) => void updateNotifications(ids, "read")}
         onDismiss={(ids) => void updateNotifications(ids, "dismiss")}
       />
+      <NotificationDetailDialog
+        notification={notificationDetail}
+        onClose={() => setNotificationDetail(null)}
+      />
 
-      <section className="screen" id="main-content" tabIndex={-1} inert={drawerOpen || notificationOpen ? true : undefined}>
+      <section className="screen" id="main-content" tabIndex={-1} inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         {tab === "calendar" ? (
           <>
             <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} canViewCompleted={canViewCompleted} canManageGroup={capabilities.canManageGroup} onGo={go} />
@@ -775,7 +822,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
 
       <ScrollToTopButton />
 
-      <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen ? true : undefined}>
+      <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
         <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
         {capabilities.canAccessAdmin ? (
@@ -1023,6 +1070,56 @@ function NotificationTray({
         )}
       </div>
     </section>
+    </>
+  );
+}
+
+function NotificationDetailDialog({
+  notification,
+  onClose,
+}: {
+  notification: AppNotification | null;
+  onClose: () => void;
+}) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+  useContainedDialogFocus(Boolean(notification), dialogRef, onClose);
+
+  if (!notification) return null;
+
+  const meta = notificationKindMeta(notification.kind);
+  const priority = notification.priority === "high"
+    ? "Prioridad alta"
+    : notification.priority === "low"
+      ? "Prioridad baja"
+      : "Prioridad normal";
+
+  return (
+    <>
+      <div className="notificationDetailScrim" aria-hidden="true" onClick={onClose} />
+      <section
+        ref={dialogRef}
+        className={`notificationDetailDialog priority-${notification.priority}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="notification-detail-title"
+        aria-describedby="notification-detail-body"
+      >
+        <header className="notificationDetailHead">
+          <span className={`notificationDetailKind kind-${meta.tone}`}>{meta.icon}{meta.label}</span>
+          <button data-dialog-autofocus type="button" aria-label="Cerrar aviso" title="Cerrar" onClick={onClose}><X size={19} /></button>
+        </header>
+        <div className="notificationDetailContent">
+          <h2 id="notification-detail-title">{notification.title}</h2>
+          <p id="notification-detail-body">{notification.body || "Este aviso no incluye información adicional."}</p>
+        </div>
+        <footer className="notificationDetailFooter">
+          <div>
+            <span>{priority}</span>
+            <time dateTime={notification.scheduled_for}>{formatOptionalSync(notification.scheduled_for)}</time>
+          </div>
+          <button type="button" onClick={onClose}>Cerrar</button>
+        </footer>
+      </section>
     </>
   );
 }

@@ -4,6 +4,7 @@ import { errorResponse, requirePermission } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
 import { d1All, d1First, d1Run, executeDataQuery } from "@/lib/server/d1-data";
 import { dismissEventReminders, syncEventReminders } from "@/lib/server/event-reminders";
+import { dispatchTaskPushNotificationsInBackground } from "@/lib/server/push-delivery";
 import { taskRejectsBucketMaterials } from "@/lib/server/task-material-links";
 
 const taskPatchSchema = z.object({
@@ -152,6 +153,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         visibleToStudents: enabled(after.visible_to_students),
         actorId: profile.id,
       });
+      await dispatchTaskPushNotificationsInBackground([after.id]);
     }
 
     await writeAudit({ actorId: profile.id, action: "task.update", entityId: id, before, after: result.data });

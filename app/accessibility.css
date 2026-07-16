@@ -23,6 +23,7 @@ body {
 .drawerNav,
 .notificationTrayBody.settings,
 .notificationList,
+.notificationDetailContent,
 .taskCreateModal,
 .taskMaterialOptions,
 .diagnosticDetailsBody {

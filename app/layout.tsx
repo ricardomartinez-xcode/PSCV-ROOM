@@ -14,6 +14,7 @@ import "./events-flow.css";
 import "./admin-modern.css";
 import "./admin-reports.css";
 import "./admin-diagnostics.css";
+import "./admin-notices.css";
 import "./admin-workspaces.css";
 import "./mobile-calendar.css";
 import "./task-materials.css";

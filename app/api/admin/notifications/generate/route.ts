@@ -10,6 +10,7 @@ import {
   syncEventReminders,
   type ReminderSyncResult,
 } from "@/lib/server/event-reminders";
+import { dispatchTaskPushNotificationsInBackground } from "@/lib/server/push-delivery";
 
 const schema = z.object({
   // Accept the previous client value during rollout, but always enforce the
@@ -80,6 +81,8 @@ export async function POST(request: Request) {
         actorId: profile.id,
       }));
     }
+
+    await dispatchTaskPushNotificationsInBackground(rows.map((row) => row.id));
 
     return NextResponse.json({
       ok: true,

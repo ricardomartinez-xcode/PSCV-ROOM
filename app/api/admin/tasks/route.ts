@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, requirePermission } from "@/lib/server/authz";
 import { executeDataQuery } from "@/lib/server/d1-data";
 import { syncEventReminders } from "@/lib/server/event-reminders";
+import { dispatchTaskPushNotificationsInBackground } from "@/lib/server/push-delivery";
 
 const taskCreateSchema = z.object({
   title: z.string().trim().min(1),
@@ -76,6 +77,7 @@ export async function POST(request: Request) {
         ),
         actorId: profile.id,
       });
+      await dispatchTaskPushNotificationsInBackground([task.id]);
     }
 
     return NextResponse.json({ ok: true, task: result.data });

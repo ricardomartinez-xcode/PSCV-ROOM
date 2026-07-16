@@ -38,12 +38,14 @@ export async function processScheduledJobs(env: CloudflareEnv) {
     "automatic-reminders",
     () => ensureAutomaticReminders(env),
   );
-  const [pushDelivery, reminderEmailDelivery] = await Promise.all([
-    runScheduledJob("push-delivery", () =>
-      processDuePushNotifications(env)),
-    runScheduledJob("reminder-email-delivery", () =>
-      processDueReminderEmails(env)),
-  ]);
+  const pushDelivery = await runScheduledJob(
+    "push-delivery",
+    () => processDuePushNotifications(env),
+  );
+  const reminderEmailDelivery = await runScheduledJob(
+    "reminder-email-delivery",
+    () => processDueReminderEmails(env),
+  );
   return { automaticReminders, pushDelivery, reminderEmailDelivery };
 }
 

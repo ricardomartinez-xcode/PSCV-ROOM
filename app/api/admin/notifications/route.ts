@@ -4,6 +4,8 @@ import { errorResponse, requirePermission } from "@/lib/server/authz";
 import { deliverAnnouncementEmails, type AnnouncementNotification } from "@/lib/server/notification-email";
 import { groupAdminNotifications, type AdminNotificationRow } from "@/lib/server/notification-groups";
 import { d1All, d1Run } from "@/lib/server/d1-data";
+import { notificationActionUrl } from "@/lib/notification-action";
+import { dispatchPushNotificationsInBackground } from "@/lib/server/push-delivery";
 
 const notificationSchema = z.object({
   title: z.string().trim().min(1),
@@ -46,28 +48,32 @@ export async function POST(request: Request) {
         : "WHERE active = 1";
     const targets = await d1All<ProfileTarget>(`SELECT id, role FROM app_profiles ${where}`);
 
-    const rows: AnnouncementNotification[] = targets.map((target) => ({
-      id: crypto.randomUUID(),
-      profile_id: target.id,
-      kind: body.kind,
-      priority: body.priority,
-      title: body.title,
-      body: body.body,
-      action_url: null,
-    }));
+    const rows: AnnouncementNotification[] = targets.map((target) => {
+      const id = crypto.randomUUID();
+      return {
+        id,
+        profile_id: target.id,
+        kind: body.kind,
+        priority: body.priority,
+        title: body.title,
+        body: body.body,
+        action_url: notificationActionUrl(id),
+      };
+    });
 
     for (const row of rows) {
       await d1Run(
-        `INSERT INTO notifications (id, profile_id, kind, priority, title, body, entity, entity_id, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'broadcast', ?, ?)`,
-        [row.id, row.profile_id, row.kind, row.priority, row.title, row.body, body.audience, profile.id],
+        `INSERT INTO notifications (id, profile_id, kind, priority, title, body, entity, entity_id, action_url, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, 'broadcast', ?, ?, ?)`,
+        [row.id, row.profile_id, row.kind, row.priority, row.title, row.body, body.audience, row.action_url, profile.id],
       );
     }
 
     if (!rows.length) return NextResponse.json({ ok: true, inserted: 0, email: { configured: false, considered: 0, delivered: 0, skipped: 0, failed: 0, errors: [] } });
 
     const email = await deliverAnnouncementEmails(rows);
-    return NextResponse.json({ ok: true, inserted: rows.length, email });
+    await dispatchPushNotificationsInBackground(rows.map((row) => row.id));
+    return NextResponse.json({ ok: true, inserted: rows.length, systemDeliveryQueued: true, email });
   } catch (error) {
     return errorResponse(error);
   }

@@ -11,6 +11,8 @@ const createRoute = source("../app/api/admin/tasks/route.ts");
 const patchRoute = source("../app/api/admin/tasks/[id]/route.ts");
 const generateRoute = source("../app/api/admin/notifications/generate/route.ts");
 const push = source("../lib/server/web-push.ts");
+const pushDelivery = source("../lib/server/push-delivery.ts");
+const automaticReminders = source("../lib/server/automatic-reminders.ts");
 const emailDelivery = source("../lib/server/reminder-email-delivery.ts");
 const migration = source("../migrations/0011_idempotent_activity_reminders.sql");
 const deliveryMigration = source("../migrations/0012_email_delivery_claims.sql");
@@ -19,7 +21,16 @@ test("task mutations pass status and student visibility to reminder sync", () =>
   for (const route of [createRoute, patchRoute]) {
     assert.match(route, /status:/);
     assert.match(route, /visibleToStudents:/);
+    assert.match(route, /dispatchTaskPushNotificationsInBackground/);
   }
+});
+
+test("new and regenerated reminders target their tasks before the global fallback", () => {
+  assert.match(generateRoute, /dispatchTaskPushNotificationsInBackground\(rows\.map\(\(row\) => row\.id\)\)/);
+  assert.match(pushDelivery, /export async function processTaskPushNotifications/);
+  assert.match(pushDelivery, /entity_id IN \(\$\{placeholders\}\)/);
+  assert.match(pushDelivery, /processPushNotificationsByIds\(env, notificationIds\)/);
+  assert.match(automaticReminders, /processTaskPushNotifications/);
 });
 
 test("same reminder occurrences preserve inbox state and changed ones reset delivery", () => {

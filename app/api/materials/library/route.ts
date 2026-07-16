@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { selectBucketMaterialSections } from "@/lib/server/material-sections";
-import { createNativePublicR2Url, listNativeR2FolderPrefixes } from "@/lib/server/r2-native";
-import { MATERIALS_R2_ROOT, materialSectionPathFromR2Key, normalizeMaterialR2Key } from "@/lib/server/r2-paths";
+import { errorResponse, HttpError, requireProfile } from "@/lib/server/authz";
+import { materialSectionPathFromR2Key, normalizeMaterialR2Key } from "@/lib/server/r2-paths";
 import { d1All } from "@/lib/server/d1-data";
+import { buildMaterialLibrarySearch } from "@/lib/server/material-search";
 
 type SectionRow = {
   id: string;
@@ -41,7 +41,6 @@ function sectionKey(value: string) {
 }
 
 async function withR2Urls(row: MaterialRow, sectionsByPath: Map<string, SectionRow>) {
-  const publicR2Url = await createNativePublicR2Url(row.r2_key);
   const signedPreviewUrl = row.r2_key ? `/api/materials/${row.id}/file?mode=preview` : null;
   const signedDownloadUrl = row.r2_key ? `/api/materials/${row.id}/file?mode=download` : null;
   const joinedSection = firstSection(row.material_sections);
@@ -50,10 +49,12 @@ async function withR2Urls(row: MaterialRow, sectionsByPath: Map<string, SectionR
 
   return {
     ...row,
+    r2_key: row.r2_key ? "protected" : null,
     provider: row.r2_key ? "r2" : row.provider,
-    public_url: signedDownloadUrl ?? publicR2Url,
-    preview_url: signedPreviewUrl ?? publicR2Url,
-    source_url: signedDownloadUrl ?? publicR2Url,
+    public_url: signedDownloadUrl,
+    preview_url: signedPreviewUrl,
+    source_url: signedDownloadUrl,
+    download_url: signedDownloadUrl,
     thumbnail_url: null,
     section_id: section?.id ?? null,
     section,
@@ -63,31 +64,30 @@ async function withR2Urls(row: MaterialRow, sectionsByPath: Map<string, SectionR
 
 export async function GET(request: Request) {
   try {
+    await requireProfile(request);
     const requestUrl = new URL(request.url);
-    const query = requestUrl.searchParams.get("q")?.trim();
+    const rawQuery = requestUrl.searchParams.get("q") ?? "";
+    if (rawQuery.length > 120) throw new HttpError(400, "La búsqueda admite hasta 120 caracteres.");
+    const search = buildMaterialLibrarySearch(rawQuery);
+    const query = search?.query;
     const sectionId = requestUrl.searchParams.get("sectionId")?.trim();
-    const limit = Math.min(Number(requestUrl.searchParams.get("limit") ?? 300), 500);
+    const requestedLimit = Number(requestUrl.searchParams.get("limit") ?? 300);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.max(1, Math.min(Math.trunc(requestedLimit), 500))
+      : 300;
 
     const sectionsResult = await d1All<SectionRow>(
       "SELECT id, name, path, color, icon, card_size, preview_style, sort_order FROM material_sections WHERE active = 1 ORDER BY sort_order ASC",
     );
-    let folderPaths: string[] = [];
-    try {
-      folderPaths = await listNativeR2FolderPrefixes(MATERIALS_R2_ROOT);
-    } catch {
-      folderPaths = [];
-    }
-
     const where: string[] = ["m.visibility = 'visible'", "m.r2_key IS NOT NULL"];
     const values: unknown[] = [];
     if (sectionId) {
       where.push("m.section_id = ?");
       values.push(sectionId);
     }
-    if (query) {
-      const like = `%${query.replace(/[%_]/g, "\\$&")}%`;
-      where.push("(m.title LIKE ? ESCAPE '\\' OR m.file_name LIKE ? ESCAPE '\\' OR m.observations LIKE ? ESCAPE '\\')");
-      values.push(like, like, like);
+    if (search) {
+      where.push(search.sql);
+      values.push(...search.values);
     }
     values.push(limit);
     const materialsResult = await d1All<MaterialRow & {
@@ -114,7 +114,9 @@ export async function GET(request: Request) {
       values,
     );
 
-    const sections = folderPaths.length ? selectBucketMaterialSections(folderPaths, sectionsResult) : sectionsResult;
+    // D1 is the query index. Native R2 listing belongs to diagnostics/import,
+    // not to every interactive search request.
+    const sections = sectionsResult;
     const sectionsByPath = new Map(sections.map((section) => [sectionKey(section.path), section]));
     const materials = await Promise.all(materialsResult
       .map((row) => withR2Urls({
@@ -169,9 +171,6 @@ export async function GET(request: Request) {
       });
     }
 
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "No se pudo cargar la biblioteca." },
-      { status: 500 },
-    );
+    return errorResponse(error);
   }
 }

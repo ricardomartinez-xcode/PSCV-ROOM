@@ -33,3 +33,10 @@ test("Ricardo is enforced as the active PSCV Room owner", () => {
   assert.match(authzSource, /role = 'owner'/);
   assert.match(authzSource, /can_manage_r2 = 1/);
 });
+
+test("authenticated mutations reject missing or cross-origin browser requests", () => {
+  assert.match(authzSource, /new Set\(\["GET", "HEAD", "OPTIONS"\]\)/);
+  assert.match(authzSource, /const origin = request\.headers\.get\("origin"\);/);
+  assert.match(authzSource, /origin !== expectedOrigin/);
+  assert.match(authzSource, /throw new HttpError\(403, "Origen no permitido\."\)/);
+});

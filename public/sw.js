@@ -1,4 +1,5 @@
-const CACHE_VERSION = "pscv-push-v2";
+const CACHE_VERSION = "pscv-push-v3";
+const APP_ICON_URL = "/icon.svg";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -12,10 +13,12 @@ function decodeApplicationServerKey(value) {
 async function claimPendingNotification() {
   const subscription = await self.registration.pushManager.getSubscription();
   if (!subscription) return null;
-  const response = await fetch("/api/push/pending", {
+  const response = await fetch(new URL("/api/push/pending", self.location.origin), {
     method: "POST",
+    mode: "same-origin",
     credentials: "include",
     cache: "no-store",
+    redirect: "error",
     headers: { "Content-Type": "application/json", Accept: "application/json" },
     body: JSON.stringify({ endpoint: subscription.endpoint }),
   });
@@ -34,19 +37,44 @@ function payloadNotification(event) {
   }
 }
 
+function safeAppUrl(value) {
+  if (typeof value !== "string" || value.length > 2048) return `${self.location.origin}/`;
+  try {
+    const candidate = new URL(value, self.location.origin);
+    if (candidate.origin !== self.location.origin) return `${self.location.origin}/`;
+    if (candidate.protocol !== "https:" && candidate.protocol !== "http:") {
+      return `${self.location.origin}/`;
+    }
+    return candidate.href;
+  } catch {
+    return `${self.location.origin}/`;
+  }
+}
+
+function safeNotificationText(value, fallback, maxLength) {
+  return typeof value === "string" && value.trim()
+    ? value.trim().slice(0, maxLength)
+    : fallback;
+}
+
 self.addEventListener("push", (event) => {
   event.waitUntil((async () => {
     const notification = payloadNotification(event)
       || await claimPendingNotification().catch(() => null);
-    const title = notification?.title || "PSCV Room";
-    const body = notification?.body || "Tienes una notificación nueva. Abre PSCV Room para verla.";
-    const url = notification?.action_url || notification?.url || "/";
-    const tag = notification?.id ? `pscv-${notification.id}` : `${CACHE_VERSION}-generic`;
+    const title = safeNotificationText(notification?.title, "PSCV Room", 120);
+    const body = safeNotificationText(
+      notification?.body,
+      "Tienes una notificación nueva. Abre PSCV Room para verla.",
+      320,
+    );
+    const url = safeAppUrl(notification?.action_url || notification?.url || "/");
+    const rawId = typeof notification?.id === "string" ? notification.id.slice(0, 160) : "";
+    const tag = rawId ? `pscv-${rawId}` : `${CACHE_VERSION}-generic`;
     await self.registration.showNotification(title, {
       body,
-      icon: "/icon.svg",
+      icon: APP_ICON_URL,
       tag,
-      renotify: true,
+      renotify: false,
       data: { url },
     });
   })());
@@ -54,9 +82,11 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("pushsubscriptionchange", (event) => {
   event.waitUntil((async () => {
-    const configResponse = await fetch("/api/push/config", {
+    const configResponse = await fetch(new URL("/api/push/config", self.location.origin), {
+      mode: "same-origin",
       credentials: "include",
       cache: "no-store",
+      redirect: "error",
       headers: { Accept: "application/json" },
     });
     if (!configResponse.ok) return;
@@ -66,9 +96,12 @@ self.addEventListener("pushsubscriptionchange", (event) => {
       userVisibleOnly: true,
       applicationServerKey: decodeApplicationServerKey(config.publicKey),
     });
-    await fetch("/api/push/subscribe", {
+    await fetch(new URL("/api/push/subscribe", self.location.origin), {
       method: "POST",
+      mode: "same-origin",
       credentials: "include",
+      cache: "no-store",
+      redirect: "error",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(subscription.toJSON()),
     });
@@ -77,7 +110,7 @@ self.addEventListener("pushsubscriptionchange", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  const targetUrl = safeAppUrl(event.notification.data?.url || "/");
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of windows) {

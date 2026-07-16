@@ -1,9 +1,12 @@
 import { importJWK, SignJWT, type JWK } from "jose";
+import { safePushEndpointUrl } from "./push-endpoint-policy.ts";
 
 export type PushSubscriptionRecord = {
   id: string;
   endpoint: string;
 };
+
+export const PUSH_TTL_SECONDS = 24 * 60 * 60;
 
 type VapidConfiguration = {
   publicKey: string;
@@ -75,15 +78,20 @@ async function createVapidToken(endpoint: string, env: CloudflareEnv) {
 }
 
 export async function sendPushWake(subscription: PushSubscriptionRecord, env: CloudflareEnv) {
-  const { token, publicKey } = await createVapidToken(subscription.endpoint, env);
-  const response = await fetch(subscription.endpoint, {
+  const endpoint = safePushEndpointUrl(subscription.endpoint);
+  if (!endpoint) throw new Error("Endpoint push inválido.");
+
+  const { token, publicKey } = await createVapidToken(endpoint.toString(), env);
+  const response = await fetch(endpoint, {
     method: "POST",
+    redirect: "manual",
     headers: {
-      TTL: "60",
+      TTL: String(PUSH_TTL_SECONDS),
       Urgency: "high",
       Authorization: `vapid t=${token}, k=${publicKey}`,
     },
     signal: AbortSignal.timeout(15_000),
   });
-  return { ok: response.ok, status: response.status };
+  const redirected = response.status >= 300 && response.status < 400;
+  return { ok: response.ok && !redirected, status: response.status };
 }

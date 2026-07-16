@@ -13,7 +13,7 @@ declare global {
     prepare(query: string): D1PreparedStatement;
     batch(statements: D1PreparedStatement[]): Promise<D1Result[]>;
   }
-  interface R2Object { key: string; size: number; etag: string; uploaded: Date; httpMetadata?: { contentType?: string; contentDisposition?: string }; body: ReadableStream; writeHttpMetadata(headers: Headers): void; }
+  interface R2Object { key: string; size: number; etag: string; httpEtag: string; uploaded: Date; httpMetadata?: { contentType?: string; contentDisposition?: string }; body: ReadableStream; writeHttpMetadata(headers: Headers): void; }
   interface R2Bucket {
     get(key: string): Promise<R2Object | null>;
     put(key: string, value: ReadableStream | ArrayBuffer | string | null, options?: { httpMetadata?: { contentType?: string; contentDisposition?: string } }): Promise<unknown>;

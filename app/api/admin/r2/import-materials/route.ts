@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
-import { getCloudflareEnv } from "@/lib/server/cloudflare";
+import { z } from "zod";
+import { getD1 } from "@/lib/server/cloudflare";
 import { listNativeR2Objects, type NativeR2ListedObject } from "@/lib/server/r2-native";
-import { MATERIALS_R2_ROOT, materialSectionPathFromR2Key } from "@/lib/server/r2-paths";
-import { errorResponse, requirePermission } from "@/lib/server/authz";
+import {
+  MATERIALS_R2_BUCKET_NAME,
+  MATERIALS_R2_ROOT,
+  materialSectionPathFromR2Key,
+  normalizeMaterialImportRoot,
+} from "@/lib/server/r2-paths";
+import { errorResponse, HttpError, requirePermission } from "@/lib/server/authz";
 import { d1All, d1Run } from "@/lib/server/d1-data";
 
 type ImportRequest = {
@@ -14,6 +20,16 @@ type ImportRequest = {
   resetScope?: "r2" | "all";
   confirm?: string;
 };
+
+const importRequestSchema = z.object({
+  dryRun: z.boolean().optional(),
+  root: z.string().trim().max(1024).optional(),
+  maxItems: z.number().int().min(1).max(50_000).optional(),
+  batchSize: z.number().int().min(1).max(100).optional(),
+  reset: z.boolean().optional(),
+  resetScope: z.enum(["r2", "all"]).optional(),
+  confirm: z.string().max(64).optional(),
+}).strict();
 
 type SectionRow = { id: string; path: string };
 type MaterialRow = { id: string; r2_key: string | null };
@@ -27,6 +43,7 @@ type ImportableObject = NativeR2ListedObject & {
 };
 
 const RESET_CONFIRMATION = "REIMPORTAR_R2";
+const RESET_ALL_CONFIRMATION = "REIMPORTAR_TODO";
 const SKIP_FILE_RE = /(^|\/)(\.(DS_Store|keep)$|Thumbs\.db$)/i;
 const DEFAULT_IMPORT_BATCH_SIZE = 40;
 const MAX_IMPORT_BATCH_SIZE = 100;
@@ -95,13 +112,7 @@ function isImportableObject(object: NativeR2ListedObject) {
   return Boolean(fileName && fileName.includes(".") && !SKIP_FILE_RE.test(object.key));
 }
 
-function createPublicUrl(publicBaseUrl: string | undefined, key: string) {
-  const base = publicBaseUrl?.trim().replace(/\/$/, "");
-  if (!base) return null;
-  return `${base}/${key.split("/").map(encodeURIComponent).join("/")}`;
-}
-
-function toImportable(object: NativeR2ListedObject, publicBaseUrl: string | undefined): ImportableObject {
+function toImportable(object: NativeR2ListedObject): ImportableObject {
   const fileName = basename(object.key);
   return {
     ...object,
@@ -110,7 +121,7 @@ function toImportable(object: NativeR2ListedObject, publicBaseUrl: string | unde
     title: titleFromFileName(fileName),
     contentType: inferContentType(fileName),
     materialType: inferMaterialType(fileName),
-    publicUrl: createPublicUrl(publicBaseUrl, object.key),
+    publicUrl: null,
   };
 }
 
@@ -180,16 +191,30 @@ async function loadExistingMaterials(keys: string[]) {
 }
 
 async function resetMaterials(scope: "r2" | "all", batchSize: number) {
+  let selectSql: string;
+  switch (scope) {
+    case "r2":
+      selectSql = "SELECT id FROM materials WHERE provider = 'r2'";
+      break;
+    case "all":
+      selectSql = "SELECT id FROM materials";
+      break;
+    default:
+      throw new HttpError(400, "Alcance de reinicio inválido.");
+  }
   const ids = (await d1All<{ id: string }>(
-    scope === "r2" ? "SELECT id FROM materials WHERE provider = 'r2'" : "SELECT id FROM materials",
+    selectSql,
   )).map((row) => row.id);
   const idChunks = chunk(ids, batchSize);
 
   for (const [index, idsChunk] of idChunks.entries()) {
     if (!idsChunk.length) continue;
     const placeholders = idsChunk.map(() => "?").join(",");
-    await d1Run(`DELETE FROM task_materials WHERE material_id IN (${placeholders})`, idsChunk);
-    await d1Run(`DELETE FROM materials WHERE id IN (${placeholders})`, idsChunk);
+    const db = await getD1();
+    await db.batch([
+      db.prepare(`DELETE FROM task_materials WHERE material_id IN (${placeholders})`).bind(...idsChunk),
+      db.prepare(`DELETE FROM materials WHERE id IN (${placeholders})`).bind(...idsChunk),
+    ]);
 
     if (index < idChunks.length - 1) await delay(IMPORT_BATCH_DELAY_MS);
   }
@@ -201,31 +226,36 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
   try {
     await requirePermission(request, "r2:manage");
 
-    const body = request.method === "POST" ? ((await request.json().catch(() => ({}))) as ImportRequest) : fallbackBody;
+    const rawBody = request.method === "POST"
+      ? await request.json().catch(() => { throw new HttpError(400, "El cuerpo JSON no es válido."); })
+      : fallbackBody;
+    const parsed = importRequestSchema.safeParse(rawBody);
+    if (!parsed.success) throw new HttpError(400, parsed.error.issues[0]?.message ?? "Solicitud de importación inválida.");
+    const body = parsed.data;
     const dryRun = body.dryRun ?? request.method !== "POST";
-    const reset = Boolean(body.reset);
+    const reset = body.reset ?? false;
     const resetScope = body.resetScope ?? "r2";
-    const root = cleanPath(body.root ?? MATERIALS_R2_ROOT);
+    const root = normalizeMaterialImportRoot(body.root ?? MATERIALS_R2_ROOT);
     const maxItems = boundedPositiveInt(body.maxItems, 10_000, 50_000);
     const batchSize = boundedPositiveInt(body.batchSize, DEFAULT_IMPORT_BATCH_SIZE, MAX_IMPORT_BATCH_SIZE);
 
-    if (reset && body.confirm !== RESET_CONFIRMATION) {
-      return json({ error: `Envía confirm: "${RESET_CONFIRMATION}".`, destructiveScope: resetScope }, 400);
+    const expectedConfirmation = resetScope === "all" ? RESET_ALL_CONFIRMATION : RESET_CONFIRMATION;
+    if (reset && body.confirm !== expectedConfirmation) {
+      return json({ error: `Envía confirm: "${expectedConfirmation}".`, destructiveScope: resetScope }, 400);
     }
 
     const prefix = root ? `${root}/` : "";
-    const env = await getCloudflareEnv();
     const listedObjects = await listNativeR2Objects(prefix, maxItems);
     const objects = listedObjects
       .filter(isImportableObject)
-      .map((object) => toImportable(object, env.R2_PUBLIC_BASE_URL));
+      .map(toImportable);
     const sectionPaths = Array.from(new Set(objects.map((object) => object.sectionPath))).sort((a, b) => a.localeCompare(b, "es"));
     const plannedBatches = Math.ceil(objects.length / batchSize);
 
     if (dryRun) {
       return json({
         dryRun: true,
-        bucket: "psicologia",
+        bucket: MATERIALS_R2_BUCKET_NAME,
         root,
         scannedObjects: objects.length,
         sectionsToEnsure: sectionPaths.length,
@@ -267,7 +297,7 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
           provider: "r2",
           source_url: object.publicUrl,
           preview_url: object.publicUrl,
-          r2_bucket: "psicologia",
+          r2_bucket: MATERIALS_R2_BUCKET_NAME,
           r2_key: object.key,
           file_name: object.fileName,
           content_type: object.contentType,
@@ -334,7 +364,7 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
 
     return json({
       dryRun: false,
-      bucket: "psicologia",
+      bucket: MATERIALS_R2_BUCKET_NAME,
       root,
       reset,
       resetScope: reset ? resetScope : null,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCloudflareEnv, getMaterialsBucket } from "@/lib/server/cloudflare";
 import { createNativePublicR2Url, listNativeR2FolderPrefixes, listNativeR2Objects } from "@/lib/server/r2-native";
-import { MATERIALS_R2_ROOT } from "@/lib/server/r2-paths";
+import { MATERIALS_R2_BUCKET_NAME, MATERIALS_R2_ROOT } from "@/lib/server/r2-paths";
 import { errorResponse, requirePermission } from "@/lib/server/authz";
 
 export async function GET(request: Request) {
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const env = await getCloudflareEnv();
     await getMaterialsBucket();
     const diagnostics = {
-      bucket: "psicologia",
+      bucket: MATERIALS_R2_BUCKET_NAME,
       root: MATERIALS_R2_ROOT,
       publicBaseUrl: env.R2_PUBLIC_BASE_URL ?? "",
       variables: {
@@ -20,9 +20,10 @@ export async function GET(request: Request) {
       },
     };
 
+    const samplePrefix = MATERIALS_R2_ROOT ? `${MATERIALS_R2_ROOT}/` : "";
     const [folders, sampleObjects] = await Promise.all([
       listNativeR2FolderPrefixes(MATERIALS_R2_ROOT),
-      listNativeR2Objects(`${MATERIALS_R2_ROOT}/`, 5),
+      listNativeR2Objects(samplePrefix, 5),
     ]);
 
     const sample = await Promise.all(sampleObjects.map(async (object) => ({

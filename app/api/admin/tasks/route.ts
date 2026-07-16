@@ -32,7 +32,14 @@ type CreatedTaskRow = {
   item_kind?: "task" | "event";
   starts_at?: string | null;
   ends_at?: string | null;
+  status?: string;
+  visible_to_students?: boolean | number;
 };
+
+function enabled(value: boolean | number | undefined, fallback: boolean) {
+  if (value === undefined) return fallback;
+  return value === true || value === 1;
+}
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +69,11 @@ export async function POST(request: Request) {
         itemKind: task.item_kind ?? input.item_kind,
         startsAt: task.starts_at ?? input.starts_at,
         endsAt: task.ends_at ?? input.ends_at,
+        status: task.status ?? input.status,
+        visibleToStudents: enabled(
+          task.visible_to_students,
+          input.visible_to_students,
+        ),
         actorId: profile.id,
       });
     }

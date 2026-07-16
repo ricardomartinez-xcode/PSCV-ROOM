@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
-import { TaskMaterialExperience } from "@/components/task-material-experience";
 import "./globals.css";
 import "./responsive.css";
 import "./evolution.css";
@@ -13,12 +12,22 @@ import "./workspace.css";
 import "./notification-center.css";
 import "./events-flow.css";
 import "./admin-modern.css";
+import "./admin-reports.css";
+import "./admin-diagnostics.css";
+import "./admin-workspaces.css";
 import "./mobile-calendar.css";
-import "./task-material-experience.css";
+import "./task-materials.css";
+import "./accessibility.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",
   description: "Panel moderno de tareas, materiales y calendario para psicología.",
+  applicationName: "PSCV Room",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "PSCV Room",
+  },
   icons: {
     icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
     shortcut: ["/icon.svg"],
@@ -36,11 +45,10 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="es">
+    <html lang="es-MX">
       <body>
         <Providers>
           <PushNotificationsBootstrap>
-            <TaskMaterialExperience />
             {children}
           </PushNotificationsBootstrap>
         </Providers>

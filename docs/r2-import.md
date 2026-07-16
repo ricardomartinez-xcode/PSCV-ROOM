@@ -16,12 +16,14 @@ El bucket se declara en `wrangler.jsonc` como binding `MATERIALS_BUCKET`.
 
 `R2_PUBLIC_BASE_URL` es opcional. Si no existe, la app sirve preview/descarga mediante el Worker.
 
+El bucket se llama `psicologia`, pero ese nombre no forma parte de las keys. Los objetos viven en la raíz del bucket (`Compendio de Psicología/...`, `Procesos Grupales/...`, etc.). Por eso `root` se omite para importar todo el bucket. Por compatibilidad, `root=psicologia` también se acepta y se interpreta como la raíz, nunca como el prefijo `psicologia/`.
+
 ## Dry run
 
 Primero valida qué leerá el importador sin modificar la base de datos:
 
 ```bash
-curl -X GET "https://app.rlead.xyz/api/admin/r2/import-materials?root=psicologia&maxItems=10000" \
+curl -X GET "https://app.rlead.xyz/api/admin/r2/import-materials?maxItems=10000" \
   -H "Cookie: <cookie-de-sesion-admin>"
 ```
 
@@ -31,9 +33,10 @@ También se puede abrir la URL desde el navegador con una sesión admin activa.
 
 ```bash
 curl -X POST "https://app.rlead.xyz/api/admin/r2/import-materials" \
+  -H "Origin: https://app.rlead.xyz" \
   -H "Content-Type: application/json" \
   -H "Cookie: <cookie-de-sesion-admin>" \
-  -d '{"dryRun":false,"root":"psicologia","maxItems":10000}'
+  -d '{"dryRun":false,"maxItems":10000}'
 ```
 
 ## Reimportación limpia
@@ -45,7 +48,6 @@ Solo borra materiales R2 existentes:
 ```json
 {
   "dryRun": false,
-  "root": "psicologia",
   "reset": true,
   "resetScope": "r2",
   "confirm": "REIMPORTAR_R2"
@@ -57,14 +59,15 @@ Borra todos los materiales del catálogo, incluyendo registros heredados de Driv
 ```json
 {
   "dryRun": false,
-  "root": "psicologia",
   "reset": true,
   "resetScope": "all",
-  "confirm": "REIMPORTAR_R2"
+  "confirm": "REIMPORTAR_TODO"
 }
 ```
 
 No borra usuarios, tareas, materias, preferencias ni configuración general. Solo elimina relaciones `task_materials` de los materiales borrados y registros de `materials`.
+
+Para importar únicamente una carpeta, `root` debe ser el prefijo exacto dentro del bucket. Los espacios de una key R2 son significativos y el importador no los recorta.
 
 ## Resultado
 

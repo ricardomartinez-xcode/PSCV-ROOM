@@ -1,22 +1,39 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import {
+  EVENT_REMINDER_SCHEDULES,
+  TASK_REMINDER_SCHEDULES,
+} from "../lib/activity-reminder-plan.ts";
 
 const worker = readFileSync(new URL("../custom-worker.ts", import.meta.url), "utf8");
-const reminders = readFileSync(new URL("../lib/server/event-reminders.ts", import.meta.url), "utf8");
+const automaticReminders = readFileSync(
+  new URL("../lib/server/automatic-reminders.ts", import.meta.url),
+  "utf8",
+);
 
 test("only active activity reminder kinds are generated", () => {
-  for (const kind of [
-    "task_reminder_1_day",
-    "task_reminder_day_of",
-    "event_reminder_day_before",
-  ]) {
-    assert.match(reminders, new RegExp(kind));
-  }
-  assert.doesNotMatch(reminders, /["\t] task_reminder_3_days\b|["\t] task_reminder_2_days\b/);
+  assert.deepEqual(TASK_REMINDER_SCHEDULES, [
+    { kind: "task_reminder_1_day", daysOffset: -1 },
+    { kind: "task_reminder_day_of", daysOffset: 0 },
+  ]);
+  assert.deepEqual(EVENT_REMINDER_SCHEDULES, [
+    { kind: "event_reminder_day_before", daysOffset: -1 },
+  ]);
 });
 
-test("cron reconciles before delivery", () => assert.match(worker, /ensureAutomaticReminders/));
+test("cron reconciles before delivery", () => {
+  const reconciliation = worker.indexOf("await runScheduledJob(\n    \"automatic-reminders\"");
+  const delivery = worker.indexOf("await Promise.all");
+  assert.ok(reconciliation >= 0);
+  assert.ok(delivery > reconciliation);
+});
+
+test("cron reconciles the complete today-and-tomorrow window idempotently", () => {
+  assert.match(automaticReminders, /offsetDateKey\(start, 1\)/);
+  assert.doesNotMatch(automaticReminders, /COUNT\(DISTINCT profile_id\)/);
+  assert.match(automaticReminders, /for \(const row of activities\)/);
+});
 
 const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
 test("UI separates tasks from events", () => {

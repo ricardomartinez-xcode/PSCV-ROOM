@@ -7,9 +7,9 @@ const importerSource = readFileSync(
   "utf8",
 );
 
-test("material import calculates public URLs once and never launches one promise per object", () => {
-  assert.match(importerSource, /const env = await getCloudflareEnv\(\);/);
-  assert.match(importerSource, /\.map\(\(object\) => toImportable\(object, env\.R2_PUBLIC_BASE_URL\)\)/);
+test("material import keeps bucket objects private and never launches one promise per object", () => {
+  assert.match(importerSource, /publicUrl: null/);
+  assert.doesNotMatch(importerSource, /R2_PUBLIC_BASE_URL/);
   assert.doesNotMatch(importerSource, /Promise\.all\(\(await listNativeR2Objects/);
 });
 

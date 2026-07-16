@@ -4,6 +4,7 @@ import { seedTasks } from "@/lib/seed";
 import { getSql } from "@/lib/server/db";
 import { calculateDaysRemaining, deriveReaderVisibility, deriveStatus } from "@/lib/task-utils";
 import type { TaskStatus } from "@/lib/domain";
+import { errorResponse, requirePermission, requireProfile } from "@/lib/server/authz";
 
 const taskSchema = z.object({
   course: z.string().min(1),
@@ -32,15 +33,18 @@ type TaskRow = {
   platform_url: string | null;
   calendar_event_id: string | null;
   last_sync_at: string | null;
+  visible_to_students: boolean | number;
 };
 
-export async function GET() {
-  const sql = getSql();
-  if (!sql) {
-    return NextResponse.json({ source: "demo", tasks: seedTasks });
-  }
+export async function GET(request: Request) {
+  try {
+    const profile = await requireProfile(request);
+    const sql = getSql();
+    if (!sql) {
+      return NextResponse.json({ source: "demo", tasks: seedTasks });
+    }
 
-  const rows = await sql<TaskRow>`
+    const rows = await sql<TaskRow>`
     select
       t.id,
       coalesce(c.name, 'Sin materia') as course,
@@ -54,7 +58,8 @@ export async function GET() {
       t.notes,
       t.platform_url,
       t.calendar_event_id,
-      t.last_sync_at
+      t.last_sync_at,
+      t.visible_to_students
     from tasks t
     left join courses c on c.id = t.course_id
     left join task_types tt on tt.id = t.task_type_id
@@ -62,9 +67,12 @@ export async function GET() {
     order by t.due_date asc, t.due_time asc
   `;
 
-  return NextResponse.json({
-    source: "d1",
-    tasks: rows.map((row) => {
+    const visibleRows = profile.role === "student"
+      ? rows.filter((row) => row.visible_to_students === true || row.visible_to_students === 1)
+      : rows;
+    return NextResponse.json({
+      source: "d1",
+      tasks: visibleRows.map((row) => {
       const dueDate = String(row.due_date);
       const daysRemaining = calculateDaysRemaining(dueDate);
       const status = deriveStatus(row.status, daysRemaining);
@@ -85,28 +93,33 @@ export async function GET() {
         lastSync: row.last_sync_at ? new Date(String(row.last_sync_at)).toISOString() : "",
         visibleToReaders: deriveReaderVisibility({ status }),
       };
-    }),
-  });
+      }),
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }
 
 export async function POST(request: Request) {
-  const sql = getSql();
-  if (!sql) {
-    return NextResponse.json(
-      { error: "D1 no está configurado. En modo demo la UI usa localStorage." },
-      { status: 501 },
-    );
-  }
+  try {
+    await requirePermission(request, "tasks:edit");
+    const sql = getSql();
+    if (!sql) {
+      return NextResponse.json(
+        { error: "D1 no está configurado. En modo demo la UI usa localStorage." },
+        { status: 501 },
+      );
+    }
 
-  const payload = taskSchema.parse(await request.json());
-  const [course] = await sql<{ id: string }>`
+    const payload = taskSchema.parse(await request.json());
+    const [course] = await sql<{ id: string }>`
     select id from courses where name = ${payload.course} limit 1
   `;
-  const [taskType] = await sql<{ id: string }>`
+    const [taskType] = await sql<{ id: string }>`
     select id from task_types where name = ${payload.deliveryType} limit 1
   `;
-  const id = crypto.randomUUID();
-  const [task] = await sql<{ id: string }>`
+    const id = crypto.randomUUID();
+    const [task] = await sql<{ id: string }>`
     insert into tasks (
       id, course_id, task_type_id, due_date, due_time, title, material_needed, material_url,
       status, notes, platform_url
@@ -118,5 +131,8 @@ export async function POST(request: Request) {
     returning id
   `;
 
-  return NextResponse.json({ ok: true, id: task.id }, { status: 201 });
+    return NextResponse.json({ ok: true, id: task.id }, { status: 201 });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }

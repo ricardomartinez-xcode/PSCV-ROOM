@@ -1,0 +1,504 @@
+.taskMaterialPicker {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+  padding: 14px;
+  gap: 12px;
+  border: 1px solid #dce4ed;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.taskMaterialPicker legend {
+  padding: 0 5px;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.taskMaterialPicker > p {
+  margin: -5px 0 0;
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.taskMaterialPickerToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.taskMaterialSearch {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.taskMaterialSearchControl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 11px;
+  border: 1px solid #cfd8e3;
+  border-radius: 10px;
+  background: #fff;
+  color: #667085;
+}
+
+.taskMaterialSearchControl:focus-within {
+  border-color: #2f77d0;
+  box-shadow: 0 0 0 3px rgba(47, 119, 208, 0.14);
+}
+
+.taskMaterialSearchControl input {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.taskMaterialRefresh {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #1f4f86;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.taskMaterialRefresh:disabled {
+  color: #98a2b3;
+  cursor: wait;
+}
+
+.taskMaterialPickerStatus {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #667085;
+  font-size: 12px;
+}
+
+.taskMaterialPickerStatus strong {
+  color: #1f4f86;
+  white-space: nowrap;
+}
+
+.taskMaterialError {
+  margin: 0 !important;
+  padding: 9px 10px;
+  border: 1px solid #fecaca;
+  border-radius: 9px;
+  background: #fff1f2;
+  color: #9f1239 !important;
+}
+
+.taskMaterialOptions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  max-height: 280px;
+  min-width: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  gap: 8px;
+  padding: 2px;
+  scrollbar-gutter: stable;
+}
+
+.taskMaterialOption {
+  display: grid !important;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 58px;
+  align-items: start;
+  gap: 9px !important;
+  padding: 10px !important;
+  border: 1px solid #dde5ee !important;
+  border-radius: 11px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+}
+
+.taskMaterialOption:hover {
+  border-color: #9ebbd7 !important;
+  background: #f9fcff;
+}
+
+.taskMaterialOption:has(input:disabled) {
+  background: #f8fafc;
+  color: #98a2b3;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
+.taskMaterialOption.selected,
+.taskMaterialOption:has(input:checked) {
+  border-color: #7fb2dc !important;
+  background: #eef7fc;
+  box-shadow: inset 3px 0 0 #2a79a6;
+}
+
+.taskMaterialOption input {
+  width: 18px;
+  height: 18px;
+  margin: 1px 0 0;
+  accent-color: #2f77d0;
+}
+
+.taskMaterialOption > svg {
+  margin-top: 1px;
+  color: #2f77d0;
+}
+
+.taskMaterialOption span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.taskMaterialOption strong,
+.taskMaterialOption small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMaterialOption strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.taskMaterialOption small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.taskMaterialEmpty {
+  display: flex;
+  grid-column: 1 / -1;
+  min-height: 74px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 11px;
+  color: #667085;
+  text-align: center;
+}
+
+.taskMaterialSelection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.taskMaterialSelection > span {
+  display: inline-flex;
+  max-width: 100%;
+  min-height: 32px;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid #b9d6e9;
+  border-radius: 999px;
+  background: #edf7fc;
+  color: #174e70;
+  font-size: 12px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMaterialSelection > span > :not(button) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.taskMaterialSelection button {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.taskMaterialSelection button:hover {
+  background: #d5eaf6;
+}
+
+.taskMaterialGallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  min-width: 0;
+  gap: 9px;
+}
+
+.taskMaterialCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-width: 0;
+  gap: 9px;
+  padding: 11px;
+  border: 1px solid #dce4ed;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.taskMaterialCard > svg {
+  color: #2f77d0;
+}
+
+.taskMaterialCard > div:not(.taskMaterialCardActions) {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.taskMaterialCard strong,
+.taskMaterialCard small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMaterialCard small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.taskMaterialCardActions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.taskMaterialCardActions button,
+.taskMaterialCardActions a,
+.taskMaterialPreviewDialog footer a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid #c9d8e6;
+  border-radius: 9px;
+  background: #f5f9fc;
+  color: #1f5f8c;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.taskMaterialPreviewBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(5px);
+}
+
+.taskMaterialPreviewDialog {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(980px, 100%);
+  height: min(86dvh, 760px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 28px 80px rgba(15, 23, 42, 0.34);
+}
+
+.taskMaterialPreviewDialog header,
+.taskMaterialPreviewDialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 15px;
+}
+
+.taskMaterialPreviewDialog header {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.taskMaterialPreviewDialog header > div {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.taskMaterialPreviewDialog header small {
+  color: #667085;
+}
+
+.taskMaterialPreviewDialog header strong {
+  overflow: hidden;
+  color: #172033;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taskMaterialPreviewDialog header button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #d8e0ea;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #344054;
+  cursor: pointer;
+}
+
+.taskMaterialPreviewBody {
+  min-height: 0;
+  background: #e2e8f0;
+}
+
+.taskMaterialPreviewBody iframe,
+.taskMaterialPreviewBody img {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: contain;
+  background: #fff;
+}
+
+.taskMaterialPreviewUnavailable {
+  width: min(440px, calc(100% - 32px));
+  min-height: 220px;
+  margin: 32px auto;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 24px;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #fff;
+  color: #344054;
+  text-align: center;
+}
+
+.taskMaterialPreviewUnavailable svg {
+  color: #2f77d0;
+}
+
+.taskMaterialPreviewUnavailable p {
+  max-width: 34ch;
+  margin: 0;
+  color: #667085;
+  line-height: 1.5;
+}
+
+.taskMaterialPreviewDialog footer {
+  justify-content: flex-end;
+  border-top: 1px solid #e2e8f0;
+}
+
+@media (max-width: 620px) {
+  .taskMaterialPicker {
+    padding: 12px;
+  }
+
+  .taskMaterialPickerToolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .taskMaterialRefresh {
+    width: 100%;
+  }
+
+  .taskMaterialPickerStatus {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .taskMaterialOptions,
+  .taskMaterialGallery {
+    grid-template-columns: 1fr;
+  }
+
+  .taskMaterialOptions {
+    max-height: 250px;
+  }
+
+  .taskMaterialPreviewBackdrop {
+    padding: 0;
+  }
+
+  .taskMaterialPreviewDialog {
+    width: 100%;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .taskMaterialPreviewDialog header {
+    padding-top: calc(12px + env(safe-area-inset-top));
+    padding-right: max(15px, env(safe-area-inset-right));
+    padding-left: max(15px, env(safe-area-inset-left));
+  }
+
+  .taskMaterialPreviewDialog footer {
+    padding-right: max(15px, env(safe-area-inset-right));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-left: max(15px, env(safe-area-inset-left));
+  }
+
+  .taskMaterialPreviewDialog footer {
+    align-items: stretch;
+  }
+
+  .taskMaterialPreviewDialog footer a {
+    flex: 1;
+  }
+}
+
+@media (pointer: coarse) {
+  .taskMaterialSelection button,
+  .taskMaterialRefresh,
+  .taskMaterialCardActions button,
+  .taskMaterialCardActions a,
+  .taskMaterialPreviewDialog header button,
+  .taskMaterialPreviewDialog footer a {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

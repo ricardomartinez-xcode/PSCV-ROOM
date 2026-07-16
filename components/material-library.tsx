@@ -313,7 +313,7 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
           {size ? <span>{size}</span> : null}
         </div>
         <strong title={material.title}>{cleanTitle(material.title)}</strong>
-        <small title={material.r2_key ?? section?.path ?? "Sin ruta"}>{material.r2_key ?? section?.path ?? "Sin ruta"}</small>
+        <small title={section?.name ?? material.file_name ?? "Sin clasificación"}>{section?.name ?? material.file_name ?? "Sin clasificación"}</small>
       </div>
       <div className="materialActions">
         {previewUrl ? (

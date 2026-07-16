@@ -27,26 +27,25 @@ const worker = {
     env: CloudflareEnv,
     ctx: ScheduledContext,
   ) {
-    // Ningún canal debe bloquear a los demás.
-    ctx.waitUntil(
-      runScheduledJob("push-delivery", () =>
-        processDuePushNotifications(env),
-      ),
-    );
-
-    ctx.waitUntil(
-      runScheduledJob("reminder-email-delivery", () =>
-        processDueReminderEmails(env),
-      ),
-    );
-
-    ctx.waitUntil(
-      runScheduledJob("automatic-reminders", () =>
-        ensureAutomaticReminders(env),
-      ),
-    );
+    ctx.waitUntil(processScheduledJobs(env));
   },
 };
+
+export async function processScheduledJobs(env: CloudflareEnv) {
+  // Reconcile first so notifications due in this invocation are visible to
+  // both delivery channels. A channel failure still does not block the other.
+  const automaticReminders = await runScheduledJob(
+    "automatic-reminders",
+    () => ensureAutomaticReminders(env),
+  );
+  const [pushDelivery, reminderEmailDelivery] = await Promise.all([
+    runScheduledJob("push-delivery", () =>
+      processDuePushNotifications(env)),
+    runScheduledJob("reminder-email-delivery", () =>
+      processDueReminderEmails(env)),
+  ]);
+  return { automaticReminders, pushDelivery, reminderEmailDelivery };
+}
 
 export default worker;
 

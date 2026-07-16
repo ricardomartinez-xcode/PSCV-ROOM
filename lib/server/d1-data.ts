@@ -104,9 +104,6 @@ const tableConfigs: Record<string, TableConfig> = {
     id: true,
     columns: ["id", "legacy_id", "section_id", "title", "material_type", "visibility", "provider", "source_url", "preview_url", "thumbnail_url", "r2_bucket", "r2_key", "file_id", "file_name", "content_type", "size_bytes", "observations", "uploaded_by", "created_at", "updated_at"],
   },
-  task_materials: {
-    columns: ["task_id", "material_id"],
-  },
   group_columns: {
     id: true,
     columns: ["id", "source_key", "label", "value_type", "fixed", "active", "sort_order", "created_by", "created_at", "updated_at"],
@@ -138,6 +135,11 @@ function bool(value: unknown) {
 
 function can(profile: ServerProfile, field: keyof ServerProfile) {
   return profile.role === "owner" || bool(profile[field]);
+}
+
+function canReadHiddenMaterials(profile: ServerProfile) {
+  return profile.role === "owner"
+    || (profile.role === "admin" && (can(profile, "can_manage_materials") || can(profile, "can_manage_r2")));
 }
 
 function ensureTable(table: string) {
@@ -241,7 +243,22 @@ function decodeJsonFields(table: string, row: Record<string, unknown>) {
   return next;
 }
 
-async function attachTaskMaterials(tasks: Array<Record<string, unknown>>) {
+function serializeMaterialForClient(row: Record<string, unknown>) {
+  if (!row.r2_key || !row.id) return row;
+  const id = encodeURIComponent(String(row.id));
+  const previewUrl = `/api/materials/${id}/file?mode=preview`;
+  const downloadUrl = `/api/materials/${id}/file?mode=download`;
+  return {
+    ...row,
+    r2_key: "protected",
+    public_url: downloadUrl,
+    preview_url: previewUrl,
+    source_url: downloadUrl,
+    download_url: downloadUrl,
+  };
+}
+
+async function attachTaskMaterials(tasks: Array<Record<string, unknown>>, visibleOnly: boolean) {
   const ids = tasks.map((row) => String(row.id));
   if (!ids.length) return tasks;
   const placeholders = ids.map(() => "?").join(",");
@@ -251,13 +268,14 @@ async function attachTaskMaterials(tasks: Array<Record<string, unknown>>) {
      JOIN materials m ON m.id = tm.material_id
      LEFT JOIN material_sections ms ON ms.id = m.section_id
      WHERE tm.task_id IN (${placeholders})
+       ${visibleOnly ? "AND m.visibility = 'visible'" : ""}
      ORDER BY m.title ASC`,
     ids,
   );
   const byTask = new Map<string, Array<{ materials: Record<string, unknown> }>>();
   for (const row of rows) {
     const taskId = String(row.task_id);
-    const material = decodeJsonFields("materials", {
+    const material = serializeMaterialForClient(decodeJsonFields("materials", {
       ...row,
       section: row.section_join_id ? {
         id: row.section_join_id,
@@ -265,7 +283,7 @@ async function attachTaskMaterials(tasks: Array<Record<string, unknown>>) {
         path: row.section_path,
         color: row.section_color,
       } : null,
-    });
+    }));
     byTask.set(taskId, [...(byTask.get(taskId) ?? []), { materials: material }]);
   }
   return tasks.map((task) => ({ ...task, task_materials: byTask.get(String(task.id)) ?? [] }));
@@ -273,9 +291,7 @@ async function attachTaskMaterials(tasks: Array<Record<string, unknown>>) {
 
 async function selectTasks(query: DataQuery, profile: ServerProfile) {
   const values: unknown[] = [];
-  const filters = [...(query.filters ?? [])];
-  if (profile.role === "student") filters.push({ op: "eq", column: "visible_to_students", value: true });
-  const where = buildWhere("tasks", filters, values, true);
+  const where = buildWhere("tasks", query.filters, values, true);
   const rows = await d1All<Record<string, unknown>>(
     `SELECT t.*,
       c.id AS course_join_id, c.name AS course_name, c.color AS course_color, c.card_size AS course_card_size,
@@ -301,7 +317,7 @@ async function selectTasks(query: DataQuery, profile: ServerProfile) {
       card_size: row.task_type_card_size,
     } : null,
   }));
-  return attachTaskMaterials(nested);
+  return attachTaskMaterials(nested, !canReadHiddenMaterials(profile));
 }
 
 async function selectMaterials(query: DataQuery) {
@@ -316,7 +332,7 @@ async function selectMaterials(query: DataQuery) {
      ${where}${buildOrder("materials", query.order)}${buildLimit(query.limit)}`,
     values,
   );
-  return rows.map((row) => decodeJsonFields("materials", {
+  return rows.map((row) => serializeMaterialForClient(decodeJsonFields("materials", {
     ...row,
     material_sections: row.section_join_id ? {
       id: row.section_join_id,
@@ -328,7 +344,7 @@ async function selectMaterials(query: DataQuery) {
       preview_style: row.section_preview_style,
       sort_order: row.section_sort_order,
     } : null,
-  }));
+  })));
 }
 
 async function selectGeneric(table: string, query: DataQuery) {
@@ -360,6 +376,18 @@ function ensureSelectAllowed(table: string, query: DataQuery, profile: ServerPro
   if (ownProfile) return;
   if (profile.role === "owner" || can(profile, "can_manage_users") || can(profile, "can_manage_group")) return;
   throw new HttpError(403, "No autorizado.");
+}
+
+function scopeSelectQuery(table: string, query: DataQuery, profile: ServerProfile): DataQuery {
+  const filters = [...(query.filters ?? [])];
+  if (profile.role === "student" && table === "tasks") {
+    filters.push({ op: "eq", column: "visible_to_students", value: true });
+  }
+  if (!canReadHiddenMaterials(profile) && table === "materials") {
+    filters.push({ op: "eq", column: "visibility", value: "visible" });
+  }
+  if (filters.length === (query.filters ?? []).length) return query;
+  return { ...query, filters };
 }
 
 function ensureMutationAllowed(table: string, query: DataQuery, profile: ServerProfile) {
@@ -484,13 +512,14 @@ export async function executeDataQuery(request: Request, query: DataQuery): Prom
 
   if (query.action === "select") {
     ensureSelectAllowed(table, query, profile);
-    const count = query.count === "exact" ? await countRows(table, query.filters) : null;
+    const scopedQuery = scopeSelectQuery(table, query, profile);
+    const count = query.count === "exact" ? await countRows(table, scopedQuery.filters) : null;
     if (query.head) return { data: null, error: null, count };
     const rows = table === "tasks"
-      ? await selectTasks(query, profile)
+      ? await selectTasks(scopedQuery, profile)
       : table === "materials"
-        ? await selectMaterials(query)
-        : await selectGeneric(table, query);
+        ? await selectMaterials(scopedQuery)
+        : await selectGeneric(table, scopedQuery);
     return normalizeResult(rows, query, count);
   }
 

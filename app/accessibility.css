@@ -1,0 +1,163 @@
+html {
+  scroll-padding-top: 76px;
+  scrollbar-gutter: stable;
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+.srOnly {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+}
+
+.skipLink {
+  position: fixed;
+  top: 8px;
+  left: 50%;
+  z-index: 10000;
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  background: #143f68;
+  color: #fff;
+  font-weight: 800;
+  text-decoration: none;
+  transform: translate(-50%, -160%);
+  transition: transform 140ms ease;
+}
+
+.skipLink:focus {
+  transform: translate(-50%, 0);
+}
+
+:where(
+  button,
+  a,
+  input,
+  select,
+  textarea,
+  [role="button"]
+):focus-visible {
+  outline: 3px solid #165f9c;
+  outline-offset: 3px;
+}
+
+:where(button, a, input, select, textarea):disabled {
+  cursor: not-allowed;
+}
+
+.screen:focus {
+  outline: none;
+}
+
+.taskRow .days {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid #d7dee8;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.taskRow .days.today {
+  border-color: #f3b8b3;
+  background: #fff1f0;
+  color: #a82b23;
+}
+
+.taskRow .days.tomorrow {
+  border-color: #acd2e7;
+  background: #edf8fd;
+  color: #155a80;
+}
+
+.taskRow .days.overdue {
+  border-color: #f0c8a2;
+  background: #fff6ed;
+  color: #9a4c0c;
+}
+
+.scrollToTop {
+  position: fixed;
+  right: max(18px, calc((100vw - 1080px) / 2 + 18px));
+  bottom: 86px;
+  z-index: 24;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 12px;
+  border: 1px solid #b9c9d9;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #184f7c;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+
+.scrollToTop span {
+  white-space: nowrap;
+}
+
+@media (max-width: 620px) {
+  html {
+    scroll-padding-top: 66px;
+  }
+
+  .scrollToTop {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: calc(102px + env(safe-area-inset-bottom));
+    width: 44px;
+    padding: 0;
+  }
+
+  .scrollToTop span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .bottomNav button.active,
+  .activityKindSwitch button.active,
+  .adminTabs button.active {
+    border: 2px solid ButtonText;
+  }
+
+  .taskMaterialOption.selected,
+  .notificationItem.unread {
+    outline: 2px solid Highlight;
+  }
+}

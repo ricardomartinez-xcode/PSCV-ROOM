@@ -88,7 +88,7 @@ function enhanceSelect(select: HTMLSelectElement) {
   root.innerHTML = `
     <div class="taskMultiMaterialHead">
       <div>
-        <strong>Materiales de la tarea</strong>
+        <strong>Materiales de la actividad</strong>
         <small>Selecciona uno o varios archivos.</small>
       </div>
       <span class="taskMultiMaterialCount">0 seleccionados</span>
@@ -144,7 +144,7 @@ export function TaskMaterialExperience() {
   useEffect(() => {
     installFetchPatch();
 
-    const observer = new MutationObserver(() => {
+    const enhanceAllMaterialSelectors = () => {
       for (const select of Array.from(
         document.querySelectorAll<HTMLSelectElement>(
           'select[aria-label="Agregar archivo de materiales del bucket"]',
@@ -152,7 +152,13 @@ export function TaskMaterialExperience() {
       )) {
         enhanceSelect(select);
       }
-    });
+    };
+
+    // Process selectors already mounted when this client component starts.
+    // The same activity form is used by every configured type, including events.
+    enhanceAllMaterialSelectors();
+
+    const observer = new MutationObserver(enhanceAllMaterialSelectors);
 
     const onSubmit = (event: Event) => {
       const form = event.target;

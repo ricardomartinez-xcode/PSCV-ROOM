@@ -149,24 +149,6 @@ function installFetchPatch() {
   };
 }
 
-function materialPreviewUrl(material: Material) {
-  return (
-    material.preview_url
-    ?? material.public_url
-    ?? material.source_url
-    ?? ""
-  );
-}
-
-function materialDownloadUrl(material: Material) {
-  return (
-    material.public_url
-    ?? material.source_url
-    ?? material.preview_url
-    ?? ""
-  );
-}
-
 function linkedIdsFromForm(form: HTMLFormElement) {
   const ids = new Set<string>();
 

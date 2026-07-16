@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { errorResponse, requirePermission } from "@/lib/server/authz";
 import { isGeneratedR2FolderPath, MATERIALS_R2_ROOT, normalizeMaterialR2Key } from "@/lib/server/r2-paths";
 import { listNativeR2FolderPrefixes } from "@/lib/server/r2-native";
 import { d1All } from "@/lib/server/d1-data";
@@ -26,7 +27,9 @@ function destinationKey(path: string) {
   return normalizeMaterialR2Key(path).toLowerCase();
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  try {
+    await requirePermission(request, "r2:manage");
   const sectionsByPath = new Map<string, SectionRow>();
   const destinations = new Map<string, UploadDestination>();
 
@@ -70,9 +73,12 @@ export async function GET() {
     // D1 sections remain valid upload destinations even when the bucket is empty.
   }
 
-  return NextResponse.json({
-    ok: true,
-    root: MATERIALS_R2_ROOT,
-    destinations: Array.from(destinations.values()).sort((a, b) => a.path.localeCompare(b.path, "es")),
-  });
+    return NextResponse.json({
+      ok: true,
+      root: MATERIALS_R2_ROOT,
+      destinations: Array.from(destinations.values()).sort((a, b) => a.path.localeCompare(b.path, "es")),
+    });
+  } catch (error) {
+    return errorResponse(error);
+  }
 }

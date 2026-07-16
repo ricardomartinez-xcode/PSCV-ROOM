@@ -300,6 +300,11 @@ export async function requireProfileForIdentity(identity: AccessIdentity): Promi
 }
 
 export async function requireProfile(request: Request): Promise<ServerProfile> {
+  if (!new Set(["GET", "HEAD", "OPTIONS"]).has(request.method.toUpperCase())) {
+    const origin = request.headers.get("origin");
+    const expectedOrigin = new URL(request.url).origin;
+    if (!origin || origin !== expectedOrigin) throw new HttpError(403, "Origen no permitido.");
+  }
   return requireProfileForIdentity(await getCurrentIdentity(request));
 }
 

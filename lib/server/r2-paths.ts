@@ -1,4 +1,5 @@
 export const MATERIALS_R2_ROOT = "";
+export const MATERIALS_R2_BUCKET_NAME = "psicologia";
 
 export const DEFAULT_R2_FOLDER_DESTINATIONS = [
   "Alteraciones de la conducta",
@@ -16,7 +17,7 @@ export const DEFAULT_R2_FOLDER_DESTINATIONS = [
   "Teorias del Aprendizaje",
 ];
 
-const LEGACY_BUCKET_ROOT = "psicologia";
+const LEGACY_BUCKET_ROOT = MATERIALS_R2_BUCKET_NAME;
 const GENERATED_UPLOAD_FOLDER_RE = /^(19|20)\d{2}$/;
 
 const KNOWN_SEGMENTS: Record<string, string> = {
@@ -59,6 +60,18 @@ function keyForAlias(value: string) {
     .replace(/\s+/g, " ");
 }
 
+function safeDecode(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function uniqueExact(values: string[]) {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+
 function normalizeFolderSegment(value: string) {
   return KNOWN_SEGMENTS[keyForAlias(value)] ?? value;
 }
@@ -91,6 +104,48 @@ export function normalizeMaterialR2Key(value: string | null | undefined) {
   }
 
   return cleanPath(normalizedParts.join("/"));
+}
+
+/**
+ * Resolve an administrative import prefix without changing meaningful spaces
+ * inside an R2 object key. The bucket name is accepted as a legacy alias for
+ * the bucket root, but it is never sent to R2 as a folder prefix.
+ */
+export function normalizeMaterialImportRoot(value: string | null | undefined) {
+  const raw = (value ?? "")
+    .replace(/\\/g, "/")
+    .replace(/\/+/g, "/")
+    .replace(/^\/+|\/+$/g, "");
+  if (!raw.trim()) return MATERIALS_R2_ROOT;
+  return keyForAlias(raw) === keyForAlias(MATERIALS_R2_BUCKET_NAME)
+    ? MATERIALS_R2_ROOT
+    : raw;
+}
+
+/** Preserve the exact R2 key while encoding each URL path segment. */
+export function encodeMaterialR2KeyForUrl(value: string | null | undefined) {
+  if (!value) return "";
+  return value.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
+ * Ordered lookup candidates for legacy records. The stored/raw key is always
+ * first; normalized aliases are fallbacks only and must never replace it
+ * before an exact R2 lookup has been attempted.
+ */
+export function materialR2KeyLookupCandidates(value: string) {
+  const decoded = safeDecode(value);
+  const normalizedInput = normalizeMaterialR2Key(value);
+  const normalizedDecoded = normalizeMaterialR2Key(decoded);
+
+  return uniqueExact([
+    value,
+    decoded,
+    normalizedInput,
+    normalizedDecoded,
+    normalizedDecoded.normalize("NFC"),
+    normalizedDecoded.normalize("NFD"),
+  ]);
 }
 
 export function isGeneratedR2FolderPath(value: string | null | undefined) {

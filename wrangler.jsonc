@@ -3,7 +3,7 @@
   "name": "pscv-room",
   "main": "custom-worker.ts",
   "compatibility_date": "2026-06-27",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "workers_dev": true,
   "preview_urls": false,
   "routes": [

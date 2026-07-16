@@ -1,11 +1,47 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  Activity,
+  ArrowUpDown,
+  BarChart3,
+  Bell,
+  BookOpen,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleAlert,
+  Cloud,
+  Database,
+  Download,
+  Eye,
+  FileSpreadsheet,
+  FileText,
+  FlaskConical,
+  FolderOpen,
+  FolderSync,
+  FolderTree,
+  Gauge,
+  HardDrive,
+  Layers3,
+  LayoutDashboard,
+  ListTodo,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Upload,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
+import { MATERIAL_UPLOAD_ACCEPT, MAX_DIRECT_MATERIAL_BYTES } from "@/lib/material-file-policy";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
-type AdminTab = "general" | "tasks" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
+type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
 type CardSize = "compact" | "medium" | "large";
 
 type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean };
@@ -62,19 +98,37 @@ type AdminNotification = { id: string; profile_id: string | null; kind: string; 
 type EmailDispatchResult = { configured: boolean; considered: number; delivered: number; skipped: number; failed: number; errors: string[] };
 type ReportPayload = { ok?: boolean; tasks?: ReportRow[]; materials?: ReportRow[]; students?: ReportRow[]; audit?: ReportRow[]; error?: string };
 type ReportRow = Record<string, string | number | boolean | null>;
+type ReportDatasetId = "tasks" | "materials" | "students" | "audit";
+type SortDirection = "ascending" | "descending";
+type ReportSummaryItem = { label: string; value: string | number; help: string; icon: LucideIcon; tone?: "default" | "warning" };
+type AdminLibraryMaterial = {
+  id: string;
+  title: string;
+  material_type: string | null;
+  provider: string | null;
+  source_url: string | null;
+  preview_url: string | null;
+  download_url: string | null;
+  size_bytes: number | null;
+  section_id: string | null;
+  section: { id: string; name: string; path: string; color: string | null } | null;
+};
+type AdminLibrarySection = { id: string; name: string; path: string; material_count?: number };
+type AdminLibraryPayload = { materials?: AdminLibraryMaterial[]; sections?: AdminLibrarySection[]; summary?: { materials: number; sections: number; providers: Record<string, number> }; error?: string };
 
 type AdminHubProps = { courses: CourseConfig[]; sections: SectionConfig[]; columns?: unknown[]; profile?: AdminProfile; d1Client: D1Browser | null; reload: () => Promise<void>; onCourses: (courses: CourseConfig[]) => void; onSections: (sections: SectionConfig[]) => void; onError: (error: string | null) => void };
 
-const tabs: Array<{ id: AdminTab; label: string; icon: string }> = [
-  { id: "general", label: "General", icon: "▣" },
-  { id: "tasks", label: "Tareas", icon: "✓" },
-  { id: "courses", label: "Materias", icon: "◉" },
-  { id: "sections", label: "Secciones", icon: "▤" },
-  { id: "materials", label: "Materiales", icon: "⬡" },
-  { id: "users", label: "Usuarios", icon: "☷" },
-  { id: "notifications", label: "Avisos", icon: "◌" },
-  { id: "reports", label: "Reportes", icon: "▥" },
-  { id: "diagnostics", label: "Diagnóstico", icon: "◎" },
+const tabs: Array<{ id: AdminTab; label: string; icon: LucideIcon }> = [
+  { id: "general", label: "General", icon: LayoutDashboard },
+  { id: "tasks", label: "Tareas", icon: ListTodo },
+  { id: "calendar", label: "Calendario", icon: CalendarDays },
+  { id: "courses", label: "Materias", icon: BookOpen },
+  { id: "sections", label: "Secciones", icon: FolderTree },
+  { id: "materials", label: "Materiales", icon: FolderOpen },
+  { id: "users", label: "Usuarios", icon: Users },
+  { id: "notifications", label: "Avisos", icon: Bell },
+  { id: "reports", label: "Reportes", icon: BarChart3 },
+  { id: "diagnostics", label: "Diagnóstico", icon: Activity },
 ];
 
 export function AdminHub({ courses, sections, profile = null, d1Client, reload, onCourses, onSections, onError }: AdminHubProps) {
@@ -83,18 +137,38 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [adminTasks, setAdminTasks] = useState<AdminTaskRow[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const tabRefs = useRef<Partial<Record<AdminTab, HTMLButtonElement | null>>>({});
   const capabilities = useMemo(() => getSessionCapabilities(profile), [profile]);
-  const visibleTabs = useMemo(() => tabs.filter((tab) => canAccessAdminTab(capabilities, tab.id)), [capabilities]);
+  const visibleTabs = useMemo(() => tabs.filter((tab) => canAccessAdminTab(capabilities, tab.id === "calendar" ? "tasks" : tab.id)), [capabilities]);
 
   useEffect(() => {
     if (!visibleTabs.some((tab) => tab.id === activeTab)) setActiveTab("general");
   }, [activeTab, visibleTabs]);
 
+  useEffect(() => {
+    tabRefs.current[activeTab]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeTab]);
+
+  function moveAdminTab(event: KeyboardEvent<HTMLButtonElement>, currentTab: AdminTab) {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const currentIndex = visibleTabs.findIndex((tab) => tab.id === currentTab);
+    if (currentIndex < 0) return;
+    const nextIndex = event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? visibleTabs.length - 1
+        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+    const nextTab = visibleTabs[nextIndex];
+    setActiveTab(nextTab.id);
+    window.requestAnimationFrame(() => tabRefs.current[nextTab.id]?.focus());
+  }
+
   // Tab-driven loads intentionally run only when the active admin module changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { if (activeTab === "users") void loadProfiles(); }, [activeTab]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (activeTab === "tasks") void loadTaskAdminData(); }, [activeTab]);
+  useEffect(() => { if (activeTab === "general" || activeTab === "tasks" || activeTab === "calendar") void loadTaskAdminData(); }, [activeTab]);
 
   async function loadProfiles() {
     if (!d1Client) return;
@@ -244,25 +318,57 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   return (
     <div className="adminHub">
       <section className="adminHero"><div><p className="eyebrow">Admin 2.0</p><h2>Centro de configuración</h2><p>Administra tareas, materiales, usuarios y estructura sin tocar código.</p></div><button type="button" onClick={() => void reload()}>Actualizar datos</button></section>
-      <nav className="adminTabs" aria-label="Módulos de administración">{visibleTabs.map((tab) => <button key={tab.id} type="button" className={activeTab === tab.id ? "active" : ""} onClick={() => setActiveTab(tab.id)}><span>{tab.icon}</span>{tab.label}</button>)}</nav>
-      {activeTab === "general" ? <GeneralPanel stats={stats} /> : null}
-      {activeTab === "tasks" ? <TasksPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
-      {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
-      {activeTab === "sections" ? <SectionsPanel sections={sections} onUpdate={(id, patch) => void updateSection(id, patch)} /> : null}
-      {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
-      {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} /> : null}
-      {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
-      {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
-      {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+      <nav className="adminTabs" aria-label="Módulos de administración" role="tablist">
+        {visibleTabs.map((tab) => {
+          const Icon = tab.icon;
+          const selected = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              ref={(node) => { tabRefs.current[tab.id] = node; }}
+              id={`admin-tab-${tab.id}`}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`admin-panel-${tab.id}`}
+              tabIndex={selected ? 0 : -1}
+              className={selected ? "active" : ""}
+              onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(event) => moveAdminTab(event, tab.id)}
+            >
+              <Icon size={16} aria-hidden="true" />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div
+        className="adminTabPanel"
+        id={`admin-panel-${activeTab}`}
+        role="tabpanel"
+        aria-labelledby={`admin-tab-${activeTab}`}
+        tabIndex={0}
+      >
+        {activeTab === "general" ? <GeneralPanel stats={stats} onNavigate={setActiveTab} /> : null}
+        {activeTab === "tasks" ? <TasksPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
+        {activeTab === "calendar" ? <AdminCalendarPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
+        {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
+        {activeTab === "sections" ? <SectionsPanel sections={sections} onUpdate={(id, patch) => void updateSection(id, patch)} /> : null}
+        {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+        {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} /> : null}
+        {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
+        {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
+        {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+      </div>
     </div>
   );
 }
 
-function GeneralPanel({ stats }: { stats: { courses: number; sections: number; activeSections: number; tasks: number } }) {
-  return <section className="adminPanelGrid"><MetricCard label="Tareas" value={stats.tasks} help="Últimas tareas cargadas" /><MetricCard label="Materias" value={stats.courses} help="Catálogo visual" /><MetricCard label="Secciones" value={stats.sections} help={`${stats.activeSections} visibles`} /><MetricCard label="Storage" value="R2" help="Subidas directas" /></section>;
+function GeneralPanel({ stats, onNavigate }: { stats: { courses: number; sections: number; activeSections: number; tasks: number }; onNavigate: (tab: AdminTab) => void }) {
+  return <section className="adminPanelGrid" aria-label="Accesos rápidos de administración"><MetricCard icon={ListTodo} label="Tareas" value={stats.tasks} help="Entregas operativas" onClick={() => onNavigate("tasks")} /><MetricCard icon={BookOpen} label="Materias" value={stats.courses} help="Catálogo visual" onClick={() => onNavigate("courses")} /><MetricCard icon={FolderTree} label="Secciones" value={stats.sections} help={`${stats.activeSections} visibles`} onClick={() => onNavigate("sections")} /><MetricCard icon={HardDrive} label="Storage" value="R2" help="Subidas directas" onClick={() => onNavigate("materials")} /></section>;
 }
 
-function MetricCard({ label, value, help }: { label: string; value: string | number; help: string }) { return <article className="metricCard"><span>{label}</span><strong>{value}</strong><small>{help}</small></article>; }
+function MetricCard({ icon: Icon, label, value, help, onClick }: { icon: LucideIcon; label: string; value: string | number; help: string; onClick: () => void }) { return <button type="button" className="metricCard" aria-label={`Abrir ${label}`} onClick={onClick}><span className="metricCardIcon"><Icon size={18} aria-hidden="true" /></span><span>{label}</span><strong>{value}</strong><small>{help}</small><ChevronRight className="metricCardChevron" size={18} aria-hidden="true" /></button>; }
 
 function notificationResultLabel(inserted: number, email?: EmailDispatchResult) {
   if (!email) return `${inserted} avisos creados`;
@@ -331,11 +437,11 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ windowDays: 3 }),
+        body: JSON.stringify({ windowDays: 1 }),
       });
-      const payload = await response.json() as { inserted?: number; error?: string };
+      const payload = await response.json() as { synchronized?: number; created?: number; updated?: number; preserved?: number; dismissed?: number; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "No se pudieron generar recordatorios.");
-      setResult(`${payload.inserted ?? 0} recordatorios de los próximos 3 días creados`);
+      setResult(`${payload.synchronized ?? 0} entregas sincronizadas · ${payload.created ?? 0} recordatorios creados`);
       await loadRecent();
       window.dispatchEvent(new CustomEvent("pscv:notifications-changed"));
     } catch (error) {
@@ -346,15 +452,15 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
   }
 
   return (
-    <section className="adminCard adminModule adminNoticesModule">
+    <section className="adminCard adminModule adminNoticesModule" aria-busy={busy}>
       <div className="adminCardHead">
         <div><p className="adminModuleEyebrow">Comunicación</p><h3>Avisos</h3><p>Crea avisos persistentes y recordatorios para tareas próximas.</p></div>
-        <button type="button" onClick={() => void generateDueNotifications()} disabled={busy}>{busy ? "Procesando..." : "Crear recordatorios (3 días)"}</button>
+        <button type="button" onClick={() => void generateDueNotifications()} disabled={busy}><CalendarClock size={16} aria-hidden="true" />{busy ? "Procesando..." : "Sincronizar recordatorios (hoy y mañana)"}</button>
       </div>
       <div className="adminNoticeHelp">
-        <p><strong>Recordatorios:</strong> crea un aviso para cada alumno y cada tarea visible, pendiente y con vencimiento entre hoy y los próximos 3 días. No duplica un recordatorio ya creado.</p>
+        <p><strong>Recordatorios:</strong> sincroniza avisos para cada alumno y cada tarea visible, pendiente y con vencimiento hoy o mañana. No crea recordatorios de dos o tres días antes ni duplica uno vigente.</p>
         <p><strong>Nueva tarea / Tarea actualizada:</strong> son avisos automáticos dirigidos a alumnos. Por eso no aparecen en la campana del administrador. El historial inferior agrupa las filas individuales por entrega.</p>
-        <p><strong>Entrega:</strong> la campana funciona dentro de PSCV Room; navegador y sonido requieren permiso y la app abierta. El correo se envía actualmente para avisos manuales cuando el alumno lo activó.</p>
+        <p><strong>Entrega:</strong> la campana funciona dentro de PSCV Room y Web Push mantiene los avisos del sistema con la app cerrada en Android, Windows e iOS compatibles. En iPhone/iPad debe instalarse en Inicio; el sonido dentro de la app requiere permiso.</p>
       </div>
       <form className="adminNoticeForm" onSubmit={sendNotification}>
         <label className="wide">Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Aviso para el grupo" required /></label>
@@ -364,7 +470,7 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
         <label>Prioridad<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Baja</option><option value="normal">Normal</option><option value="high">Alta</option></select></label>
         <button className="primaryAction" type="submit" disabled={busy || !title.trim()}>{busy ? "Enviando..." : "Enviar aviso"}</button>
       </form>
-      {result ? <p className="adminResult">{result}</p> : null}
+      {result ? <p className="adminResult" role="status" aria-live="polite">{result}</p> : null}
       <div className="adminNoticeList">
         {recent.slice(0, 8).map((notice) => <article key={notice.id}><strong>{notice.title}</strong><span>{notice.kind} · {notice.priority} · {notice.recipient_count} destinatarios · {notice.read_count} leídos · {notice.dismissed_count} ocultos · {formatDateTime(notice.created_at)}</span></article>)}
         {!recent.length ? <p className="muted">Sin avisos recientes.</p> : null}
@@ -376,6 +482,11 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
 function ReportsPanel({ onError }: { onError: (error: string | null) => void }) {
   const [loading, setLoading] = useState(false);
   const [payload, setPayload] = useState<ReportPayload | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [datasetId, setDatasetId] = useState<ReportDatasetId>("tasks");
+  const [query, setQuery] = useState("");
+  const [sortColumn, setSortColumn] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
 
   useEffect(() => {
     void loadReports();
@@ -384,43 +495,125 @@ function ReportsPanel({ onError }: { onError: (error: string | null) => void }) 
 
   async function loadReports() {
     setLoading(true);
+    setLoadError(null);
     try {
       const response = await fetch("/api/reports/operations", { credentials: "include" });
       const body = await response.json() as ReportPayload;
       if (!response.ok || body.error) throw new Error(body.error ?? "No se pudieron cargar reportes.");
       setPayload(body);
     } catch (error) {
-      onError(error instanceof Error ? error.message : "No se pudieron cargar reportes.");
+      const message = error instanceof Error ? error.message : "No se pudieron cargar reportes.";
+      setLoadError(message);
+      onError(message);
     } finally {
       setLoading(false);
     }
   }
 
+  const datasets = useMemo(() => [
+    { id: "tasks" as const, label: "Tareas", description: "Estado, vencimientos y próxima entrega", rows: payload?.tasks ?? [] },
+    { id: "materials" as const, label: "Materiales", description: "Volumen y almacenamiento por sección", rows: payload?.materials ?? [] },
+    { id: "students" as const, label: "Alumnos", description: "Perfiles activos por rol", rows: payload?.students ?? [] },
+    { id: "audit" as const, label: "Auditoría", description: "Actividad administrativa reciente", rows: payload?.audit ?? [] },
+  ], [payload]);
+  const selectedDataset = datasets.find((dataset) => dataset.id === datasetId) ?? datasets[0];
+  const columns = selectedDataset.rows[0] ? Object.keys(selectedDataset.rows[0]) : [];
+  const displayedRows = useMemo(
+    () => filterAndSortReportRows(selectedDataset.rows, query, sortColumn, sortDirection),
+    [query, selectedDataset.rows, sortColumn, sortDirection],
+  );
+  const summary = useMemo(() => reportSummary(payload), [payload]);
+
+  function selectDataset(nextDataset: ReportDatasetId) {
+    setDatasetId(nextDataset);
+    setQuery("");
+    setSortColumn(null);
+    setSortDirection("ascending");
+  }
+
+  function sortBy(column: string) {
+    if (sortColumn === column) {
+      setSortDirection((current) => current === "ascending" ? "descending" : "ascending");
+      return;
+    }
+    setSortColumn(column);
+    setSortDirection("ascending");
+  }
+
   return (
-    <section className="reportsGrid adminModule adminReportsModule">
+    <section className="reportsGrid adminModule adminReportsModule" aria-busy={loading}>
       <article className="adminCard adminReportsLead">
-        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Análisis operativo</p><h3>Reportes</h3><p>Tareas, materiales, seguimiento y auditoría operativa.</p></div><button type="button" onClick={() => void loadReports()}>{loading ? "Cargando..." : "Recargar"}</button></div>
-        <ReportTable title="Tareas" rows={payload?.tasks ?? []} />
+        <div className="adminCardHead">
+          <div><p className="adminModuleEyebrow">Análisis operativo</p><h3>Reportes</h3><p>Tareas, materiales, seguimiento y auditoría operativa.</p></div>
+          <button type="button" onClick={() => void loadReports()} disabled={loading}><RefreshCw className={loading ? "isSpinning" : ""} size={16} aria-hidden="true" />{loading ? "Cargando..." : "Recargar"}</button>
+        </div>
+        {loadError ? <p className="reportError" role="alert"><CircleAlert size={17} aria-hidden="true" />{loadError}</p> : null}
+        <div className="reportSummaryGrid" aria-label="Resumen de reportes">
+          {summary.map((item) => <ReportSummaryCard key={item.label} {...item} />)}
+        </div>
+        <div className="reportToolbar" aria-label="Controles del reporte">
+          <label>
+            <span>Conjunto de datos</span>
+            <select value={datasetId} onChange={(event) => selectDataset(event.target.value as ReportDatasetId)}>
+              {datasets.map((dataset) => <option key={dataset.id} value={dataset.id}>{dataset.label}</option>)}
+            </select>
+          </label>
+          <label>
+            <span>Buscar</span>
+            <span className="reportSearchField"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Buscar en ${selectedDataset.label.toLowerCase()}`} /></span>
+          </label>
+          <button className="reportExportButton" type="button" disabled={!displayedRows.length} onClick={() => exportReportCsv(selectedDataset.label, columns, displayedRows)}><Download size={16} aria-hidden="true" />Exportar CSV</button>
+        </div>
+        <div className="reportDatasetHead">
+          <div><FileSpreadsheet size={19} aria-hidden="true" /><span><strong>{selectedDataset.label}</strong><small>{selectedDataset.description}</small></span></div>
+          <span className="reportCounter" role="status" aria-live="polite">{displayedRows.length} de {selectedDataset.rows.length}</span>
+        </div>
+        <ReportTable
+          datasetId={datasetId}
+          title={selectedDataset.label}
+          rows={displayedRows}
+          columns={columns}
+          loading={loading && !payload}
+          sortColumn={sortColumn}
+          sortDirection={sortDirection}
+          onSort={sortBy}
+        />
       </article>
-      <article className="adminCard"><ReportTable title="Materiales" rows={payload?.materials ?? []} /></article>
-      <article className="adminCard"><ReportTable title="Seguimiento alumnos" rows={payload?.students ?? []} /></article>
-      <article className="adminCard"><ReportTable title="Auditoría reciente" rows={payload?.audit ?? []} /></article>
     </section>
   );
 }
 
-function ReportTable({ title, rows }: { title: string; rows: ReportRow[] }) {
-  const columns = rows[0] ? Object.keys(rows[0]).slice(0, 6) : [];
+function ReportSummaryCard({ label, value, help, icon: Icon, tone = "default" }: { label: string; value: string | number; help: string; icon: LucideIcon; tone?: "default" | "warning" }) {
+  return (
+    <article className={`reportSummaryCard ${tone === "warning" ? "warning" : ""}`}>
+      <span className="reportSummaryIcon"><Icon size={18} aria-hidden="true" /></span>
+      <span><small>{label}</small><strong>{value}</strong><em>{help}</em></span>
+    </article>
+  );
+}
+
+function ReportTable({ datasetId, title, rows, columns, loading, sortColumn, sortDirection, onSort }: { datasetId: ReportDatasetId; title: string; rows: ReportRow[]; columns: string[]; loading: boolean; sortColumn: string | null; sortDirection: SortDirection; onSort: (column: string) => void }) {
   return (
     <div className="reportTableBlock">
-      <h4>{title}</h4>
-      <div className="reportTableWrap">
+      <div className="reportTableWrap" role="region" aria-label={`Tabla de ${title}`} tabIndex={0}>
         <table>
-          <thead><tr>{columns.map((column) => <th key={column}>{column.replace(/_/g, " ")}</th>)}</tr></thead>
-          <tbody>{rows.slice(0, 12).map((row, index) => <tr key={index}>{columns.map((column) => <td key={column}>{formatReportValue(row[column])}</td>)}</tr>)}</tbody>
+          <caption className="reportSrOnly">{title}. Usa desplazamiento horizontal cuando sea necesario.</caption>
+          <thead><tr>{columns.map((column) => (
+            <th key={column} scope="col" aria-sort={sortColumn === column ? sortDirection : "none"}>
+              <button type="button" onClick={() => onSort(column)}>{reportColumnLabel(column)}<ArrowUpDown size={13} aria-hidden="true" /></button>
+            </th>
+          ))}</tr></thead>
+          <tbody>{rows.map((row, index) => (
+            <tr key={`${datasetId}-${String(row.id ?? row.entity_id ?? "row")}-${index}`}>
+              {columns.map((column) => {
+                const value = formatReportValue(row[column], column);
+                return <td key={column} title={value}>{value}</td>;
+              })}
+            </tr>
+          ))}</tbody>
         </table>
       </div>
-      {!rows.length ? <p className="muted">Sin datos.</p> : null}
+      {loading ? <p className="reportTableState" role="status">Cargando datos…</p> : !rows.length ? <p className="reportTableState">Sin resultados para los filtros actuales.</p> : null}
     </div>
   );
 }
@@ -430,6 +623,7 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
   const [loading, setLoading] = useState(false);
   const [importBusy, setImportBusy] = useState(false);
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [confirmSync, setConfirmSync] = useState(false);
 
   useEffect(() => {
     void loadDiagnostics();
@@ -463,6 +657,13 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
   }
 
   async function runImport(dryRun: boolean) {
+    if (!dryRun && importResult?.dryRun !== true) {
+      onError("Primero ejecuta una simulación correcta antes de sincronizar R2.");
+      return;
+    }
+    onError(null);
+    setConfirmSync(false);
+    if (dryRun) setImportResult(null);
     setImportBusy(true);
     try {
       const response = await fetch("/api/admin/r2/import-materials", {
@@ -489,19 +690,21 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
   const providers = snapshot?.library?.summary?.providers ?? {};
   const r2Status = snapshot?.r2Status;
   const healthOk = Boolean(snapshot?.health?.ok && snapshot.health.auth?.configured && snapshot.health.integrations?.d1 && snapshot.health.integrations?.r2);
+  const canSynchronize = Boolean(importResult?.dryRun && !importResult.error);
 
   return (
-    <section className="diagnosticsLayout adminModule adminDiagnosticsModule">
+    <section className="diagnosticsLayout adminModule adminDiagnosticsModule" aria-busy={loading || importBusy}>
+      <p className="diagnosticLiveStatus" role="status" aria-live="polite">{loading ? "Revisando servicios" : importBusy ? "Procesando cambios de R2" : "Diagnóstico listo"}</p>
       <article className="adminCard diagnosticCard">
         <div className="adminCardHead">
           <div><p className="adminModuleEyebrow">Infraestructura</p><h3>Estado operativo</h3><p>{snapshot ? `Revisado ${formatDateTime(snapshot.checkedAt)}` : "Sin revisión cargada"}</p></div>
-          <button type="button" onClick={() => void loadDiagnostics()}>{loading ? "Revisando..." : "Revisar"}</button>
+          <button type="button" onClick={() => void loadDiagnostics()} disabled={loading}><RefreshCw className={loading ? "isSpinning" : ""} size={16} aria-hidden="true" />{loading ? "Revisando..." : "Revisar"}</button>
         </div>
         <div className="diagnosticPills">
-          <DiagnosticPill label="App" ok={!snapshot?.healthError && Boolean(snapshot?.health?.ok)} />
-          <DiagnosticPill label="Auth" ok={!snapshot?.healthError && Boolean(snapshot?.health?.auth?.configured)} />
-          <DiagnosticPill label="D1" ok={!snapshot?.healthError && Boolean(snapshot?.health?.integrations?.d1)} />
-          <DiagnosticPill label="R2" ok={!snapshot?.healthError && Boolean(snapshot?.health?.integrations?.r2)} />
+          <DiagnosticPill label="App" icon={Gauge} pending={loading || !snapshot} ok={!snapshot?.healthError && Boolean(snapshot?.health?.ok)} />
+          <DiagnosticPill label="Auth" icon={ShieldCheck} pending={loading || !snapshot} ok={!snapshot?.healthError && Boolean(snapshot?.health?.auth?.configured)} />
+          <DiagnosticPill label="D1" icon={Database} pending={loading || !snapshot} ok={!snapshot?.healthError && Boolean(snapshot?.health?.integrations?.d1)} />
+          <DiagnosticPill label="R2" icon={Cloud} pending={loading || !snapshot} ok={!snapshot?.healthError && Boolean(snapshot?.health?.integrations?.r2)} />
         </div>
         <div className="diagnosticRows">
           <DiagnosticRow label="Modo" value={snapshot?.health?.mode ?? "sin dato"} />
@@ -511,30 +714,40 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
       </article>
 
       <article className="adminCard diagnosticCard">
-        <div className="adminCardHead"><div><h3>R2 y biblioteca</h3><p>Destinos visibles para subida y materiales indexados.</p></div></div>
+        <div className="adminCardHead"><div><h3 className="diagnosticTitle"><Cloud size={19} aria-hidden="true" />R2 y biblioteca</h3><p>Destinos visibles para subida y materiales indexados.</p></div></div>
         <div className="diagnosticRows">
-          <DiagnosticRow label="Bucket" value={r2Status?.bucket ?? "psicologia"} />
-          <DiagnosticRow label="Endpoint" value={r2Status?.endpoint ?? "sin dato"} />
-          <DiagnosticRow label="URL pública" value={r2Status?.publicBaseUrl ?? "sin dato"} />
-          <DiagnosticRow label="Raíz R2" value={snapshot?.destinations?.root ?? r2Status?.root ?? "bucket root"} />
+          <DiagnosticRow label="Bucket" value={nonEmptyValue(r2Status?.bucket, "psicologia")} />
+          <DiagnosticRow label="Endpoint" value={nonEmptyValue(r2Status?.endpoint, "sin dato")} />
+          <DiagnosticRow label="URL pública" value={nonEmptyValue(r2Status?.publicBaseUrl, "sin dato")} />
+          <DiagnosticRow label="Raíz R2" value={nonEmptyValue(snapshot?.destinations?.root ?? r2Status?.root, "bucket root")} />
           <DiagnosticRow label="Destinos totales" value={destinations.length} />
           <DiagnosticRow label="Desde R2" value={r2Destinations} />
           <DiagnosticRow label="Desde D1" value={d1Destinations} />
           <DiagnosticRow label="Materiales visibles" value={snapshot?.library?.summary?.materials ?? 0} />
           <DiagnosticRow label="Secciones visibles" value={snapshot?.library?.summary?.sections ?? 0} />
         </div>
-        {r2Status?.variables ? <div className="diagnosticSample">{Object.entries(r2Status.variables).map(([name, ok]) => <span key={name}>{name}: {ok ? "ok" : "falta"}</span>)}</div> : null}
-        {r2Status?.folders?.length ? <div className="diagnosticSample">{r2Status.folders.slice(0, 10).map((path) => <span key={path}>{path || "bucket root"}</span>)}</div> : null}
-        {r2Status?.sampleObjects?.length ? <div className="diagnosticSample">{r2Status.sampleObjects.map((object) => <span key={object.key}>{object.key}</span>)}</div> : null}
-        {snapshot?.r2StatusError ? <p className="diagnosticError">{snapshot.r2StatusError}</p> : null}
-        {r2Status?.error ? <p className="diagnosticError">{r2Status.error}</p> : null}
-        {snapshot?.destinationsError ? <p className="diagnosticError">{snapshot.destinationsError}</p> : null}
-        {snapshot?.libraryError ? <p className="diagnosticError">{snapshot.libraryError}</p> : null}
-        <div className="diagnosticSample">{destinations.slice(0, 7).map((destination) => <span key={destination.id}>{destination.path}</span>)}</div>
+        <div className="diagnosticDetailsStack">
+          <DiagnosticDetails title="Variables de entorno" count={Object.keys(r2Status?.variables ?? {}).length}>
+            <div className="diagnosticSample diagnosticCodeList">{Object.entries(r2Status?.variables ?? {}).map(([name, ok]) => <span className={ok ? "ok" : "missing"} key={name}><code>{name}</code><strong>{ok ? "Configurada" : "Falta"}</strong></span>)}</div>
+          </DiagnosticDetails>
+          <DiagnosticDetails title="Carpetas detectadas" count={r2Status?.folders?.length ?? 0}>
+            <div className="diagnosticSample">{r2Status?.folders?.length ? r2Status.folders.map((path) => <span key={path}>{path || "bucket root"}</span>) : <span>Sin carpetas detectadas</span>}</div>
+          </DiagnosticDetails>
+          <DiagnosticDetails title="Objetos de muestra" count={r2Status?.sampleObjects?.length ?? 0}>
+            <div className="diagnosticObjectList">{r2Status?.sampleObjects?.length ? r2Status.sampleObjects.map((object) => <div key={object.key}><code>{object.key}</code><span>{formatByteCount(object.size)}{object.lastModified ? ` · ${formatDateTime(object.lastModified)}` : ""}</span></div>) : <p>Sin objetos de muestra.</p>}</div>
+          </DiagnosticDetails>
+          <DiagnosticDetails title="Destinos de carga" count={destinations.length}>
+            <div className="diagnosticSample">{destinations.length ? destinations.map((destination) => <span key={destination.id}>{destination.path}</span>) : <span>Sin destinos disponibles</span>}</div>
+          </DiagnosticDetails>
+        </div>
+        {snapshot?.r2StatusError ? <p className="diagnosticError" role="alert">{snapshot.r2StatusError}</p> : null}
+        {r2Status?.error ? <p className="diagnosticError" role="alert">{r2Status.error}</p> : null}
+        {snapshot?.destinationsError ? <p className="diagnosticError" role="alert">{snapshot.destinationsError}</p> : null}
+        {snapshot?.libraryError ? <p className="diagnosticError" role="alert">{snapshot.libraryError}</p> : null}
       </article>
 
       <article className="adminCard diagnosticCard">
-        <div className="adminCardHead"><div><h3>D1</h3><p>Conteos rápidos para detectar tablas vacías o permisos mal aplicados.</p></div></div>
+        <div className="adminCardHead"><div><h3 className="diagnosticTitle"><Database size={19} aria-hidden="true" />D1</h3><p>Conteos rápidos para detectar tablas vacías o permisos mal aplicados.</p></div></div>
         <div className="diagnosticRows">
           <DiagnosticRow label="Perfiles" value={formatCount(snapshot?.counts.profiles)} />
           <DiagnosticRow label="Tareas activas" value={formatCount(snapshot?.counts.tasks)} />
@@ -542,19 +755,26 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
           <DiagnosticRow label="Secciones activas" value={formatCount(snapshot?.counts.sections)} />
           <DiagnosticRow label="Columnas grupo" value={formatCount(snapshot?.counts.groupColumns)} />
         </div>
-        {snapshot?.countErrors.map((error) => <p className="diagnosticError" key={error}>{error}</p>)}
+        {snapshot?.countErrors.map((error) => <p className="diagnosticError" role="alert" key={error}>{error}</p>)}
       </article>
 
-      <article className="adminCard diagnosticCard importer">
-        <div className="adminCardHead"><div><h3>Importador R2</h3><p>Sincroniza carpetas y archivos del bucket con D1.</p></div></div>
+      <article className="adminCard diagnosticCard importer" aria-busy={importBusy}>
+        <div className="adminCardHead"><div><h3 className="diagnosticTitle"><FolderSync size={19} aria-hidden="true" />Importador R2</h3><p>Simula primero y sincroniza carpetas y archivos del bucket con D1 cuando el resultado sea correcto.</p></div></div>
         {canManageR2 ? (
           <div className="diagnosticActions">
-            <button type="button" onClick={() => void runImport(true)} disabled={importBusy}>{importBusy ? "Ejecutando..." : "Simular"}</button>
-            <button className="primaryAction" type="button" onClick={() => void runImport(false)} disabled={importBusy}>Sincronizar R2</button>
+            <button type="button" onClick={() => void runImport(true)} disabled={importBusy}><FlaskConical size={16} aria-hidden="true" />{importBusy ? "Procesando..." : "Simular cambios"}</button>
+            <button className="primaryAction" type="button" onClick={() => setConfirmSync(true)} disabled={importBusy || !canSynchronize}><FolderSync size={16} aria-hidden="true" />Continuar a sincronización</button>
           </div>
         ) : <p className="muted">Tu perfil no tiene permiso para ejecutar sincronización R2.</p>}
+        {canManageR2 && !canSynchronize && !importBusy ? <p className="diagnosticHint">Ejecuta una simulación correcta para habilitar la sincronización.</p> : null}
+        {confirmSync && canSynchronize ? (
+          <div className="diagnosticConfirmation" role="group" aria-labelledby="r2-confirm-title">
+            <div><strong id="r2-confirm-title">¿Aplicar los cambios simulados?</strong><p>La sincronización escribirá secciones y materiales en D1 sin eliminar registros existentes.</p></div>
+            <div><button type="button" onClick={() => setConfirmSync(false)} disabled={importBusy}>Cancelar</button><button className="primaryAction" type="button" onClick={() => void runImport(false)} disabled={importBusy}>Confirmar sincronización</button></div>
+          </div>
+        ) : null}
         {importResult ? (
-          <div className="importResult">
+          <div className="importResult" role={importResult.error ? "alert" : "status"} aria-live="polite" aria-atomic="true">
             <strong>{importResult.dryRun ? "Simulación" : "Sincronización"}</strong>
             <span>Raíz: {importResult.root ?? "psicologia"}</span>
             <span>Objetos: {importResult.scannedObjects ?? importResult.importedObjects ?? 0}</span>
@@ -564,20 +784,157 @@ function DiagnosticsPanel({ canManageR2, d1Client, reload, onError }: { canManag
             {importResult.error ? <p className="diagnosticError">{importResult.error}</p> : null}
           </div>
         ) : null}
-        <div className="diagnosticSample">{Object.entries(providers).map(([provider, count]) => <span key={provider}>{provider}: {count}</span>)}</div>
+        <DiagnosticDetails title="Proveedores indexados" count={Object.keys(providers).length}>
+          <div className="diagnosticSample">{Object.keys(providers).length ? Object.entries(providers).map(([provider, count]) => <span key={provider}>{provider}: {count}</span>) : <span>Sin proveedores indexados</span>}</div>
+        </DiagnosticDetails>
       </article>
     </section>
   );
 }
 
+function AdminInsightCard({ icon: Icon, label, value, help, tone = "default" }: { icon: LucideIcon; label: string; value: string | number; help: string; tone?: "default" | "warning" | "success" }) {
+  return (
+    <article className={`adminInsightCard ${tone}`}>
+      <span><Icon size={18} aria-hidden="true" /></span>
+      <div><small>{label}</small><strong>{value}</strong><em>{help}</em></div>
+    </article>
+  );
+}
+
 function TasksPanel({ tasks, loading, onReload, onUpdate }: { tasks: AdminTaskRow[]; loading: boolean; onReload: () => void; onUpdate: (id: string, patch: Partial<Pick<AdminTaskRow, "status" | "visible_to_students" | "priority">>) => void }) {
-  return <section className="adminCard"><div className="adminCardHead"><div><h3>Tareas próximas</h3><p>Actualiza estado y visibilidad sin abrir la base.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div><div className="adminTaskList">{tasks.map((task) => <TaskAdminRow key={task.id} task={task} onUpdate={onUpdate} />)}{!tasks.length && !loading ? <p className="muted">No hay tareas cargadas.</p> : null}</div></section>;
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [sortMode, setSortMode] = useState("due-asc");
+  const today = adminTodayKey();
+  const visibleTasks = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase("es");
+    const filtered = tasks.filter((task) => {
+      const course = first(task.courses)?.name ?? "";
+      const type = first(task.task_types)?.name ?? "";
+      const matchesQuery = !normalizedQuery || [task.title, course, type, task.status, task.priority, task.due_date].some((value) => value.toLocaleLowerCase("es").includes(normalizedQuery));
+      return matchesQuery && (statusFilter === "all" || task.status === statusFilter) && (priorityFilter === "all" || task.priority === priorityFilter);
+    });
+    return filtered.sort((firstTask, secondTask) => compareAdminTasks(firstTask, secondTask, sortMode));
+  }, [priorityFilter, query, sortMode, statusFilter, tasks]);
+  const pendingTasks = tasks.filter((task) => !isTerminalAdminTask(task)).length;
+  const overdueTasks = tasks.filter((task) => !isTerminalAdminTask(task) && task.due_date < today).length;
+  const dueToday = tasks.filter((task) => !isTerminalAdminTask(task) && task.due_date === today).length;
+  const visibleToStudents = tasks.filter((task) => task.visible_to_students).length;
+
+  return (
+    <section className="adminModule adminTasksModule" aria-busy={loading}>
+      <article className="adminCard">
+        <div className="adminCardHead">
+          <div><p className="adminModuleEyebrow">Operación académica</p><h3>Tareas</h3><p>Busca, prioriza y actualiza entregas sin perder el contexto.</p></div>
+          <button type="button" onClick={onReload} disabled={loading}><RefreshCw className={loading ? "isSpinning" : ""} size={16} aria-hidden="true" />{loading ? "Cargando..." : "Recargar"}</button>
+        </div>
+        <div className="adminInsightGrid" aria-label="Resumen de tareas">
+          <AdminInsightCard icon={ListTodo} label="Pendientes" value={pendingTasks} help="por atender" />
+          <AdminInsightCard icon={CircleAlert} label="Vencidas" value={overdueTasks} help="requieren seguimiento" tone={overdueTasks ? "warning" : "default"} />
+          <AdminInsightCard icon={CalendarClock} label="Hoy" value={dueToday} help="con vencimiento hoy" />
+          <AdminInsightCard icon={Eye} label="Visibles" value={visibleToStudents} help="para alumnos" tone="success" />
+        </div>
+        <div className="adminWorkspaceToolbar" aria-label="Filtros de tareas">
+          <label className="adminWorkspaceSearch"><span>Buscar</span><span><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Título, materia o tipo" /></span></label>
+          <label><span>Estado</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">Todos</option><option>Pendiente</option><option>Se entrega hoy</option><option>Entregado</option><option>Reprogramado</option><option>Cancelado</option></select></label>
+          <label><span>Prioridad</span><select value={priorityFilter} onChange={(event) => setPriorityFilter(event.target.value)}><option value="all">Todas</option><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+          <label><span>Orden</span><select value={sortMode} onChange={(event) => setSortMode(event.target.value)}><option value="due-asc">Fecha próxima</option><option value="due-desc">Fecha lejana</option><option value="title">Título</option><option value="priority">Prioridad</option></select></label>
+        </div>
+        <div className="adminWorkspaceCounter"><strong>Entregas visibles</strong><span role="status" aria-live="polite">{visibleTasks.length} de {tasks.length}</span></div>
+        <div className="adminTaskList">
+          {visibleTasks.map((task) => <TaskAdminRow key={task.id} task={task} onUpdate={onUpdate} />)}
+          {!visibleTasks.length && !loading ? <p className="adminWorkspaceEmpty">No hay tareas para los filtros actuales.</p> : null}
+        </div>
+      </article>
+    </section>
+  );
 }
 
 function TaskAdminRow({ task, onUpdate }: { task: AdminTaskRow; onUpdate: (id: string, patch: Partial<Pick<AdminTaskRow, "status" | "visible_to_students" | "priority">>) => void }) {
   const course = first(task.courses);
   const type = first(task.task_types);
-  return <article className="adminTaskRow" style={{ borderLeftColor: course?.color ?? type?.color ?? "#4285dc" }}><div><strong>{task.title}</strong><small>{course?.name ?? "Sin materia"} · {type?.name ?? "Tarea"} · {task.due_date} {task.due_time?.slice(0, 5) ?? ""}</small></div><select value={task.status} onChange={(event) => onUpdate(task.id, { status: event.target.value })}><option>Pendiente</option><option>Se entrega hoy</option><option>Entregado</option><option>Reprogramado</option><option>Cancelado</option></select><select value={task.priority} onChange={(event) => onUpdate(task.id, { priority: event.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select><label><input type="checkbox" checked={task.visible_to_students} onChange={(event) => onUpdate(task.id, { visible_to_students: event.target.checked })} />Visible</label></article>;
+  const TaskIcon = type?.name === "Evento" ? CalendarDays : FileText;
+  return (
+    <article className="adminTaskRow" style={{ borderLeftColor: course?.color ?? type?.color ?? "#4285dc" }}>
+      <div className="adminTaskIdentity"><span className="adminTaskIcon"><TaskIcon size={17} aria-hidden="true" /></span><span><strong>{task.title}</strong><small>{course?.name ?? "Sin materia"} · {type?.name ?? "Tarea"}</small><small><CalendarClock size={13} aria-hidden="true" />{formatAdminTaskDate(task)}</small></span></div>
+      <label className="adminTaskControl"><span>Estado</span><select aria-label={`Estado de ${task.title}`} value={task.status} onChange={(event) => onUpdate(task.id, { status: event.target.value })}><option>Pendiente</option><option>Se entrega hoy</option><option>Entregado</option><option>Reprogramado</option><option>Cancelado</option></select></label>
+      <label className="adminTaskControl"><span>Prioridad</span><select aria-label={`Prioridad de ${task.title}`} value={task.priority} onChange={(event) => onUpdate(task.id, { priority: event.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+      <label className="adminTaskVisibility"><input aria-label={`Mostrar ${task.title} a alumnos`} type="checkbox" checked={task.visible_to_students} onChange={(event) => onUpdate(task.id, { visible_to_students: event.target.checked })} />Visible</label>
+    </article>
+  );
+}
+
+function AdminCalendarPanel({ tasks, loading, onReload, onUpdate }: { tasks: AdminTaskRow[]; loading: boolean; onReload: () => void; onUpdate: (id: string, patch: Partial<Pick<AdminTaskRow, "status" | "visible_to_students" | "priority">>) => void }) {
+  const [cursor, setCursor] = useState(() => startOfAdminMonth(new Date()));
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const monthKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+  const today = adminTodayKey();
+  const monthTasks = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase("es");
+    return tasks
+      .filter((task) => task.due_date.startsWith(monthKey))
+      .filter((task) => statusFilter === "all" || task.status === statusFilter)
+      .filter((task) => !normalizedQuery || [task.title, first(task.courses)?.name ?? "", first(task.task_types)?.name ?? ""].some((value) => value.toLocaleLowerCase("es").includes(normalizedQuery)))
+      .sort((firstTask, secondTask) => compareAdminTasks(firstTask, secondTask, "due-asc"));
+  }, [monthKey, query, statusFilter, tasks]);
+  const tasksByDate = useMemo(() => monthTasks.reduce<Map<string, AdminTaskRow[]>>((map, task) => map.set(task.due_date, [...(map.get(task.due_date) ?? []), task]), new Map()), [monthTasks]);
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
+  const pendingInMonth = monthTasks.filter((task) => !isTerminalAdminTask(task)).length;
+  const eventsInMonth = monthTasks.filter((task) => first(task.task_types)?.name === "Evento").length;
+  const todayInMonth = monthTasks.filter((task) => task.due_date === today).length;
+  const cells = adminMonthCells(cursor);
+
+  function moveMonth(offset: number) {
+    setCursor((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+    setSelectedTaskId(null);
+  }
+
+  return (
+    <section className="adminModule adminCalendarModule" aria-busy={loading}>
+      <article className="adminCard">
+        <div className="adminCardHead">
+          <div><p className="adminModuleEyebrow">Planeación visual</p><h3>Calendario</h3><p>Explora vencimientos por mes y actualiza la entrega seleccionada.</p></div>
+          <button type="button" onClick={onReload} disabled={loading}><RefreshCw className={loading ? "isSpinning" : ""} size={16} aria-hidden="true" />{loading ? "Cargando..." : "Recargar"}</button>
+        </div>
+        <div className="adminInsightGrid" aria-label="Resumen del calendario">
+          <AdminInsightCard icon={CalendarDays} label="Programadas" value={monthTasks.length} help="en el mes" />
+          <AdminInsightCard icon={ListTodo} label="Pendientes" value={pendingInMonth} help="por completar" />
+          <AdminInsightCard icon={CalendarClock} label="Hoy" value={todayInMonth} help="vencen hoy" tone={todayInMonth ? "warning" : "default"} />
+          <AdminInsightCard icon={Layers3} label="Eventos" value={eventsInMonth} help="en agenda" />
+        </div>
+        <div className="adminCalendarControls">
+          <div className="adminCalendarNavigation"><button type="button" aria-label="Mes anterior" onClick={() => moveMonth(-1)}><ChevronLeft size={18} aria-hidden="true" /></button><button type="button" onClick={() => { setCursor(startOfAdminMonth(new Date())); setSelectedTaskId(null); }}>Hoy</button><button type="button" aria-label="Mes siguiente" onClick={() => moveMonth(1)}><ChevronRight size={18} aria-hidden="true" /></button><strong aria-live="polite">{adminMonthLabel(cursor)}</strong></div>
+          <div className="adminCalendarFilters"><label className="adminWorkspaceSearch"><span>Buscar</span><span><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en el mes" /></span></label><label><span>Estado</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">Todos</option><option>Pendiente</option><option>Se entrega hoy</option><option>Entregado</option><option>Reprogramado</option><option>Cancelado</option></select></label></div>
+        </div>
+        <div className="adminCalendarScroll" role="region" aria-label={`Calendario de ${adminMonthLabel(cursor)}`} tabIndex={0}>
+          <div className="adminCalendarGrid" role="grid">
+            {adminWeekdays.map((weekday) => <div className="adminCalendarWeekday" role="columnheader" key={weekday}>{weekday}</div>)}
+            {cells.map((dateKey, index) => dateKey ? (
+              <article className={`adminCalendarDay ${dateKey === today ? "today" : ""}`} role="gridcell" key={dateKey}>
+                <time dateTime={dateKey}>{Number(dateKey.slice(-2))}</time>
+                <div>{(tasksByDate.get(dateKey) ?? []).slice(0, 3).map((task) => <button className={adminTaskTone(task)} type="button" aria-pressed={selectedTaskId === task.id} onClick={() => setSelectedTaskId(task.id)} key={task.id}>{task.title}</button>)}{(tasksByDate.get(dateKey)?.length ?? 0) > 3 ? <small>+{(tasksByDate.get(dateKey)?.length ?? 0) - 3} más</small> : null}</div>
+              </article>
+            ) : <div className="adminCalendarDay empty" role="gridcell" aria-label="Fuera del mes" key={`empty-${index}`} />)}
+          </div>
+        </div>
+        <div className="adminCalendarAgenda" aria-label={`Agenda de ${adminMonthLabel(cursor)}`}>
+          {monthTasks.map((task) => <button type="button" aria-pressed={selectedTaskId === task.id} onClick={() => setSelectedTaskId(task.id)} key={task.id}><time dateTime={task.due_date}>{formatAdminDate(task.due_date)}</time><span><strong>{task.title}</strong><small>{first(task.courses)?.name ?? "Sin materia"} · {task.status}</small></span><ChevronRight size={16} aria-hidden="true" /></button>)}
+          {!monthTasks.length ? <p className="adminWorkspaceEmpty">No hay actividades para este mes y filtros.</p> : null}
+        </div>
+        {selectedTask ? (
+          <aside className="adminCalendarSelection" aria-live="polite">
+            <div><span className="adminTaskIcon"><CalendarClock size={17} aria-hidden="true" /></span><span><small>Entrega seleccionada</small><strong>{selectedTask.title}</strong><em>{formatAdminTaskDate(selectedTask)}</em></span></div>
+            <label><span>Estado</span><select value={selectedTask.status} onChange={(event) => onUpdate(selectedTask.id, { status: event.target.value })}><option>Pendiente</option><option>Se entrega hoy</option><option>Entregado</option><option>Reprogramado</option><option>Cancelado</option></select></label>
+            <label><span>Prioridad</span><select value={selectedTask.priority} onChange={(event) => onUpdate(selectedTask.id, { priority: event.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
+            <label className="adminTaskVisibility"><input type="checkbox" checked={selectedTask.visible_to_students} onChange={(event) => onUpdate(selectedTask.id, { visible_to_students: event.target.checked })} />Visible</label>
+          </aside>
+        ) : <p className="adminCalendarHint">Selecciona una entrega del calendario para editarla.</p>}
+      </article>
+    </section>
+  );
 }
 
 function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]; onCreate: (input: CourseDraft) => Promise<boolean>; onUpdate: (id: string, patch: Partial<CourseConfig>) => Promise<boolean> }) {
@@ -657,6 +1014,16 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [loadingDestinations, setLoadingDestinations] = useState(false);
+  const [libraryMaterials, setLibraryMaterials] = useState<AdminLibraryMaterial[]>([]);
+  const [librarySections, setLibrarySections] = useState<AdminLibrarySection[]>([]);
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [libraryQuery, setLibraryQuery] = useState("");
+  const [librarySection, setLibrarySection] = useState("all");
+  const [librarySort, setLibrarySort] = useState("title");
+  const [uploadResult, setUploadResult] = useState<string | null>(null);
+  const [bucketSyncBusy, setBucketSyncBusy] = useState(false);
+  const [bucketSyncResult, setBucketSyncResult] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -689,6 +1056,64 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
     }
   }, [destinationId, destinations]);
 
+  useEffect(() => {
+    void loadMaterialLibrary();
+    // The library loader is intentionally tied to the mounted materials module.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function loadMaterialLibrary() {
+    setLoadingLibrary(true);
+    setLibraryError(null);
+    try {
+      const response = await fetch("/api/materials/library?limit=500", { credentials: "include", cache: "no-store" });
+      const payload = await response.json().catch(() => ({})) as AdminLibraryPayload;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "No se pudo cargar la biblioteca del bucket.");
+      setLibraryMaterials(payload.materials ?? []);
+      setLibrarySections(payload.sections ?? []);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo cargar la biblioteca del bucket.";
+      setLibraryError(message);
+      onError(message);
+    } finally {
+      setLoadingLibrary(false);
+    }
+  }
+
+  async function synchronizeBucket() {
+    if (!canManageR2) return;
+    setBucketSyncBusy(true);
+    setBucketSyncResult(null);
+    onError(null);
+    try {
+      const response = await fetch("/api/admin/r2/import-materials", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun: false, maxItems: 10000 }),
+      });
+      const payload = await response.json().catch(() => ({})) as ImportResult;
+      if (!response.ok || payload.error) throw new Error(payload.error ?? "No se pudo sincronizar el bucket.");
+      setBucketSyncResult(`${payload.importedObjects ?? 0} objetos revisados · ${payload.inserted ?? 0} insertados · ${payload.updated ?? 0} actualizados`);
+      await loadMaterialLibrary();
+      await reload();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "No se pudo sincronizar el bucket.");
+    } finally {
+      setBucketSyncBusy(false);
+    }
+  }
+
+  const visibleMaterials = useMemo(() => {
+    const normalizedQuery = libraryQuery.trim().toLocaleLowerCase("es");
+    return libraryMaterials
+      .filter((material) => librarySection === "all" || material.section_id === librarySection)
+      .filter((material) => !normalizedQuery || [material.title, material.material_type ?? "", material.provider ?? "", material.section?.name ?? "", material.section?.path ?? ""].some((value) => value.toLocaleLowerCase("es").includes(normalizedQuery)))
+      .sort((firstMaterial, secondMaterial) => compareAdminMaterials(firstMaterial, secondMaterial, librarySort));
+  }, [libraryMaterials, libraryQuery, librarySection, librarySort]);
+  const bucketMaterials = libraryMaterials.filter((material) => material.provider === "r2").length;
+  const libraryBytes = libraryMaterials.reduce((total, material) => total + (material.size_bytes ?? 0), 0);
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const destination = destinations.find((item) => item.id === destinationId);
@@ -700,8 +1125,13 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
       onError("Selecciona un archivo y una carpeta válida del bucket.");
       return;
     }
+    if (file.size > MAX_DIRECT_MATERIAL_BYTES) {
+      onError("El archivo supera el límite de 50 MB para carga directa.");
+      return;
+    }
 
     setBusy(true);
+    setUploadResult(null);
     try {
       const formData = new FormData();
       formData.set("file", file);
@@ -732,6 +1162,8 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
 
       setTitle("");
       setFile(null);
+      setUploadResult(`${file.name} se guardó en ${destination.path}.`);
+      await loadMaterialLibrary();
       await reload();
     } catch (error) {
       onError(error instanceof Error ? error.message : "No se pudo subir el material.");
@@ -740,24 +1172,59 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
     }
   }
 
-  if (!canManageR2) return <section className="adminCard"><div className="adminCardHead"><div><h3>Subir material</h3><p>Tu perfil puede administrar materiales, pero no tiene permiso para crear cargas R2.</p></div></div></section>;
-
   return (
-    <section className="adminCard">
-      <div className="adminCardHead"><div><h3>Subir material</h3><p>Guarda el archivo en R2 y registra la metadata en D1.</p></div></div>
-      <form className="adminUpload" onSubmit={submit}>
-        <label>
-          Destino
-          <select value={destinationId} onChange={(event) => setDestinationId(event.target.value)} disabled={loadingDestinations || !destinations.length}>
-            {destinations.length ? destinations.map((destination) => (
-              <option key={destination.id} value={destination.id}>{destination.path}</option>
-            )) : <option value="">{loadingDestinations ? "Cargando carpetas del bucket..." : "Sin carpetas del bucket"}</option>}
-          </select>
-        </label>
-        <label>Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Opcional" /></label>
-        <label>Archivo<input type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></label>
-        <button className="primaryAction" disabled={busy || loadingDestinations || !destinations.length} type="submit">{busy ? "Subiendo..." : "Subir a R2"}</button>
-      </form>
+    <section className="adminMaterialsGrid adminModule adminMaterialsModule" aria-busy={busy || loadingLibrary || bucketSyncBusy}>
+      <article className="adminCard adminMaterialUploadCard">
+        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Carga segura</p><h3 className="adminWorkspaceTitle"><Upload size={19} aria-hidden="true" />Subir material</h3><p>Guarda el archivo en R2 y registra la metadata en D1.</p></div></div>
+        {canManageR2 ? (
+          <form className="adminUpload" onSubmit={submit}>
+            <label>
+              Destino
+              <select value={destinationId} onChange={(event) => setDestinationId(event.target.value)} disabled={loadingDestinations || !destinations.length}>
+                {destinations.length ? destinations.map((destination) => (
+                  <option key={destination.id} value={destination.id}>{destination.path}</option>
+                )) : <option value="">{loadingDestinations ? "Cargando carpetas del bucket..." : "Sin carpetas del bucket"}</option>}
+              </select>
+            </label>
+            <label>Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Opcional" /></label>
+            <label>Archivo<input type="file" accept={MATERIAL_UPLOAD_ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} /><small>PDF, Office, OpenDocument, texto, ZIP o imagen; máximo 50 MB.</small></label>
+            <button className="primaryAction" disabled={busy || loadingDestinations || !destinations.length || !file} type="submit"><Upload size={16} aria-hidden="true" />{busy ? "Subiendo..." : "Subir a R2"}</button>
+          </form>
+        ) : <p className="adminWorkspaceEmpty">Tu perfil puede consultar materiales, pero no crear cargas R2.</p>}
+        {uploadResult ? <p className="adminWorkspaceResult" role="status" aria-live="polite">{uploadResult}</p> : null}
+      </article>
+
+      <article className="adminCard adminMaterialLibraryCard">
+        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Biblioteca conectada</p><h3 className="adminWorkspaceTitle"><FolderOpen size={19} aria-hidden="true" />Materiales del bucket</h3><p>Consulta, filtra y abre cada material indexado de forma independiente.</p></div><div className="adminCardHeadActions"><button type="button" onClick={() => void loadMaterialLibrary()} disabled={loadingLibrary || bucketSyncBusy}><RefreshCw className={loadingLibrary ? "isSpinning" : ""} size={16} aria-hidden="true" />{loadingLibrary ? "Cargando..." : "Recargar"}</button>{canManageR2 ? <button className="primaryAction" type="button" onClick={() => void synchronizeBucket()} disabled={bucketSyncBusy || loadingLibrary}><FolderSync className={bucketSyncBusy ? "isSpinning" : ""} size={16} aria-hidden="true" />{bucketSyncBusy ? "Sincronizando..." : "Sincronizar bucket"}</button> : null}</div></div>
+        {libraryError ? <p className="adminWorkspaceError" role="alert"><CircleAlert size={16} aria-hidden="true" />{libraryError}</p> : null}
+        {bucketSyncResult ? <p className="adminWorkspaceResult" role="status" aria-live="polite">{bucketSyncResult}</p> : null}
+        <div className="adminInsightGrid" aria-label="Resumen de materiales">
+          <AdminInsightCard icon={FileText} label="Materiales" value={libraryMaterials.length} help="indexados" />
+          <AdminInsightCard icon={FolderTree} label="Secciones" value={librarySections.length} help="disponibles" />
+          <AdminInsightCard icon={Cloud} label="En R2" value={bucketMaterials} help="desde el bucket" tone="success" />
+          <AdminInsightCard icon={HardDrive} label="Almacenamiento" value={formatByteCount(libraryBytes)} help="en resultados" />
+        </div>
+        <div className="adminWorkspaceToolbar material" aria-label="Filtros de materiales">
+          <label className="adminWorkspaceSearch"><span>Buscar</span><span><Search size={16} aria-hidden="true" /><input value={libraryQuery} onChange={(event) => setLibraryQuery(event.target.value)} placeholder="Título, sección o tipo" /></span></label>
+          <label><span>Sección</span><select value={librarySection} onChange={(event) => setLibrarySection(event.target.value)}><option value="all">Todas</option>{librarySections.map((section) => <option value={section.id} key={section.id}>{section.name}</option>)}</select></label>
+          <label><span>Orden</span><select value={librarySort} onChange={(event) => setLibrarySort(event.target.value)}><option value="title">Título</option><option value="section">Sección</option><option value="size-desc">Mayor tamaño</option><option value="size-asc">Menor tamaño</option></select></label>
+        </div>
+        <div className="adminWorkspaceCounter"><strong>Resultados</strong><span role="status" aria-live="polite">{visibleMaterials.length} de {libraryMaterials.length}</span></div>
+        <div className="adminMaterialResults">
+          {visibleMaterials.map((material) => {
+            const previewHref = material.preview_url ?? material.source_url;
+            const downloadHref = material.download_url ?? material.source_url;
+            return (
+              <article className="adminMaterialResult" style={{ borderLeftColor: material.section?.color ?? "#2a79a6" }} key={material.id}>
+                <span className="adminMaterialResultIcon"><FileText size={18} aria-hidden="true" /></span>
+                <div><strong>{material.title}</strong><small>{material.section?.name ?? "Sin sección"} · {material.material_type ?? "Archivo"} · {formatByteCount(material.size_bytes ?? 0)}</small></div>
+                <div className="adminMaterialActions">{previewHref ? <a href={previewHref} target="_blank" rel="noreferrer"><Eye size={15} aria-hidden="true" />Vista previa</a> : null}{downloadHref ? <a href={downloadHref}><Download size={15} aria-hidden="true" />Descargar</a> : null}</div>
+              </article>
+            );
+          })}
+          {!visibleMaterials.length && !loadingLibrary ? <p className="adminWorkspaceEmpty">No hay materiales para los filtros actuales. Si el bucket ya tiene archivos, usa “Sincronizar bucket” una vez para indexarlos en D1.</p> : null}
+        </div>
+      </article>
     </section>
   );
 }
@@ -841,6 +1308,72 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate }: { profile: Ap
   );
 }
 
+const adminWeekdays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+function adminTodayKey(value = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Mexico_City", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function startOfAdminMonth(value: Date) {
+  return new Date(value.getFullYear(), value.getMonth(), 1);
+}
+
+function adminMonthCells(value: Date) {
+  const year = value.getFullYear();
+  const month = value.getMonth();
+  const firstWeekday = new Date(year, month, 1).getDay();
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: Array<string | null> = Array(firstWeekday).fill(null);
+  for (let day = 1; day <= days; day += 1) cells.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+function adminMonthLabel(value: Date) {
+  const label = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(value);
+  return label.replace(/^./, (character) => character.toLocaleUpperCase("es"));
+}
+
+function formatAdminDate(value: string) {
+  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short" }).format(new Date(`${value}T12:00:00`));
+}
+
+function formatAdminTaskDate(task: Pick<AdminTaskRow, "due_date" | "due_time">) {
+  const time = task.due_time?.slice(0, 5);
+  return `${formatAdminDate(task.due_date)}${time ? ` · ${time}` : ""}`;
+}
+
+function isTerminalAdminTask(task: Pick<AdminTaskRow, "status">) {
+  return task.status === "Entregado" || task.status === "Cancelado";
+}
+
+function compareAdminTasks(firstTask: AdminTaskRow, secondTask: AdminTaskRow, sortMode: string) {
+  if (sortMode === "title") return firstTask.title.localeCompare(secondTask.title, "es", { sensitivity: "base" });
+  if (sortMode === "priority") {
+    const order: Record<string, number> = { Alta: 0, Media: 1, Baja: 2 };
+    return (order[firstTask.priority] ?? 3) - (order[secondTask.priority] ?? 3) || firstTask.due_date.localeCompare(secondTask.due_date);
+  }
+  const comparison = `${firstTask.due_date}T${firstTask.due_time ?? "23:59"}`.localeCompare(`${secondTask.due_date}T${secondTask.due_time ?? "23:59"}`);
+  return sortMode === "due-desc" ? -comparison : comparison;
+}
+
+function adminTaskTone(task: AdminTaskRow) {
+  if (task.status === "Entregado") return "completed";
+  if (task.status === "Cancelado") return "cancelled";
+  if (task.due_date < adminTodayKey()) return "overdue";
+  if (task.due_date === adminTodayKey()) return "today";
+  return "upcoming";
+}
+
+function compareAdminMaterials(firstMaterial: AdminLibraryMaterial, secondMaterial: AdminLibraryMaterial, sortMode: string) {
+  if (sortMode === "section") return (firstMaterial.section?.name ?? "").localeCompare(secondMaterial.section?.name ?? "", "es", { sensitivity: "base" }) || firstMaterial.title.localeCompare(secondMaterial.title, "es");
+  if (sortMode === "size-desc") return (secondMaterial.size_bytes ?? 0) - (firstMaterial.size_bytes ?? 0);
+  if (sortMode === "size-asc") return (firstMaterial.size_bytes ?? 0) - (secondMaterial.size_bytes ?? 0);
+  return firstMaterial.title.localeCompare(secondMaterial.title, "es", { sensitivity: "base" });
+}
+
 function emptyCourseDraft(): CourseDraft {
   return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium" };
 }
@@ -910,8 +1443,25 @@ async function loadDiagnosticCounts(d1Client: D1Browser | null): Promise<{ count
   return { counts, errors };
 }
 
-function DiagnosticPill({ label, ok }: { label: string; ok: boolean }) {
-  return <span className={ok ? "diagnosticPill ok" : "diagnosticPill"}>{label}</span>;
+function DiagnosticPill({ label, ok, pending, icon: Icon }: { label: string; ok: boolean; pending: boolean; icon: LucideIcon }) {
+  const StatusIcon = pending ? RefreshCw : ok ? CheckCircle2 : CircleAlert;
+  const status = pending ? "Revisando" : ok ? "Operativo" : "Revisar";
+  return (
+    <span className={`diagnosticPill ${pending ? "pending" : ok ? "ok" : "error"}`}>
+      <Icon className="diagnosticServiceIcon" size={18} aria-hidden="true" />
+      <span><strong>{label}</strong><small>{status}</small></span>
+      <StatusIcon className={pending ? "isSpinning" : ""} size={16} aria-hidden="true" />
+    </span>
+  );
+}
+
+function DiagnosticDetails({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
+  return (
+    <details className="diagnosticDetails">
+      <summary><span>{title}<small>{count}</small></span><ChevronDown size={17} aria-hidden="true" /></summary>
+      <div className="diagnosticDetailsBody">{children}</div>
+    </details>
+  );
 }
 
 function DiagnosticRow({ label, value }: { label: string; value: string | number }) {
@@ -926,11 +1476,120 @@ function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
 }
 
-function formatReportValue(value: string | number | boolean | null | undefined) {
-  if (value == null) return "";
+const reportColumnLabels: Record<string, string> = {
+  course: "Materia",
+  task_type: "Tipo",
+  status: "Estado",
+  total: "Total",
+  overdue: "Vencidas",
+  next_due_date: "Próxima entrega",
+  section_path: "Sección",
+  provider: "Proveedor",
+  total_bytes: "Tamaño",
+  last_updated_at: "Última actualización",
+  role: "Rol",
+  active: "Estado",
+  id: "ID",
+  actor_id: "Responsable",
+  action: "Acción",
+  entity: "Entidad",
+  entity_id: "ID de entidad",
+  created_at: "Fecha",
+};
+
+function reportColumnLabel(column: string) {
+  return reportColumnLabels[column] ?? column.replaceAll("_", " ").replace(/^./, (character) => character.toUpperCase());
+}
+
+function reportSummary(payload: ReportPayload | null): ReportSummaryItem[] {
+  const taskRows = payload?.tasks ?? [];
+  const materialRows = payload?.materials ?? [];
+  const studentRows = payload?.students ?? [];
+  const taskTotal = taskRows.reduce((total, row) => total + asReportNumber(row.total), 0);
+  const overdueTotal = taskRows.reduce((total, row) => total + asReportNumber(row.overdue), 0);
+  const materialTotal = materialRows.reduce((total, row) => total + asReportNumber(row.total), 0);
+  const materialBytes = materialRows.reduce((total, row) => total + asReportNumber(row.total_bytes), 0);
+  const activeProfiles = studentRows
+    .filter((row) => row.active === true || row.active === 1 || row.active === "1")
+    .reduce((total, row) => total + asReportNumber(row.total), 0);
+
+  return [
+    { label: "Tareas", value: taskTotal, help: "entregas activas", icon: ListTodo },
+    { label: "Vencidas", value: overdueTotal, help: overdueTotal === 1 ? "requiere seguimiento" : "requieren seguimiento", icon: CircleAlert, tone: overdueTotal ? "warning" : "default" },
+    { label: "Materiales", value: materialTotal, help: formatByteCount(materialBytes), icon: HardDrive },
+    { label: "Perfiles activos", value: activeProfiles, help: "con acceso vigente", icon: Users },
+    { label: "Actividad", value: payload?.audit?.length ?? 0, help: "eventos recientes", icon: Activity },
+  ];
+}
+
+function filterAndSortReportRows(rows: ReportRow[], query: string, sortColumn: string | null, direction: SortDirection) {
+  const normalizedQuery = query.trim().toLocaleLowerCase("es");
+  const filtered = normalizedQuery
+    ? rows.filter((row) => Object.entries(row).some(([column, value]) => formatReportValue(value, column).toLocaleLowerCase("es").includes(normalizedQuery)))
+    : [...rows];
+
+  if (!sortColumn) return filtered;
+  const factor = direction === "ascending" ? 1 : -1;
+  return filtered.sort((firstRow, secondRow) => compareReportValues(firstRow[sortColumn], secondRow[sortColumn]) * factor);
+}
+
+function compareReportValues(firstValue: ReportRow[string], secondValue: ReportRow[string]) {
+  if (firstValue == null && secondValue == null) return 0;
+  if (firstValue == null) return 1;
+  if (secondValue == null) return -1;
+  if (typeof firstValue === "number" && typeof secondValue === "number") return firstValue - secondValue;
+  if (typeof firstValue === "boolean" && typeof secondValue === "boolean") return Number(firstValue) - Number(secondValue);
+  return String(firstValue).localeCompare(String(secondValue), "es", { numeric: true, sensitivity: "base" });
+}
+
+function exportReportCsv(title: string, columns: string[], rows: ReportRow[]) {
+  if (!columns.length || !rows.length) return;
+  const lines = [
+    columns.map((column) => escapeCsvCell(reportColumnLabel(column))).join(","),
+    ...rows.map((row) => columns.map((column) => escapeCsvCell(formatReportValue(row[column], column))).join(",")),
+  ];
+  const blob = new Blob([`\uFEFF${lines.join("\r\n")}`], { type: "text/csv;charset=utf-8" });
+  const href = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = href;
+  anchor.download = `${title.toLocaleLowerCase("es").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "") || "reporte"}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(href);
+}
+
+function escapeCsvCell(value: string) {
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function asReportNumber(value: ReportRow[string]) {
+  const parsed = Number(value ?? 0);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatReportValue(value: string | number | boolean | null | undefined, column?: string) {
+  if (value == null || value === "") return "—";
+  if (column === "total_bytes") return formatByteCount(asReportNumber(value));
+  if (column === "active") return value === true || value === 1 || value === "1" ? "Activo" : "Inactivo";
+  if (column === "role") return value === "student" ? "Alumno" : value === "admin" ? "Administrador" : value === "owner" ? "Propietario" : String(value);
   if (typeof value === "boolean") return value ? "Sí" : "No";
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) return formatDateTime(value);
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(`${value}T12:00:00`));
+  }
   return String(value);
+}
+
+function formatByteCount(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "0 B";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const unitIndex = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  return `${new Intl.NumberFormat("es-MX", { maximumFractionDigits: unitIndex === 0 ? 0 : 1 }).format(value / 1024 ** unitIndex)} ${units[unitIndex]}`;
+}
+
+function nonEmptyValue(value: string | null | undefined, fallback: string) {
+  return value?.trim() || fallback;
 }
 
 function bucketDestinations(destinations: UploadDestination[]) {

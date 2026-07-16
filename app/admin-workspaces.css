@@ -1,0 +1,819 @@
+.metricCard {
+  grid-template-columns: 40px minmax(0, 1fr) 20px;
+  align-items: center;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.metricCard > :not(.metricCardIcon):not(.metricCardChevron) {
+  grid-column: 2;
+}
+
+.metricCardChevron {
+  grid-column: 3;
+  grid-row: 1 / span 3;
+  align-self: center;
+  color: #667085;
+  transition: transform 140ms ease;
+}
+
+.metricCard:hover {
+  border-color: #9fc1d6;
+  background: #f9fcfe;
+}
+
+.metricCard:hover .metricCardChevron {
+  transform: translateX(3px);
+}
+
+.metricCardIcon {
+  display: inline-grid;
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border-radius: 11px;
+  background: #e8f4fa;
+  color: #0f5f8f !important;
+}
+
+.adminTasksModule,
+.adminCalendarModule,
+.adminMaterialsModule,
+.adminTasksModule > .adminCard,
+.adminCalendarModule > .adminCard,
+.adminMaterialLibraryCard {
+  min-width: 0;
+}
+
+.adminTasksModule > .adminCard,
+.adminCalendarModule > .adminCard,
+.adminMaterialsModule > .adminCard {
+  display: grid;
+  gap: 16px;
+  border: 1px solid #dbe3ec;
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055);
+}
+
+.adminTasksModule .adminCardHead,
+.adminCalendarModule .adminCardHead,
+.adminMaterialsModule .adminCardHead {
+  margin: -2px -2px 0;
+  padding: 2px 2px 14px;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.adminWorkspaceTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adminWorkspaceTitle svg {
+  flex: 0 0 auto;
+  color: #0f5f8f;
+}
+
+.adminInsightGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+}
+
+.adminInsightCard {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  min-width: 0;
+  align-items: start;
+  border: 1px solid #dce5ee;
+  border-radius: 12px;
+  background: #f8fbfd;
+  padding: 12px;
+}
+
+.adminInsightCard.warning {
+  border-color: #f1c9a4;
+  background: #fff8f1;
+}
+
+.adminInsightCard.success {
+  border-color: #b9e3c7;
+  background: #f1fbf4;
+}
+
+.adminInsightCard > span {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: #e8f4fa;
+  color: #0f5f8f;
+}
+
+.adminInsightCard.warning > span {
+  background: #feead7;
+  color: #a04b09;
+}
+
+.adminInsightCard.success > span {
+  background: #dcf3e4;
+  color: #187a3e;
+}
+
+.adminInsightCard > div {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.adminInsightCard small,
+.adminInsightCard em {
+  overflow: hidden;
+  color: #667085;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+}
+
+.adminInsightCard small {
+  font-weight: 850;
+}
+
+.adminInsightCard strong {
+  color: #142033;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.adminWorkspaceToolbar,
+.adminCalendarFilters {
+  display: grid;
+  grid-template-columns: minmax(230px, 1.25fr) repeat(3, minmax(130px, 0.55fr));
+  gap: 10px;
+  align-items: end;
+  border: 1px solid #dfe7ef;
+  border-radius: 12px;
+  background: #f7f9fc;
+  padding: 12px;
+}
+
+.adminWorkspaceToolbar.material {
+  grid-template-columns: minmax(230px, 1.25fr) repeat(2, minmax(150px, 0.6fr));
+}
+
+.adminWorkspaceToolbar label,
+.adminCalendarFilters label,
+.adminCalendarSelection label,
+.adminTaskControl {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.adminWorkspaceToolbar select,
+.adminCalendarFilters select,
+.adminCalendarSelection select,
+.adminTaskControl select,
+.adminWorkspaceSearch > span:last-child {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #cbd6e2;
+  border-radius: 9px;
+  background: #fff;
+  color: #142033;
+}
+
+.adminWorkspaceToolbar select,
+.adminCalendarFilters select,
+.adminCalendarSelection select,
+.adminTaskControl select {
+  padding: 0 34px 0 10px;
+}
+
+.adminWorkspaceSearch > span:last-child {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.adminWorkspaceSearch > span:last-child svg {
+  flex: 0 0 auto;
+  color: #667085;
+}
+
+.adminWorkspaceSearch input {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+}
+
+.adminWorkspaceSearch > span:last-child:focus-within {
+  border-color: #165f9c;
+  box-shadow: 0 0 0 3px rgba(22, 95, 156, 0.18);
+}
+
+.adminWorkspaceSearch input:focus-visible {
+  outline: 0;
+}
+
+.adminWorkspaceCounter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #253246;
+  font-size: 13px;
+}
+
+.adminWorkspaceCounter > span {
+  border: 1px solid #cfe0ea;
+  border-radius: 999px;
+  background: #eef7fb;
+  color: #155a80;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 6px 9px;
+}
+
+.adminWorkspaceEmpty,
+.adminWorkspaceResult,
+.adminWorkspaceError {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 !important;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 10px 12px;
+}
+
+.adminWorkspaceEmpty {
+  justify-content: center;
+  border: 1px dashed #cbd6e2;
+  background: #f8fafc;
+  color: #667085 !important;
+  text-align: center;
+}
+
+.adminWorkspaceResult {
+  border: 1px solid #b9e3c7;
+  background: #f1fbf4;
+  color: #187a3e !important;
+}
+
+.adminWorkspaceError {
+  border: 1px solid #f3c3bf;
+  background: #fff4f3;
+  color: #a82b23 !important;
+}
+
+.adminTasksModule .adminTaskList {
+  gap: 9px;
+}
+
+.adminTasksModule .adminTaskRow {
+  grid-template-columns: minmax(260px, 1fr) minmax(145px, 0.55fr) minmax(120px, 0.45fr) auto;
+  min-height: 72px;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px 12px;
+}
+
+.adminTasksModule .adminTaskIdentity {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  overflow: visible;
+}
+
+.adminTaskIdentity > span:last-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.adminTaskIcon,
+.adminMaterialResultIcon {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 10px;
+  background: #e8f4fa;
+  color: #0f5f8f;
+}
+
+.adminTaskIdentity small {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+}
+
+.adminTasksModule .adminTaskControl {
+  display: grid;
+}
+
+.adminTaskVisibility {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid #cbd6e2;
+  border-radius: 9px;
+  background: #fff;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+
+.adminTaskVisibility input {
+  width: 18px;
+  height: 18px;
+  accent-color: #0f5f8f;
+}
+
+.adminCalendarControls {
+  display: grid;
+  grid-template-columns: auto minmax(340px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.adminCalendarNavigation {
+  display: grid;
+  grid-template-columns: 44px auto 44px;
+  align-items: center;
+  gap: 6px;
+}
+
+.adminCalendarNavigation button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #cbd6e2;
+  border-radius: 9px;
+  background: #fff;
+  color: #1f4f86;
+  font-weight: 850;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.adminCalendarNavigation strong {
+  grid-column: 1 / -1;
+  color: #142033;
+  font-size: 17px;
+  text-align: center;
+}
+
+.adminCalendarFilters {
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 0.55fr);
+  padding: 10px;
+}
+
+.adminCalendarScroll {
+  max-width: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid #d8e2ec;
+  border-radius: 11px;
+  scrollbar-gutter: stable;
+}
+
+.adminCalendarScroll:focus-visible {
+  outline: 3px solid #165f9c;
+  outline-offset: 3px;
+}
+
+.adminCalendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(110px, 1fr));
+  min-width: 770px;
+  background: #dfe6ee;
+  gap: 1px;
+}
+
+.adminCalendarWeekday {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  min-height: 38px;
+  background: #f3f7fa;
+  color: #526174;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  line-height: 38px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.adminCalendarDay {
+  display: grid;
+  min-height: 118px;
+  align-content: start;
+  gap: 6px;
+  background: #fff;
+  padding: 8px;
+}
+
+.adminCalendarDay.empty {
+  background: #f7f9fc;
+}
+
+.adminCalendarDay > time {
+  display: inline-grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 999px;
+  color: #475467;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.adminCalendarDay.today > time {
+  background: #0f5f8f;
+  color: #fff;
+}
+
+.adminCalendarDay > div {
+  display: grid;
+  gap: 4px;
+}
+
+.adminCalendarDay button {
+  min-width: 0;
+  min-height: 28px;
+  overflow: hidden;
+  border: 1px solid #cbdce8;
+  border-radius: 7px;
+  background: #eef7fb;
+  color: #155a80;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 5px 6px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adminCalendarDay button.today,
+.adminCalendarDay button.overdue {
+  border-color: #f1c9a4;
+  background: #fff4e8;
+  color: #914807;
+}
+
+.adminCalendarDay button.completed {
+  border-color: #b9e3c7;
+  background: #f1fbf4;
+  color: #187a3e;
+}
+
+.adminCalendarDay button.cancelled {
+  opacity: 0.58;
+  text-decoration: line-through;
+}
+
+.adminCalendarDay button[aria-pressed="true"] {
+  outline: 2px solid #0f5f8f;
+  outline-offset: 1px;
+}
+
+.adminCalendarDay small {
+  color: #667085;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.adminCalendarAgenda {
+  display: none;
+}
+
+.adminCalendarSelection {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(145px, 0.45fr) minmax(120px, 0.4fr) auto;
+  gap: 10px;
+  align-items: end;
+  border: 1px solid #cbdce8;
+  border-radius: 12px;
+  background: #f5fafd;
+  padding: 11px;
+}
+
+.adminCalendarSelection > div {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+}
+
+.adminCalendarSelection > div > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.adminCalendarSelection small,
+.adminCalendarSelection em {
+  color: #667085;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.adminCalendarHint {
+  margin: -4px 0 0 !important;
+  color: #667085 !important;
+  font-size: 12px;
+  text-align: center;
+}
+
+.adminMaterialsGrid {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.adminMaterialUploadCard .adminUpload {
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.7fr) minmax(260px, 1fr) auto;
+}
+
+.adminMaterialUploadCard .adminUpload small {
+  color: #667085;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.adminMaterialUploadCard .primaryAction {
+  display: inline-flex;
+  width: auto;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+  padding: 0 14px;
+}
+
+.adminCardHeadActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.adminModule .adminCardHead .adminCardHeadActions > button {
+  display: inline-flex;
+  width: auto;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+}
+
+.adminMaterialResults {
+  display: grid;
+  gap: 8px;
+}
+
+.adminMaterialResult {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid #dfe6ee;
+  border-left: 4px solid #2a79a6;
+  border-radius: 11px;
+  background: #fff;
+  padding: 10px;
+}
+
+.adminMaterialResult > div:nth-child(2) {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.adminMaterialResult strong,
+.adminMaterialResult small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminMaterialResult strong {
+  color: #142033;
+  font-size: 13px;
+}
+
+.adminMaterialResult small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.adminMaterialActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.adminMaterialActions a {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #cbd6e2;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f4f86;
+  font-size: 12px;
+  font-weight: 850;
+  padding: 0 10px;
+  text-decoration: none;
+}
+
+@media (max-width: 1000px) {
+  .adminWorkspaceToolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminWorkspaceSearch {
+    grid-column: 1 / -1;
+  }
+
+  .adminTasksModule .adminTaskRow,
+  .adminCalendarSelection {
+    grid-template-columns: minmax(220px, 1fr) minmax(140px, 0.55fr) minmax(120px, 0.45fr);
+  }
+
+  .adminTasksModule .adminTaskVisibility,
+  .adminCalendarSelection .adminTaskVisibility {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .adminCalendarControls {
+    grid-template-columns: 1fr;
+  }
+
+  .adminCalendarNavigation {
+    width: min(100%, 360px);
+  }
+
+  .adminMaterialUploadCard .adminUpload {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminMaterialUploadCard .primaryAction {
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px) {
+  .adminWorkspaceToolbar,
+  .adminWorkspaceToolbar.material,
+  .adminCalendarFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .adminWorkspaceSearch {
+    grid-column: auto;
+  }
+
+  .adminTasksModule .adminTaskRow,
+  .adminCalendarSelection {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .adminTasksModule .adminTaskIdentity,
+  .adminCalendarSelection > div,
+  .adminTasksModule .adminTaskVisibility,
+  .adminCalendarSelection .adminTaskVisibility {
+    grid-column: 1 / -1;
+  }
+
+  .adminCalendarScroll {
+    display: none;
+  }
+
+  .adminCalendarAgenda {
+    display: grid;
+    gap: 7px;
+  }
+
+  .adminCalendarAgenda > button {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr) 18px;
+    min-height: 58px;
+    align-items: center;
+    gap: 9px;
+    border: 1px solid #dfe6ee;
+    border-radius: 10px;
+    background: #fff;
+    color: #142033;
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  .adminCalendarAgenda time {
+    color: #155a80;
+    font-size: 12px;
+    font-weight: 850;
+  }
+
+  .adminCalendarAgenda > button > span {
+    display: grid;
+    min-width: 0;
+    gap: 3px;
+  }
+
+  .adminCalendarAgenda strong,
+  .adminCalendarAgenda small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .adminCalendarAgenda small {
+    color: #667085;
+    font-size: 11px;
+  }
+
+  .adminMaterialUploadCard .adminUpload {
+    grid-template-columns: 1fr;
+  }
+
+  .adminCardHeadActions {
+    justify-content: flex-start;
+  }
+
+  .adminMaterialResult {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+
+  .adminMaterialActions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .adminMaterialActions a {
+    flex: 1 1 130px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 420px) {
+  .adminInsightGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .adminTasksModule .adminTaskRow,
+  .adminCalendarSelection {
+    grid-template-columns: 1fr;
+  }
+
+  .adminTasksModule .adminTaskControl,
+  .adminTasksModule .adminTaskVisibility,
+  .adminCalendarSelection > *,
+  .adminCalendarSelection .adminTaskVisibility {
+    grid-column: auto;
+  }
+
+  .adminWorkspaceCounter {
+    align-items: flex-start;
+  }
+
+  .adminCalendarNavigation {
+    width: 100%;
+  }
+
+  .adminCardHeadActions,
+  .adminModule .adminCardHead .adminCardHeadActions > button {
+    width: 100%;
+  }
+}

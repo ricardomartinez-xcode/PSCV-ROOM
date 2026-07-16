@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, requirePermission } from "@/lib/server/authz";
-import { d1First, d1Run, executeDataQuery } from "@/lib/server/d1-data";
+import { getD1 } from "@/lib/server/cloudflare";
+import { d1All, d1First, d1Run, executeDataQuery } from "@/lib/server/d1-data";
 import { dismissEventReminders, syncEventReminders } from "@/lib/server/event-reminders";
+import { taskRejectsBucketMaterials } from "@/lib/server/task-material-links";
 
 const taskPatchSchema = z.object({
   title: z.string().min(1).optional(),
@@ -34,10 +36,47 @@ type TaskRow = Record<string, unknown> & {
   item_kind?: "task" | "event";
   starts_at?: string | null;
   ends_at?: string | null;
+  status: string;
+  visible_to_students: boolean | number;
+  task_type_name?: string | null;
 };
 
+function enabled(value: boolean | number) {
+  return value === true || value === 1;
+}
+
 async function getTaskRow(id: string) {
-  return d1First<TaskRow>("SELECT * FROM tasks WHERE id = ? LIMIT 1", [id]);
+  return d1First<TaskRow>(
+    `SELECT t.*, tt.name AS task_type_name
+       FROM tasks t
+       LEFT JOIN task_types tt ON tt.id = t.task_type_id
+      WHERE t.id = ?
+      LIMIT 1`,
+    [id],
+  );
+}
+
+async function clearEventMaterials(task: TaskRow, actorId: string) {
+  if (!taskRejectsBucketMaterials(task.item_kind, task.task_type_name)) return 0;
+  const links = await d1All<{ material_id: string }>(
+    "SELECT material_id FROM task_materials WHERE task_id = ?",
+    [task.id],
+  );
+  if (!links.length) return 0;
+  const db = await getD1();
+  await db.batch([
+    db.prepare("DELETE FROM task_materials WHERE task_id = ?").bind(task.id),
+    ...links.map((link) => db.prepare(
+      `INSERT INTO audit_log (id, actor_id, action, entity, entity_id, before_data, after_data)
+       VALUES (?, ?, 'task.material.unlink', 'task_materials', ?, ?, NULL)`,
+    ).bind(
+      crypto.randomUUID(),
+      actorId,
+      `${task.id}:${link.material_id}`,
+      JSON.stringify({ task_id: task.id, material_id: link.material_id, reason: "event_conversion" }),
+    )),
+  ]);
+  return links.length;
 }
 
 async function writeAudit(input: {
@@ -97,8 +136,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
     if (result.error) throw new Error(result.error.message);
 
-    const after = ((result.data as TaskRow | null) ?? (await getTaskRow(id))) as TaskRow | null;
+    const after = await getTaskRow(id);
     if (after) {
+      await clearEventMaterials(after, profile.id);
       await syncEventReminders({
         taskId: after.id,
         title: after.title,
@@ -108,6 +148,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         itemKind: after.item_kind,
         startsAt: after.starts_at,
         endsAt: after.ends_at,
+        status: after.status,
+        visibleToStudents: enabled(after.visible_to_students),
         actorId: profile.id,
       });
     }

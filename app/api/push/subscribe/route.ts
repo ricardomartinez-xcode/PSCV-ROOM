@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, requireProfile } from "@/lib/server/authz";
+import { errorResponse, HttpError, requireProfile } from "@/lib/server/authz";
 import { d1Run } from "@/lib/server/d1-data";
 import { assertSameOrigin, validatePushEndpoint } from "@/lib/server/push-security";
 
@@ -19,20 +19,23 @@ export async function POST(request: Request) {
     const body = subscriptionSchema.parse(await request.json());
     validatePushEndpoint(body.endpoint);
     const now = new Date().toISOString();
-    await d1Run(
+    const result = await d1Run(
       `INSERT INTO push_subscriptions (
          id, profile_id, endpoint, p256dh, auth, user_agent, active, created_at, updated_at, failure_count
        ) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 0)
        ON CONFLICT(endpoint) DO UPDATE SET
-         profile_id = excluded.profile_id,
          p256dh = excluded.p256dh,
          auth = excluded.auth,
          user_agent = excluded.user_agent,
          active = 1,
          failure_count = 0,
-         updated_at = excluded.updated_at`,
+         updated_at = excluded.updated_at
+       WHERE push_subscriptions.profile_id = excluded.profile_id`,
       [crypto.randomUUID(), profile.id, body.endpoint, body.keys.p256dh, body.keys.auth, request.headers.get("user-agent") ?? "", now, now],
     );
+    if (Number(result.meta?.changes ?? 0) === 0) {
+      throw new HttpError(409, "La suscripción ya está vinculada a otro perfil.");
+    }
     return NextResponse.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return errorResponse(error);

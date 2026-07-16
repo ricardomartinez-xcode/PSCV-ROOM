@@ -55,7 +55,7 @@ SMOKE_BASE_URL="https://pscv-room.ricardomartinez.workers.dev" npm run smoke
 curl -I "https://pscv-room.rlead.xyz/api/health"
 ```
 
-El smoke automatizado usa `workers.dev` porque no inicia sesion en Microsoft. En el dominio productivo, una llamada sin sesion debe redirigir a Cloudflare Access.
+El smoke automatizado puede usar `workers.dev`, pero ahora comprueba que tareas, materiales y destinos del bucket rechacen sesiones anónimas. Así el subdominio técnico no se convierte en un bypass de Cloudflare Access. En el dominio productivo, una llamada sin sesión puede ser rechazada por la aplicación o redirigida por Access.
 
 ## Access
 

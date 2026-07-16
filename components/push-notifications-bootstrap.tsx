@@ -24,6 +24,7 @@ export type PushState =
 
 type PushConfig = { enabled?: boolean; publicKey?: string | null };
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
+const IOS_INSTALL_MESSAGE = "En iPhone o iPad, abre Safari, usa Compartir > Agregar a pantalla de inicio y entra desde ese icono.";
 
 type PushNotificationsContextValue = {
   state: PushState;
@@ -46,7 +47,8 @@ function decodeApplicationServerKey(value: string) {
 }
 
 function isIosDevice() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent);
+  return /iphone|ipad|ipod/i.test(navigator.userAgent)
+    || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 function isStandaloneDisplay() {
@@ -55,9 +57,17 @@ function isStandaloneDisplay() {
 }
 
 function supportsPush() {
-  return "serviceWorker" in navigator
+  return window.isSecureContext
+    && "serviceWorker" in navigator
     && "PushManager" in window
     && "Notification" in window;
+}
+
+function registerServiceWorker() {
+  return navigator.serviceWorker.register("/sw.js", {
+    scope: "/",
+    updateViaCache: "none",
+  });
 }
 
 function sameApplicationServerKey(subscription: PushSubscription, publicKey: string) {
@@ -87,70 +97,90 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
   const [message, setMessage] = useState("");
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const subscriptionRef = useRef<PushSubscription | null>(null);
+  const syncPromiseRef = useRef<Promise<void> | null>(null);
 
   const syncSubscription = useCallback(async () => {
-    if (isIosDevice() && !isStandaloneDisplay()) {
-      setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
-      setState("install-required");
-      return;
-    }
-    if (!supportsPush()) {
-      setMessage("Este navegador no admite Web Push.");
-      setState("unsupported");
-      return;
-    }
-    if (Notification.permission === "default") {
-      setState("prompt");
-      return;
-    }
-    if (Notification.permission !== "granted") {
-      setMessage("El permiso de notificaciones está bloqueado en el navegador o sistema.");
-      setState("denied");
-      return;
-    }
+    if (syncPromiseRef.current) return syncPromiseRef.current;
 
-    setState("subscribing");
-    setMessage("");
-    const registration = registrationRef.current
-      ?? await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-    registrationRef.current = registration;
-    await navigator.serviceWorker.ready;
+    const syncPromise = (async () => {
+      if (isIosDevice() && !isStandaloneDisplay()) {
+        setMessage(IOS_INSTALL_MESSAGE);
+        setState("install-required");
+        return;
+      }
+      if (!supportsPush()) {
+        setMessage(window.isSecureContext
+          ? "Este navegador no admite Web Push."
+          : "Las notificaciones requieren una conexión HTTPS segura.");
+        setState("unsupported");
+        return;
+      }
+      if (Notification.permission === "default") {
+        setMessage("");
+        setState("prompt");
+        return;
+      }
+      if (Notification.permission !== "granted") {
+        setMessage("El permiso de notificaciones está bloqueado en el navegador o sistema.");
+        setState("denied");
+        return;
+      }
 
-    const configResponse = await fetch("/api/push/config", {
-      credentials: "include",
-      cache: "no-store",
-    });
-    if (!configResponse.ok) throw new Error(await readError(configResponse));
-    const config = await configResponse.json() as PushConfig;
-    if (!config.enabled || !config.publicKey) {
-      setMessage("El servidor todavía no tiene disponible la configuración Web Push.");
-      setState("server-unavailable");
-      return;
-    }
+      setState("subscribing");
+      setMessage("");
+      const registration = registrationRef.current ?? await registerServiceWorker();
+      registrationRef.current = registration;
+      await navigator.serviceWorker.ready;
 
-    let subscription = await registration.pushManager.getSubscription();
-    if (subscription && !sameApplicationServerKey(subscription, config.publicKey)) {
-      await subscription.unsubscribe();
-      subscription = null;
-    }
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: decodeApplicationServerKey(config.publicKey),
+      const configResponse = await fetch("/api/push/config", {
+        mode: "same-origin",
+        credentials: "include",
+        cache: "no-store",
+        redirect: "error",
+        headers: { Accept: "application/json" },
       });
+      if (!configResponse.ok) throw new Error(await readError(configResponse));
+      const config = await configResponse.json() as PushConfig;
+      if (!config.enabled || !config.publicKey) {
+        setMessage("El servidor todavía no tiene disponible la configuración Web Push.");
+        setState("server-unavailable");
+        return;
+      }
+
+      let subscription = await registration.pushManager.getSubscription();
+      if (subscription && !sameApplicationServerKey(subscription, config.publicKey)) {
+        await subscription.unsubscribe();
+        subscription = null;
+      }
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: decodeApplicationServerKey(config.publicKey),
+        });
+      }
+
+      const subscribeResponse = await fetch("/api/push/subscribe", {
+        method: "POST",
+        mode: "same-origin",
+        credentials: "include",
+        cache: "no-store",
+        redirect: "error",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(subscription.toJSON()),
+      });
+      if (!subscribeResponse.ok) throw new Error(await readError(subscribeResponse));
+
+      subscriptionRef.current = subscription;
+      setMessage("");
+      setState("active");
+    })();
+
+    syncPromiseRef.current = syncPromise;
+    try {
+      await syncPromise;
+    } finally {
+      if (syncPromiseRef.current === syncPromise) syncPromiseRef.current = null;
     }
-
-    const subscribeResponse = await fetch("/api/push/subscribe", {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(subscription.toJSON()),
-    });
-    if (!subscribeResponse.ok) throw new Error(await readError(subscribeResponse));
-
-    subscriptionRef.current = subscription;
-    setMessage("");
-    setState("active");
   }, []);
 
   useEffect(() => {
@@ -160,7 +190,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       try {
         if (isIosDevice() && !isStandaloneDisplay()) {
           if (!cancelled) {
-            setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
+            setMessage(IOS_INSTALL_MESSAGE);
             setState("install-required");
           }
           return;
@@ -172,7 +202,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
           }
           return;
         }
-        registrationRef.current = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+        registrationRef.current = await registerServiceWorker();
         if (Notification.permission === "granted") {
           await syncSubscription();
         } else if (!cancelled) {
@@ -213,7 +243,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
   const activate = useCallback(async () => {
     try {
       if (isIosDevice() && !isStandaloneDisplay()) {
-        setMessage("En iPhone o iPad, agrega PSCV Room a la pantalla de inicio y ábrelo desde ese icono.");
+        setMessage(IOS_INSTALL_MESSAGE);
         setState("install-required");
         return;
       }
@@ -246,8 +276,11 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       if (!subscription) throw new Error("No se encontró la suscripción de este dispositivo.");
       const response = await fetch("/api/push/test", {
         method: "POST",
+        mode: "same-origin",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        redirect: "error",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ endpoint: subscription.endpoint }),
       });
       if (!response.ok) throw new Error(await readError(response));
@@ -264,8 +297,11 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       if (subscription) {
         const response = await fetch("/api/push/subscribe", {
           method: "DELETE",
+          mode: "same-origin",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
+          cache: "no-store",
+          redirect: "error",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();

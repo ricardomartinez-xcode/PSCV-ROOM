@@ -46,8 +46,13 @@
 }
 
 .toggle {
+  align-items: center;
   cursor: pointer;
+  display: inline-flex;
   flex: 0 0 auto;
+  justify-content: center;
+  min-height: 44px;
+  min-width: 44px;
 }
 
 .toggle input {
@@ -103,7 +108,15 @@
   font: inherit;
   font-size: .78rem;
   font-weight: 700;
+  min-height: 44px;
   padding: 7px 10px;
+}
+
+.enableButton:focus-visible,
+.toggle:has(input:focus-visible),
+.installHelp > summary:focus-visible {
+  outline: 3px solid rgba(23, 92, 211, .35);
+  outline-offset: 2px;
 }
 
 .secondaryButton {
@@ -123,6 +136,37 @@
   padding: 9px;
 }
 
+.statusMessages:empty {
+  display: none;
+}
+
+.installHelp {
+  color: #344054;
+  flex: 0 0 min(190px, 45%);
+  font-size: .76rem;
+}
+
+.installHelp > summary {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 700;
+  min-height: 44px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.installHelp ol {
+  line-height: 1.45;
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.installHelp li + li {
+  margin-top: 4px;
+}
+
 @media (max-width: 430px) {
   .setting {
     align-items: flex-start;
@@ -130,5 +174,9 @@
 
   .settingActions {
     max-width: 128px;
+  }
+
+  .installHelp {
+    flex-basis: min(170px, 48%);
   }
 }

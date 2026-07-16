@@ -1,16 +1,31 @@
 import type { DeliveryType, Task, TaskStatus } from "./domain";
 
 const eventTypes = new Set<DeliveryType>(["Evento"]);
+export const ACADEMIC_TIME_ZONE = "America/Mexico_City";
+
+export function dateKeyInTimeZone(date = new Date(), timeZone = ACADEMIC_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function dateOnlyEpoch(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+}
 
 export function isEventDelivery(type?: DeliveryType | null) {
   return Boolean(type && eventTypes.has(type));
 }
 
 export function calculateDaysRemaining(dueDate: string, now = new Date()) {
-  const target = new Date(`${dueDate}T00:00:00`);
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diff = target.getTime() - today.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+  const diff = dateOnlyEpoch(dueDate) - dateOnlyEpoch(dateKeyInTimeZone(now));
+  return Math.round(diff / (1000 * 60 * 60 * 24));
 }
 
 export function deriveStatus(status: TaskStatus, daysRemaining: number, deliveryType?: DeliveryType | null): TaskStatus {

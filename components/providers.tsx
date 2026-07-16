@@ -10,6 +10,7 @@ type AppNotification = {
   title: string;
   body: string;
   priority: "low" | "normal" | "high";
+  action_url?: string | null;
 };
 type RemotePreferences = {
   email_enabled: boolean;
@@ -68,6 +69,44 @@ function writeLocalPreferences(profileId: string, preferences: LocalPreferences)
   } catch {
     // Local delivery preferences are optional and must not block the app.
   }
+}
+
+function safeClientActionPath(value: string | null | undefined) {
+  try {
+    const candidate = new URL(value || "/", window.location.origin);
+    if (candidate.origin !== window.location.origin) return "/";
+    return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+  } catch {
+    return "/";
+  }
+}
+
+async function showSystemNotification(notification: AppNotification) {
+  const actionPath = safeClientActionPath(notification.action_url);
+  const options: NotificationOptions = {
+    body: notification.body || "Tienes un aviso nuevo en PSCV Room.",
+    icon: "/icon.svg",
+    tag: `pscv-${notification.id}`,
+    data: { url: actionPath },
+  };
+
+  if ("serviceWorker" in navigator) {
+    const existingRegistration = await navigator.serviceWorker.getRegistration("/");
+    if (existingRegistration) {
+      const registration = existingRegistration.active
+        ? existingRegistration
+        : await navigator.serviceWorker.ready;
+      await registration.showNotification(notification.title, options);
+      return;
+    }
+  }
+
+  const nativeNotification = new window.Notification(notification.title, options);
+  nativeNotification.onclick = () => {
+    window.focus();
+    window.location.assign(actionPath);
+    nativeNotification.close();
+  };
 }
 
 export function useNotificationDelivery() {
@@ -174,16 +213,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       if (!local.browserEnabled || permissionRef.current !== "granted") return;
 
       if (document.visibilityState === "hidden") {
-        fresh.slice(0, 3).forEach((notification) => {
-          try {
-            new window.Notification(notification.title, {
-              body: notification.body || "Tienes un aviso nuevo en PSCV Room.",
-              icon: "/icon.svg",
-              tag: `pscv-${notification.id}`,
-            });
-          } catch {
-            // The browser can reject a native notification even after permission was granted.
-          }
+        void Promise.all(fresh.slice(0, 3).map(showSystemNotification)).catch(() => {
+          // The browser can reject a native notification even after permission was granted.
         });
       }
       playTone();
@@ -246,8 +277,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     try {
       const response = await fetch("/api/notifications", {
         method: "PUT",
+        mode: "same-origin",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        redirect: "error",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ emailEnabled }),
       });
       const payload = (await response.json().catch(() => ({}))) as { preferences?: RemotePreferences; error?: string };
@@ -293,7 +327,7 @@ function pushDescription(state: PushState) {
     case "unsupported":
       return "Este navegador no admite notificaciones Web Push.";
     case "install-required":
-      return "En iPhone o iPad, agrega PSCV Room a inicio y ábrelo desde el icono instalado.";
+      return "En iPhone o iPad, instala PSCV Room desde Safari antes de habilitar Web Push.";
     case "prompt":
       return "Recibe recordatorios aunque PSCV Room esté cerrado.";
     case "subscribing":
@@ -313,7 +347,6 @@ function pushActionLabel(state: PushState) {
   if (state === "subscribing") return "Configurando…";
   if (state === "error") return "Reintentar";
   if (state === "denied") return "Bloqueado";
-  if (state === "install-required") return "Instalar app";
   if (state === "unsupported" || state === "server-unavailable") return "No disponible";
   if (state === "loading") return "Comprobando…";
   return "Activar";
@@ -338,16 +371,18 @@ export function NotificationSettingsPanel() {
     || push.state === "loading"
     || push.state === "subscribing"
     || push.state === "unsupported"
-    || push.state === "install-required"
     || push.state === "denied"
     || push.state === "server-unavailable";
+  const nativePermissionDisabled = controlsDisabled
+    || permission === "unsupported"
+    || push?.state === "install-required";
 
   return (
     <div className={styles.settingsPanel}>
       <div className={styles.setting}>
         <div>
           <strong>Con la app cerrada</strong>
-          <small>{push ? pushDescription(push.state) : "Cargando Web Push."}</small>
+          <small id="push-delivery-description">{push ? pushDescription(push.state) : "Cargando Web Push."}</small>
         </div>
         {push?.state === "active" ? (
           <div className={styles.settingActions}>
@@ -368,6 +403,15 @@ export function NotificationSettingsPanel() {
               Desactivar
             </button>
           </div>
+        ) : push?.state === "install-required" ? (
+          <details className={styles.installHelp}>
+            <summary>Cómo instalar</summary>
+            <ol>
+              <li>Abre PSCV Room en Safari.</li>
+              <li>Selecciona Compartir y después Agregar a pantalla de inicio.</li>
+              <li>Abre PSCV Room desde el nuevo icono y activa los avisos.</li>
+            </ol>
+          </details>
         ) : (
           <button
             type="button"
@@ -375,6 +419,7 @@ export function NotificationSettingsPanel() {
             onClick={() => void push?.activate()}
             disabled={pushDisabled}
             aria-label="Activar notificaciones con la aplicación cerrada"
+            aria-describedby="push-delivery-description"
           >
             {push ? pushActionLabel(push.state) : "Cargando…"}
           </button>
@@ -393,7 +438,7 @@ export function NotificationSettingsPanel() {
               aria-label="Activar notificaciones del navegador"
               checked={localPreferences.browserEnabled}
               onChange={(event) => delivery.setBrowserEnabled(event.target.checked)}
-              disabled={controlsDisabled}
+              disabled={nativePermissionDisabled}
             />
             <span />
           </label>
@@ -402,11 +447,13 @@ export function NotificationSettingsPanel() {
             type="button"
             className={styles.enableButton}
             onClick={() => void delivery.requestBrowserPermission()}
-            disabled={controlsDisabled || permission === "unsupported"}
+            disabled={nativePermissionDisabled}
             aria-label="Activar notificaciones del navegador"
             title="Activar notificaciones del navegador"
           >
-            {permission === "unsupported" ? "No disponible" : "Activar"}
+            {push?.state === "install-required"
+              ? "Instala primero"
+              : permission === "unsupported" ? "No disponible" : "Activar"}
           </button>
         )}
       </div>
@@ -445,9 +492,11 @@ export function NotificationSettingsPanel() {
         </label>
       </div>
 
-      {controlsDisabled ? <p className={styles.message}>La configuración se habilitará cuando termine de cargar tu sesión.</p> : null}
-      {push?.message ? <p className={styles.message}>{push.message}</p> : null}
-      {message ? <p className={styles.message}>{message}</p> : null}
+      <div className={styles.statusMessages} role="status" aria-live="polite" aria-atomic="true">
+        {controlsDisabled ? <p className={styles.message}>La configuración se habilitará cuando termine de cargar tu sesión.</p> : null}
+        {push?.message ? <p className={styles.message}>{push.message}</p> : null}
+        {message ? <p className={styles.message}>{message}</p> : null}
+      </div>
     </div>
   );
 }

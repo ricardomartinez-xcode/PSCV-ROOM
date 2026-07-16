@@ -40,55 +40,11 @@ async function checkHealth() {
   assert.equal(typeof health.integrations.d1, "boolean", "health should report D1 config");
 }
 
-async function checkTasks() {
-  const payload = await json("/api/tasks");
-  assert.ok(Array.isArray(payload.tasks), "tasks payload should include tasks[]");
-  if (payload.tasks.length === 0) return;
-  const sample = payload.tasks[0];
-  for (const field of ["id", "title", "dueDate", "dueTime", "status"]) {
-    assert.ok(field in sample, `task should include ${field}`);
-  }
-}
-
-async function checkUploadDestinations() {
-  const payload = await json("/api/uploads/destinations");
-  assert.equal(payload.ok, true, "destinations.ok should be true");
-  assert.ok(Array.isArray(payload.destinations), "destinations should be an array");
-
-  const paths = new Set(payload.destinations.map((destination) => destination.path));
-  for (const requiredPath of [
-    "Alteraciones de la conducta",
-    "Compendio de Psicología",
-    "Evaluacion Psicológica I",
-    "Procesos Grupales",
-    "Teorias del Aprendizaje",
-  ]) {
-    assert.equal(paths.has(requiredPath), true, `missing destination: ${requiredPath}`);
-  }
-}
-
-async function checkMaterialsLibraryContract() {
-  const payload = await json("/api/materials/library?limit=25");
-  assert.equal(payload.ok, true, "materials library ok should be true");
-  assert.ok(Array.isArray(payload.sections), "materials library should include sections[]");
-  assert.ok(Array.isArray(payload.materials), "materials library should include materials[]");
-  assert.equal(typeof payload.summary, "object", "materials library should include summary");
-
-  for (const material of payload.materials) {
-    assert.ok("preview_url" in material, "material should expose preview_url");
-    assert.ok("public_url" in material, "material should expose public_url");
-    if (material.r2_key) {
-      assert.match(
-        material.preview_url ?? "",
-        /^\/api\/materials\/.+\/file\?mode=preview|^https?:\/\//,
-        "R2 material preview should be internal signed route or HTTP fallback",
-      );
-    }
-  }
-}
-
 async function checkProtectedOperationsRoutes() {
   for (const route of [
+    { path: "/api/tasks", method: "GET" },
+    { path: "/api/materials/library?limit=25", method: "GET" },
+    { path: "/api/uploads/destinations", method: "GET" },
     { path: "/api/notifications", method: "GET" },
     { path: "/api/reports/operations", method: "GET" },
     { path: "/api/admin/notifications", method: "GET" },
@@ -109,9 +65,6 @@ async function checkProtectedOperationsRoutes() {
 const checks = [
   ["home", checkHome],
   ["health", checkHealth],
-  ["tasks", checkTasks],
-  ["upload destinations", checkUploadDestinations],
-  ["materials library contract", checkMaterialsLibraryContract],
   ["protected operations routes", checkProtectedOperationsRoutes],
 ];
 

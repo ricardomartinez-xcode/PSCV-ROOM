@@ -30,7 +30,11 @@ a svg {
 .iconButton:hover,
 .iconButton:focus-visible {
   background: #eef5ff;
-  outline: none;
+}
+
+.iconButton:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
 }
 
 .bottomNav button {

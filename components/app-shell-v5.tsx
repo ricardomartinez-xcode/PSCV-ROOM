@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
+  ArrowUp,
   Bell,
   CalendarDays,
   CalendarClock,
@@ -13,7 +14,6 @@ import {
   Edit3,
   ExternalLink,
   FileCheck2,
-  FileText,
   FolderOpen,
   ListTodo,
   LogOut,
@@ -31,11 +31,16 @@ import { AdminHub } from "@/components/admin-hub";
 import { useAuthSession } from "@/components/auth-session-provider";
 import { MaterialLibrary } from "@/components/material-library";
 import { NotificationSettingsPanel } from "@/components/providers";
+import {
+  TaskMaterialGallery,
+  TaskMaterialPicker,
+  type TaskMaterial,
+} from "@/components/task-materials";
 import type { DeliveryType, GroupMember, Role, Task, TaskStatus } from "@/lib/domain";
 import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
-import { calculateDaysRemaining, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
+import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
 type Tab = "calendar" | "tasks" | "materials" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
@@ -83,7 +88,7 @@ type UiTask = Task & {
   courseColor?: string;
   taskTypeColor?: string;
   courseCardSize?: CardSize;
-  linkedMaterials?: MaterialOption[];
+  linkedMaterials?: TaskMaterial[];
 };
 
 type CourseConfig = {
@@ -119,6 +124,7 @@ type TaskForm = {
   title: string;
   courseId: string;
   typeId: string;
+  taskTypeDraftId: string;
   dueDate: string;
   dueTime: string;
   startDate: string;
@@ -133,7 +139,7 @@ type TaskForm = {
   platformUrl: string;
   notes: string;
   materialNeeded: string;
-  materialId: string;
+  materialIds: string[];
 };
 
 type TaskFormChange = <K extends keyof TaskForm>(key: K, value: TaskForm[K]) => void;
@@ -176,35 +182,7 @@ type AppNotification = {
   created_at: string;
 };
 
-type MaterialSectionOption = {
-  id: string;
-  name: string;
-  path: string;
-  color: string | null;
-};
-
-type MaterialOption = {
-  id: string;
-  title: string;
-  material_type: string | null;
-  provider: string | null;
-  source_url: string | null;
-  preview_url: string | null;
-  thumbnail_url: string | null;
-  public_url?: string | null;
-  r2_key: string | null;
-  file_name: string | null;
-  content_type: string | null;
-  size_bytes: number | null;
-  section_id?: string | null;
-  section?: MaterialSectionOption | null;
-};
-
-type MaterialLibraryPayload = {
-  ok?: boolean;
-  materials?: MaterialOption[];
-  error?: string;
-};
+type MaterialOption = TaskMaterial;
 
 const fallbackPrefs: UserPreferences = {
   calendarView: "month",
@@ -221,16 +199,18 @@ const fixedBooleanColumns: BooleanGroupColumn[] = [
 ];
 
 function newTaskForm(defaults: Partial<TaskForm> = {}): TaskForm {
+  const today = dateKeyInTimeZone();
   return {
     itemKind: "task",
     title: "",
     courseId: "",
     typeId: "",
-    dueDate: new Date().toISOString().slice(0, 10),
+    taskTypeDraftId: "",
+    dueDate: today,
     dueTime: "23:59",
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: today,
     startTime: "09:00",
-    endDate: new Date().toISOString().slice(0, 10),
+    endDate: today,
     endTime: "10:00",
     location: "",
     status: "Pendiente",
@@ -240,7 +220,7 @@ function newTaskForm(defaults: Partial<TaskForm> = {}): TaskForm {
     platformUrl: "",
     notes: "",
     materialNeeded: "",
-    materialId: "",
+    materialIds: [],
     ...defaults,
   };
 }
@@ -266,6 +246,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(initialTasks[0]?.id ?? null);
   const [detailOrigin, setDetailOrigin] = useState<DetailOrigin>("calendar");
   const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const taskFormReturnFocusRef = useRef<HTMLElement | null>(null);
   const [taskForm, setTaskForm] = useState<TaskForm>(() => newTaskForm());
   const [taskFormSource, setTaskFormSource] = useState<"calendar" | "tasks">("tasks");
   const [creatingTask, setCreatingTask] = useState(false);
@@ -387,15 +368,24 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   function openTaskForm(source: "calendar" | "tasks", dueDate?: string) {
+    const today = dateKeyInTimeZone();
+    const defaultTaskType = taskTypes.find((type) => !isEventTypeName(type.name));
+    taskFormReturnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setTaskFormSource(source);
     setTaskForm(newTaskForm({
-      dueDate: dueDate || new Date().toISOString().slice(0, 10),
-      startDate: dueDate || new Date().toISOString().slice(0, 10),
-      endDate: dueDate || new Date().toISOString().slice(0, 10),
+      dueDate: dueDate || today,
+      startDate: dueDate || today,
+      endDate: dueDate || today,
       courseId: courses[0]?.id || "",
-      typeId: taskTypes[0]?.id || "",
+      typeId: defaultTaskType?.id || "",
+      taskTypeDraftId: defaultTaskType?.id || "",
     }));
     setTaskFormOpen(true);
+  }
+
+  function closeTaskForm() {
+    setTaskFormOpen(false);
+    window.requestAnimationFrame(() => taskFormReturnFocusRef.current?.focus());
   }
 
   function setTaskFormField<K extends keyof TaskForm>(key: K, value: TaskForm[K]) {
@@ -413,7 +403,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       const course = courses.find((item) => item.id === form.courseId);
       const type = taskTypes.find((item) => item.id === form.typeId);
       const id = `local-${Date.now()}`;
-      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || new Date().toISOString().slice(0, 10));
+      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || dateKeyInTimeZone());
       const dueTime = form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59");
       const nextTask: UiTask = {
         id,
@@ -443,7 +433,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       };
       setTasks((current) => [...current, nextTask]);
       setSelectedTaskId(id);
-      setTaskFormOpen(false);
+      closeTaskForm();
       setCreatingTask(false);
       return;
     }
@@ -475,17 +465,19 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       const body = await response.json().catch(() => ({})) as { task?: { id: string }; error?: string; calendarError?: string | null };
       if (!response.ok || !body.task) throw new Error(body.error ?? "No se pudo crear la tarea.");
       const taskId = String(body.task.id);
-      if (form.materialId) {
+      let materialSyncError: string | null = null;
+      if (form.itemKind === "task" && form.materialIds.length) {
         try {
-          await linkTaskMaterial(taskId, form.materialId);
+          await replaceTaskMaterials(taskId, form.materialIds);
         } catch (linkError) {
-          setError(linkError instanceof Error ? linkError.message : "No se pudo enlazar el material.");
+          materialSyncError = linkError instanceof Error ? linkError.message : "No se pudieron enlazar los materiales.";
         }
       }
       await loadData(d1Client);
       setSelectedTaskId(taskId);
-      setTaskFormOpen(false);
-      if (body.calendarError) setError(`Tarea creada; calendario pendiente: ${body.calendarError}`);
+      closeTaskForm();
+      if (materialSyncError) setError(`Actividad creada; materiales pendientes: ${materialSyncError}`);
+      else if (body.calendarError) setError(`Tarea creada; calendario pendiente: ${body.calendarError}`);
     } catch (createError) {
       setError(createError instanceof Error ? createError.message : "No se pudo crear la tarea.");
     }
@@ -493,15 +485,15 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     setCreatingTask(false);
   }
 
-  async function linkTaskMaterial(taskId: string, materialId: string) {
+  async function replaceTaskMaterials(taskId: string, materialIds: string[]) {
     const response = await fetch(`/api/admin/tasks/${taskId}/materials`, {
-      method: "POST",
+      method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ materialId }),
+      body: JSON.stringify({ materialIds }),
     });
     const body = await response.json().catch(() => ({})) as { error?: string };
-    if (!response.ok) throw new Error(body.error ?? "No se pudo enlazar el material.");
+    if (!response.ok) throw new Error(body.error ?? "No se pudieron sincronizar los materiales.");
   }
 
   async function updateTaskFromDetail(id: string, form: TaskForm) {
@@ -513,7 +505,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     if (!d1Client) {
       const course = courses.find((item) => item.id === form.courseId);
       const type = taskTypes.find((item) => item.id === form.typeId);
-      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || new Date().toISOString().slice(0, 10));
+      const dueDate = form.itemKind === "event" ? form.startDate : (form.dueDate || dateKeyInTimeZone());
       const dueTime = form.itemKind === "event" ? form.startTime : (form.dueTime || "23:59");
       setTasks((current) => current.map((task) => task.id === id ? {
         ...task,
@@ -539,6 +531,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         courseColor: course?.color ?? task.courseColor,
         taskTypeColor: type?.color ?? task.taskTypeColor,
         courseCardSize: course?.cardSize ?? task.courseCardSize,
+        linkedMaterials: form.itemKind === "task"
+          ? (task.linkedMaterials ?? []).filter((material) => form.materialIds.includes(material.id))
+          : [],
       } : task));
       return true;
     }
@@ -569,9 +564,17 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       });
       const body = await response.json().catch(() => ({})) as { error?: string; calendarError?: string | null };
       if (!response.ok) throw new Error(body.error ?? "No se pudo guardar la tarea.");
-      if (form.materialId) await linkTaskMaterial(id, form.materialId);
+      let materialSyncError: string | null = null;
+      if (form.itemKind === "task") {
+        try {
+          await replaceTaskMaterials(id, form.materialIds);
+        } catch (linkError) {
+          materialSyncError = linkError instanceof Error ? linkError.message : "No se pudieron sincronizar los materiales.";
+        }
+      }
       await loadData(d1Client);
-      if (body.calendarError) setError(`Tarea guardada; calendario pendiente: ${body.calendarError}`);
+      if (materialSyncError) setError(`Actividad guardada; materiales sin actualizar: ${materialSyncError}`);
+      else if (body.calendarError) setError(`Tarea guardada; calendario pendiente: ${body.calendarError}`);
       return true;
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "No se pudo guardar la tarea.");
@@ -638,6 +641,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     if (next === "admin" && !capabilities.canAccessAdmin) return;
     setTab(next);
     setDrawerOpen(false);
+    window.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function openTaskDetail(id: string, origin: DetailOrigin) {
@@ -662,7 +666,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
 
   return (
     <main className={`mobileApp density-${prefs.taskDensity} ${shellRole === "admin" ? "adminShell" : ""}`}>
-      <header className="topAppBar">
+      <a className="skipLink" href="#main-content">Saltar al contenido</a>
+      <header className="topAppBar" inert={drawerOpen || notificationOpen ? true : undefined}>
         <button className="iconButton" aria-label="Abrir navegación" title="Navegación" onClick={() => setDrawerOpen(true)} type="button"><Menu size={23} /></button>
         <img src="/icon.svg" className="appLogo" alt="PSCV" />
         <div className="barTitle">
@@ -706,7 +711,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onSelect={go}
         onSignOut={signOut}
       />
-      {error ? <div className="systemBanner">{error}</div> : null}
+      {error ? <div className="systemBanner" role="alert">{error}</div> : null}
       <NotificationTray
         open={notificationOpen}
         view={notificationView}
@@ -723,7 +728,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onDismiss={(ids) => void updateNotifications(ids, "dismiss")}
       />
 
-      <section className="screen">
+      <section className="screen" id="main-content" tabIndex={-1} inert={drawerOpen || notificationOpen ? true : undefined}>
         {tab === "calendar" ? (
           <>
             <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} canViewCompleted={canViewCompleted} canManageGroup={capabilities.canManageGroup} onGo={go} />
@@ -762,21 +767,112 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         courses={courses}
         taskTypes={taskTypes}
         busy={creatingTask}
-        onClose={() => setTaskFormOpen(false)}
+        onClose={closeTaskForm}
         onChange={setTaskFormField}
         onSubmit={(form) => void createTask(form)}
       />
 
-      <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`}>
-        <button className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
-        <button className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
+      <ScrollToTopButton />
+
+      <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen ? true : undefined}>
+        <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
+        <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
         {capabilities.canAccessAdmin ? (
-          <button className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
+          <button aria-current={activeNavTab === "admin" ? "page" : undefined} className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
         ) : null}
-        <button className={activeNavTab === "materials" ? "active" : ""} onClick={() => go("materials")} type="button"><FolderOpen size={22} />Materiales</button>
+        <button aria-current={activeNavTab === "materials" ? "page" : undefined} className={activeNavTab === "materials" ? "active" : ""} onClick={() => go("materials")} type="button"><FolderOpen size={22} />Materiales</button>
       </nav>
     </main>
   );
+}
+
+function ScrollToTopButton() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const update = () => setVisible(window.scrollY > 520);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+
+  if (!visible) return null;
+
+  function returnToTop() {
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+    window.scrollTo({
+      top: 0,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }
+
+  return (
+    <button
+      className="scrollToTop"
+      type="button"
+      onClick={returnToTop}
+    >
+      <ArrowUp size={17} aria-hidden="true" />
+      <span>Volver arriba</span>
+    </button>
+  );
+}
+
+function useContainedDialogFocus(
+  open: boolean,
+  containerRef: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+) {
+  const onCloseRef = useRef(onClose);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!open) return;
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() => {
+      const preferred = containerRef.current?.querySelector<HTMLElement>("[data-dialog-autofocus]");
+      const first = containerRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      (preferred ?? first)?.focus();
+    });
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(containerRef.current?.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? []);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previousFocusRef.current?.focus();
+    };
+  }, [containerRef, open]);
 }
 
 function Drawer({
@@ -806,10 +902,13 @@ function Drawer({
   onSelect: (tab: Tab) => void;
   onSignOut: () => void;
 }) {
+  const drawerRef = useRef<HTMLElement | null>(null);
+  useContainedDialogFocus(open, drawerRef, onClose);
+
   return (
     <>
-      <div className={`scrim ${open ? "show" : ""}`} onClick={onClose} />
-      <aside className={`drawer ${open ? "open" : ""}`}>
+      <div className={`scrim ${open ? "show" : ""}`} aria-hidden="true" onClick={onClose} />
+      <aside ref={drawerRef} className={`drawer ${open ? "open" : ""}`} role="dialog" aria-modal={open ? "true" : undefined} aria-label="Navegación" aria-hidden={!open} inert={!open ? true : undefined}>
         <div className="drawerHead">
           <img src="/icon.svg" alt="PSCV" />
           <div>
@@ -863,13 +962,18 @@ function NotificationTray({
   onRead: (ids: string[]) => void;
   onDismiss: (ids: string[]) => void;
 }) {
+  const trayRef = useRef<HTMLElement | null>(null);
+  useContainedDialogFocus(open, trayRef, onClose);
+
   if (!open) return null;
 
   const unreadIds = notifications.filter((notification) => !notification.read_at).map((notification) => notification.id);
   const unreadLabel = unreadIds.length ? `${unreadIds.length} sin leer` : "todo leído";
 
   return (
-    <section id="notification-tray" className="notificationTray" aria-label={view === "settings" ? "Configuración de avisos" : "Avisos"}>
+    <>
+    <div className="notificationTrayScrim" aria-hidden="true" onClick={onClose} />
+    <section ref={trayRef} id="notification-tray" className="notificationTray" role="dialog" aria-modal="true" aria-label={view === "settings" ? "Configuración de avisos" : "Avisos"}>
       <div className="notificationTrayHead">
         {view === "settings" ? (
           <button className="notificationTrayIconButton" aria-label="Volver a avisos" title="Volver a avisos" onClick={onBack} type="button"><ArrowLeft size={16} /></button>
@@ -882,7 +986,7 @@ function NotificationTray({
           {view === "notifications" ? (
             <button className="notificationTrayIconButton" aria-label="Configurar avisos" title="Configurar avisos" aria-expanded={false} onClick={onSettings} type="button"><Settings size={16} /></button>
           ) : null}
-          <button className="notificationTrayIconButton" aria-label="Cerrar avisos" title="Cerrar avisos" onClick={onClose} type="button"><X size={16} /></button>
+          <button className="notificationTrayIconButton" data-dialog-autofocus aria-label="Cerrar avisos" title="Cerrar avisos" onClick={onClose} type="button"><X size={16} /></button>
         </div>
       </div>
       {view === "settings" ? (
@@ -894,23 +998,50 @@ function NotificationTray({
             <button type="button" onClick={() => onRead(unreadIds)} disabled={!unreadIds.length}>Marcar leídos</button>
             <button type="button" onClick={() => onDismiss(notifications.map((notification) => notification.id))} disabled={!notifications.length}>Limpiar</button>
           </div>
+          <p className="srOnly" role="status" aria-live="polite" aria-atomic="true">{notifications.length} avisos activos; {unreadLabel}.</p>
           <div className="notificationList">
-            {notifications.map((notification) => (
-              <article className={`notificationItem ${notification.read_at ? "" : "unread"} priority-${notification.priority}`} key={notification.id}>
-                <button type="button" onClick={() => onOpen(notification)}>
-                  <strong>{notification.title}</strong>
-                  {notification.body ? <span>{notification.body}</span> : null}
-                  <small>{formatOptionalSync(notification.scheduled_for)}</small>
-                </button>
-                <button aria-label="Ocultar aviso" title="Ocultar" onClick={() => onDismiss([notification.id])} type="button"><X size={14} /></button>
-              </article>
-            ))}
+            {notifications.map((notification) => {
+              const meta = notificationKindMeta(notification.kind);
+              return (
+                <article className={`notificationItem kind-${meta.tone} ${notification.read_at ? "" : "unread"} priority-${notification.priority}`} key={notification.id}>
+                  <button type="button" onClick={() => onOpen(notification)}>
+                    <span className="notificationItemTitle">{meta.icon}<strong>{notification.title}</strong></span>
+                    {notification.body ? <span className="notificationItemBody">{notification.body}</span> : null}
+                    <span className="notificationItemMeta">
+                      <span>{meta.label}</span>
+                      <time dateTime={notification.scheduled_for}>{formatOptionalSync(notification.scheduled_for)}</time>
+                    </span>
+                  </button>
+                  <button aria-label={`Ocultar ${notification.title}`} title="Ocultar" onClick={() => onDismiss([notification.id])} type="button"><X size={14} /></button>
+                </article>
+              );
+            })}
             {!notifications.length ? <p className="notificationEmpty">No hay avisos pendientes.</p> : null}
           </div>
         </>
       )}
     </section>
+    </>
   );
+}
+
+function notificationKindMeta(kind: string) {
+  if (kind === "task_reminder_day_of") {
+    return { label: "Entrega hoy", tone: "today", icon: <CalendarClock size={16} aria-hidden="true" /> };
+  }
+  if (kind === "task_reminder_1_day") {
+    return { label: "Entrega mañana", tone: "tomorrow", icon: <CalendarClock size={16} aria-hidden="true" /> };
+  }
+  if (kind === "event_reminder_day_before") {
+    return { label: "Evento mañana", tone: "event", icon: <CalendarDays size={16} aria-hidden="true" /> };
+  }
+  if (kind === "material_added") {
+    return { label: "Material", tone: "material", icon: <FolderOpen size={16} aria-hidden="true" /> };
+  }
+  if (kind === "task_updated") {
+    return { label: "Actividad", tone: "task", icon: <RefreshCw size={16} aria-hidden="true" /> };
+  }
+  return { label: "Sistema", tone: "system", icon: <Bell size={16} aria-hidden="true" /> };
 }
 
 function DrawerItem({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
@@ -934,7 +1065,7 @@ function WorkspaceOverview({
   onGo: (tab: Tab) => void;
   compact?: boolean;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateKeyInTimeZone();
   const dueToday = tasks.filter((task) => task.dueDate === today).length;
   const overdue = tasks.filter((task) => task.daysRemaining < 0).length;
   const nextTask = tasks.find((task) => task.daysRemaining >= 0) ?? tasks[0] ?? null;
@@ -986,7 +1117,7 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
   const month = cursor.getMonth();
   const cells = monthCells(year, month);
   const label = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(cursor);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateKeyInTimeZone();
 
   return (
     <div className="calendarWorkspace">
@@ -1122,8 +1253,8 @@ function TaskDetailScreen({
           <strong>{task.title}</strong>
         </div>
         <div className="detailToolbarActions">
-          {task.materialUrl ? <a href={task.materialUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />Material</a> : null}
-          {task.platformUrl ? <a href={task.platformUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />Plataforma</a> : null}
+          {safeExternalHref(task.materialUrl) ? <a href={safeExternalHref(task.materialUrl)} target="_blank" rel="noreferrer"><ExternalLink size={16} />Recurso externo</a> : null}
+          {safeExternalHref(task.platformUrl) ? <a href={safeExternalHref(task.platformUrl)} target="_blank" rel="noreferrer"><ExternalLink size={16} />Plataforma</a> : null}
           {canEdit && !editing ? <button onClick={() => setEditing(true)} type="button"><Edit3 size={16} />Editar</button> : null}
           {canEdit && task.status !== "Entregado" ? <button onClick={() => onDone(task.id)} type="button"><Check size={16} />Entregada</button> : null}
         </div>
@@ -1159,10 +1290,10 @@ function TaskDetailScreen({
               <DetailField label="Fecha de entrega" value={dateTime} icon={<CalendarClock size={17} />} />
               <DetailField label="Hora" value={formatTaskTime(task.dueTime)} icon={<Clock size={17} />} />
             </>)}
-            <DetailField label="Material necesario" value={task.materialNeeded || "Sin material indicado"} wide />
-            {task.linkedMaterials?.length ? (
+            {task.itemKind === "task" ? <DetailField label="Material necesario" value={task.materialNeeded || "Sin material indicado"} wide /> : null}
+            {task.itemKind === "task" && task.linkedMaterials?.length ? (
               <DetailField label="Materiales del bucket" wide>
-                <LinkedMaterialList materials={task.linkedMaterials} />
+                <TaskMaterialGallery materials={task.linkedMaterials} />
               </DetailField>
             ) : null}
             <DetailField label="Tipo de entrega" wide>
@@ -1181,15 +1312,36 @@ function TaskDetailScreen({
 }
 
 function ActivityKindFields({ form, courses, taskTypes, onChange }: { form: TaskForm; courses: CourseConfig[]; taskTypes: TaskTypeConfig[]; onChange: TaskFormChange }) {
+  const visibleTypes = taskTypes.filter((type) => form.itemKind === "event" ? isEventTypeName(type.name) : !isEventTypeName(type.name));
+
+  function selectKind(kind: "task" | "event") {
+    if (kind === form.itemKind) return;
+    const currentType = taskTypes.find((type) => type.id === form.typeId);
+    if (kind === "event" && currentType && !isEventTypeName(currentType.name)) {
+      onChange("taskTypeDraftId", currentType.id);
+    }
+    onChange("itemKind", kind);
+    const nextType = kind === "event"
+      ? taskTypes.find((type) => isEventTypeName(type.name))
+      : taskTypes.find((type) => type.id === form.taskTypeDraftId && !isEventTypeName(type.name))
+        ?? taskTypes.find((type) => !isEventTypeName(type.name));
+    if (nextType) onChange("typeId", nextType.id);
+  }
+
+  function selectType(typeId: string) {
+    onChange("typeId", typeId);
+    if (form.itemKind === "task") onChange("taskTypeDraftId", typeId);
+  }
+
   return (
     <>
       <div className="activityKindSwitch wide" role="group" aria-label="Tipo de actividad">
-        <button type="button" className={form.itemKind === "task" ? "active" : ""} onClick={() => onChange("itemKind", "task")}><ListTodo size={18} />Tarea</button>
-        <button type="button" className={form.itemKind === "event" ? "active event" : "event"} onClick={() => onChange("itemKind", "event")}><CalendarDays size={18} />Evento</button>
+        <button type="button" aria-pressed={form.itemKind === "task"} className={form.itemKind === "task" ? "active" : ""} onClick={() => selectKind("task")}><ListTodo size={18} />Tarea</button>
+        <button type="button" aria-pressed={form.itemKind === "event"} className={form.itemKind === "event" ? "active event" : "event"} onClick={() => selectKind("event")}><CalendarDays size={18} />Evento</button>
       </div>
       <label className="wide">Título<input value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
       <label>Materia<select value={form.courseId} onChange={(event) => onChange("courseId", event.target.value)}>{courses.length ? courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>) : <option value="">Sin materias</option>}</select></label>
-      <label>Tipo<select value={form.typeId} onChange={(event) => onChange("typeId", event.target.value)}>{taskTypes.length ? taskTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">Tarea</option>}</select></label>
+      <label>Tipo<select value={visibleTypes.some((type) => type.id === form.typeId) ? form.typeId : (visibleTypes[0]?.id ?? "")} onChange={(event) => selectType(event.target.value)}>{visibleTypes.length ? visibleTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">{form.itemKind === "event" ? "Evento" : "Tarea"}</option>}</select></label>
       {form.itemKind === "event" ? (
         <>
           <label>Fecha de inicio<input type="date" value={form.startDate} onChange={(event) => onChange("startDate", event.target.value)} required /></label>
@@ -1232,15 +1384,15 @@ function TaskEditForm({
       <ActivityKindFields form={form} courses={courses} taskTypes={taskTypes} onChange={onChange} />
       <label>Estado<select value={form.status} onChange={(event) => onChange("status", event.target.value as TaskStatus)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
       <label>Prioridad<select value={form.priority} onChange={(event) => onChange("priority", event.target.value)}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
-      <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
-      <label className="wide">Link material<input value={form.materialUrl} onChange={(event) => onChange("materialUrl", event.target.value)} /></label>
-      <BucketMaterialPicker form={form} onChange={onChange} />
-      {linkedMaterials.length ? (
-        <div className="taskLinkedMaterials wide">
-          <span>Materiales enlazados</span>
-          <LinkedMaterialList materials={linkedMaterials} />
-        </div>
-      ) : null}
+      {form.itemKind === "task" ? (<>
+        <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
+        <label className="wide">Recurso externo<input value={form.materialUrl} onChange={(event) => onChange("materialUrl", event.target.value)} /></label>
+        <TaskMaterialPicker
+          selectedIds={form.materialIds}
+          initialMaterials={linkedMaterials}
+          onChange={(ids) => onChange("materialIds", ids)}
+        />
+      </>) : null}
       <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
       <label className="wide">Notas<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
       <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
@@ -1249,83 +1401,6 @@ function TaskEditForm({
         <button className="primaryAction" disabled={busy || !form.title.trim()} type="submit">{busy ? "Guardando..." : "Guardar cambios"}</button>
       </div>
     </form>
-  );
-}
-
-function BucketMaterialPicker({ form, onChange }: { form: TaskForm; onChange: TaskFormChange }) {
-  const [query, setQuery] = useState("");
-  const [materials, setMaterials] = useState<MaterialOption[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(async () => {
-      setLoading(true);
-      setLoadError(null);
-      try {
-        const params = new URLSearchParams();
-        params.set("limit", "200");
-        if (query.trim()) params.set("q", query.trim());
-        const response = await fetch(`/api/materials/library?${params.toString()}`, {
-          credentials: "include",
-          signal: controller.signal,
-        });
-        const body = await response.json().catch(() => ({})) as MaterialLibraryPayload;
-        if (!response.ok || body.error) throw new Error(body.error ?? "No se pudieron cargar materiales.");
-        setMaterials(body.materials ?? []);
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return;
-        setLoadError(error instanceof Error ? error.message : "No se pudieron cargar materiales.");
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }, 250);
-
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [query]);
-
-  function selectMaterial(materialId: string) {
-    onChange("materialId", materialId);
-    const material = materials.find((item) => item.id === materialId);
-    if (!material) return;
-    const url = materialUrl(material);
-    if (url) onChange("materialUrl", url);
-    if (!form.materialNeeded.trim()) onChange("materialNeeded", cleanMaterialTitle(material.title));
-  }
-
-  const selected = materials.find((item) => item.id === form.materialId);
-
-  return (
-    <div className="bucketMaterialPicker wide">
-      <label>Buscar en bucket<input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Nombre del archivo o carpeta" /></label>
-      <label>Archivo de materiales<select value={form.materialId} onChange={(event) => selectMaterial(event.target.value)} aria-label="Agregar archivo de materiales del bucket">
-        <option value="">Sin archivo seleccionado</option>
-        {materials.map((material) => (
-          <option key={material.id} value={material.id}>{cleanMaterialTitle(material.title)}{material.section?.name ? ` · ${material.section.name}` : ""}</option>
-        ))}
-      </select></label>
-      {selected ? <small>Se enlazará: {selected.r2_key ?? selected.file_name ?? selected.title}</small> : loading ? <small>Cargando materiales...</small> : loadError ? <small className="formError">{loadError}</small> : null}
-    </div>
-  );
-}
-
-function LinkedMaterialList({ materials }: { materials: MaterialOption[] }) {
-  return (
-    <div className="linkedMaterialList">
-      {materials.map((material) => {
-        const url = materialUrl(material);
-        const label = cleanMaterialTitle(material.title);
-        return url ? (
-          <a key={material.id} href={url} target="_blank" rel="noreferrer"><FileText size={15} />{label}</a>
-        ) : (
-          <span key={material.id}><FileText size={15} />{label}</span>
-        );
-      })}
-    </div>
   );
 }
 
@@ -1374,8 +1449,8 @@ function TaskList({
                     <span className="rowDue">{task.itemKind === "event" && task.startsAt ? `Inicio ${formatTaskDateTime(task.startsAt.slice(0, 10), task.startsAt.slice(11, 16))}${task.endsAt ? ` · Fin ${formatTaskDateTime(task.endsAt.slice(0, 10), task.endsAt.slice(11, 16))}` : ""}` : formatTaskDateTime(task.dueDate, task.dueTime)}</span>
                   </button>
                   <div className="rowSide">
-                    <span className="days">D{task.daysRemaining}</span>
-                    {task.materialUrl ? <a className="openIcon" aria-label="Abrir material" title="Abrir material" href={task.materialUrl} target="_blank" rel="noreferrer"><ExternalLink size={20} /></a> : null}
+                    <span className={`days ${taskDayTone(task)}`}>{taskDayLabel(task)}</span>
+                    {safeExternalHref(task.materialUrl) ? <a className="openIcon" aria-label="Abrir material" title="Abrir material" href={safeExternalHref(task.materialUrl)} target="_blank" rel="noreferrer"><ExternalLink size={20} /></a> : null}
                     {role === "admin" ? <button className="miniAction" aria-label="Marcar entregada" title="Marcar entregada" onClick={() => onDone(task.id)} type="button"><Check size={16} /></button> : null}
                   </div>
                 </article>
@@ -1416,6 +1491,37 @@ function TaskCreateModal({
   onChange: TaskFormChange;
   onSubmit: (form: TaskForm) => void;
 }) {
+  const dialogRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input:not([type="checkbox"]):not([disabled])')?.focus());
+    function handleDialogKeyboard(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+      if (event.key !== "Tab") return;
+      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    window.addEventListener("keydown", handleDialogKeyboard);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleDialogKeyboard);
+    };
+  }, [onClose, open]);
+
   if (!open) return null;
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -1425,8 +1531,8 @@ function TaskCreateModal({
 
   return (
     <>
-      <div className="taskModalBackdrop" onClick={onClose} />
-      <section className="taskCreateModal" role="dialog" aria-modal="true" aria-labelledby="task-create-title">
+      <div className="taskModalBackdrop" aria-hidden="true" onClick={onClose} />
+      <section ref={dialogRef} className="taskCreateModal" role="dialog" aria-modal="true" aria-labelledby="task-create-title">
         <div className="taskCreateHead">
           <div>
             <p className="eyebrow">{source === "calendar" ? "Calendario" : "Tareas"}</p>
@@ -1438,9 +1544,14 @@ function TaskCreateModal({
           <ActivityKindFields form={form} courses={courses} taskTypes={taskTypes} onChange={onChange} />
           <label>Estado<select value={form.status} onChange={(event) => onChange("status", event.target.value as TaskStatus)}>{statuses.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label>Prioridad<select value={form.priority} onChange={(event) => onChange("priority", event.target.value)}><option>Alta</option><option>Media</option><option>Baja</option></select></label>
-          <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
-          <label className="wide">Link material<input value={form.materialUrl} onChange={(event) => onChange("materialUrl", event.target.value)} /></label>
-          <BucketMaterialPicker form={form} onChange={onChange} />
+          {form.itemKind === "task" ? (<>
+            <label className="wide">Material necesario<input value={form.materialNeeded} onChange={(event) => onChange("materialNeeded", event.target.value)} /></label>
+            <label className="wide">Recurso externo<input value={form.materialUrl} onChange={(event) => onChange("materialUrl", event.target.value)} /></label>
+            <TaskMaterialPicker
+              selectedIds={form.materialIds}
+              onChange={(ids) => onChange("materialIds", ids)}
+            />
+          </>) : null}
           <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
           <label className="wide">Notas<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
           <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
@@ -1746,10 +1857,33 @@ function monthCells(year: number, month: number) { const first = new Date(year, 
 function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }
 function filterTasks(tasks: UiTask[], query: string) { const q = query.toLowerCase().trim(); return q ? tasks.filter((task) => [task.title, task.course, task.materialNeeded, task.notes].some((value) => value?.toLowerCase().includes(q))) : tasks; }
 function formatTaskTime(value: string) { return value.slice(0, 5); }
+function isEventTypeName(value: string | null | undefined) { return value?.trim().toLocaleLowerCase("es") === "evento"; }
+function safeExternalHref(value: string | null | undefined) {
+  if (!value) return undefined;
+  if (value.startsWith("/") && !value.startsWith("//")) return value;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
 function formatTaskDateTime(date: string, time: string) {
   const [year, month, day] = date.split("-");
   if (!year || !month || !day) return `${date} ${formatTaskTime(time)}`.trim();
   return `${day.padStart(2, "0")}/${month.padStart(2, "0")}/${year} ${formatTaskTime(time)}`;
+}
+function taskDayLabel(task: Pick<UiTask, "daysRemaining" | "itemKind">) {
+  if (task.daysRemaining === 0) return "Hoy";
+  if (task.daysRemaining === 1) return "Mañana";
+  if (task.daysRemaining < 0) return task.itemKind === "event" ? "Finalizado" : "Vencida";
+  return `En ${task.daysRemaining} días`;
+}
+function taskDayTone(task: Pick<UiTask, "daysRemaining" | "itemKind">) {
+  if (task.daysRemaining === 0) return "today";
+  if (task.daysRemaining === 1) return "tomorrow";
+  if (task.daysRemaining < 0) return task.itemKind === "event" ? "past" : "overdue";
+  return "upcoming";
 }
 function formatOptionalSync(value: string) {
   const date = new Date(value);
@@ -1782,7 +1916,7 @@ function toTask(row: Record<string, unknown>): UiTask {
     taskTypeId: row.task_type_id ? String(row.task_type_id) : type?.id ? String(type.id) : undefined,
     priority: row.priority ? String(row.priority) : "Media",
     course: String(course?.name ?? "Sin materia"),
-    itemKind: String(row.item_kind ?? "task") === "event" || String(type?.name ?? "") === "Evento" ? "event" : "task",
+    itemKind: String(row.item_kind ?? "task") === "event" || isEventTypeName(String(type?.name ?? "")) ? "event" : "task",
     startsAt: row.starts_at ? String(row.starts_at) : undefined,
     endsAt: row.ends_at ? String(row.ends_at) : undefined,
     location: row.location ? String(row.location) : undefined,
@@ -1846,18 +1980,21 @@ function toTaskLinkedMaterials(value: unknown): MaterialOption[] {
 
 function toMaterialOption(value: unknown): MaterialOption {
   const row = value as Record<string, unknown>;
+  const id = String(row.id);
+  const r2Key = row.r2_key ? String(row.r2_key) : null;
   const sectionValue = row.section ?? row.material_sections;
   const section = asOne(sectionValue as Record<string, unknown> | Record<string, unknown>[] | null);
   return {
-    id: String(row.id),
+    id,
     title: String(row.title ?? row.file_name ?? "Material"),
     material_type: row.material_type ? String(row.material_type) : null,
     provider: row.provider ? String(row.provider) : null,
-    source_url: row.source_url ? String(row.source_url) : null,
-    preview_url: row.preview_url ? String(row.preview_url) : null,
+    source_url: r2Key ? `/api/materials/${encodeURIComponent(id)}/file?mode=download` : row.source_url ? String(row.source_url) : null,
+    preview_url: r2Key ? `/api/materials/${encodeURIComponent(id)}/file?mode=preview` : row.preview_url ? String(row.preview_url) : null,
+    download_url: r2Key ? `/api/materials/${encodeURIComponent(id)}/file?mode=download` : row.download_url ? String(row.download_url) : null,
     thumbnail_url: row.thumbnail_url ? String(row.thumbnail_url) : null,
     public_url: row.public_url ? String(row.public_url) : null,
-    r2_key: row.r2_key ? String(row.r2_key) : null,
+    r2_key: r2Key,
     file_name: row.file_name ? String(row.file_name) : null,
     content_type: row.content_type ? String(row.content_type) : null,
     size_bytes: typeof row.size_bytes === "number" ? row.size_bytes : null,
@@ -1872,11 +2009,16 @@ function toMaterialOption(value: unknown): MaterialOption {
 }
 
 function taskToForm(task: UiTask, courses: CourseConfig[], taskTypes: TaskTypeConfig[]): TaskForm {
+  const typeId = task.taskTypeId ?? taskTypes.find((type) => type.name === task.deliveryType)?.id ?? taskTypes[0]?.id ?? "";
+  const taskTypeDraftId = task.itemKind === "task" && !isEventTypeName(taskTypes.find((type) => type.id === typeId)?.name)
+    ? typeId
+    : taskTypes.find((type) => !isEventTypeName(type.name))?.id ?? "";
   return newTaskForm({
     itemKind: task.itemKind ?? (task.deliveryType === "Evento" ? "event" : "task"),
     title: task.title,
     courseId: task.courseId ?? courses.find((course) => course.name === task.course)?.id ?? courses[0]?.id ?? "",
-    typeId: task.taskTypeId ?? taskTypes.find((type) => type.name === task.deliveryType)?.id ?? taskTypes[0]?.id ?? "",
+    typeId,
+    taskTypeDraftId,
     dueDate: task.dueDate,
     dueTime: task.dueTime || "23:59",
     startDate: task.startsAt?.slice(0, 10) ?? task.dueDate,
@@ -1891,14 +2033,6 @@ function taskToForm(task: UiTask, courses: CourseConfig[], taskTypes: TaskTypeCo
     platformUrl: task.platformUrl ?? "",
     notes: task.notes ?? "",
     materialNeeded: task.materialNeeded ?? "",
-    materialId: "",
+    materialIds: (task.linkedMaterials ?? []).map((material) => material.id),
   });
-}
-
-function materialUrl(material: MaterialOption) {
-  return material.public_url ?? material.preview_url ?? material.source_url ?? "";
-}
-
-function cleanMaterialTitle(value: string) {
-  return value.replace(/^_+/, "").replace(/\.pdf$/i, ".pdf");
 }

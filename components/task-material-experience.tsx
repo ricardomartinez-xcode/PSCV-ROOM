@@ -438,7 +438,7 @@ export function TaskMaterialExperience() {
           )}
         </div>
 
-        <footer ~
+        <footer>
           <a href={preview.downloadUrl} download>
             <FileDown size={16} />
             Descargar

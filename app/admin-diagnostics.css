@@ -196,7 +196,8 @@
 .diagnosticDetailsBody {
   max-height: 280px;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   padding: 10px;
   scrollbar-gutter: stable;
 }

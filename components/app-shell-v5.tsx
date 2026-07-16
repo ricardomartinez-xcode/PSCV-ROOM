@@ -40,6 +40,7 @@ import type { DeliveryType, GroupMember, Role, Task, TaskStatus } from "@/lib/do
 import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
@@ -833,8 +834,7 @@ function useContainedDialogFocus(
   useEffect(() => {
     if (!open) return;
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseBodyScrollLock = lockBodyScroll();
     const frame = window.requestAnimationFrame(() => {
       const preferred = containerRef.current?.querySelector<HTMLElement>("[data-dialog-autofocus]");
       const first = containerRef.current?.querySelector<HTMLElement>(
@@ -869,7 +869,7 @@ function useContainedDialogFocus(
     return () => {
       window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      releaseBodyScrollLock();
       previousFocusRef.current?.focus();
     };
   }, [containerRef, open]);
@@ -989,37 +989,39 @@ function NotificationTray({
           <button className="notificationTrayIconButton" data-dialog-autofocus aria-label="Cerrar avisos" title="Cerrar avisos" onClick={onClose} type="button"><X size={16} /></button>
         </div>
       </div>
-      {view === "settings" ? (
-        <NotificationSettingsPanel />
-      ) : (
-        <>
-          <div className="notificationTrayActions">
-            <button type="button" onClick={onRefresh}>Actualizar</button>
-            <button type="button" onClick={() => onRead(unreadIds)} disabled={!unreadIds.length}>Marcar leídos</button>
-            <button type="button" onClick={() => onDismiss(notifications.map((notification) => notification.id))} disabled={!notifications.length}>Limpiar</button>
-          </div>
-          <p className="srOnly" role="status" aria-live="polite" aria-atomic="true">{notifications.length} avisos activos; {unreadLabel}.</p>
-          <div className="notificationList">
-            {notifications.map((notification) => {
-              const meta = notificationKindMeta(notification.kind);
-              return (
-                <article className={`notificationItem kind-${meta.tone} ${notification.read_at ? "" : "unread"} priority-${notification.priority}`} key={notification.id}>
-                  <button type="button" onClick={() => onOpen(notification)}>
-                    <span className="notificationItemTitle">{meta.icon}<strong>{notification.title}</strong></span>
-                    {notification.body ? <span className="notificationItemBody">{notification.body}</span> : null}
-                    <span className="notificationItemMeta">
-                      <span>{meta.label}</span>
-                      <time dateTime={notification.scheduled_for}>{formatOptionalSync(notification.scheduled_for)}</time>
-                    </span>
-                  </button>
-                  <button aria-label={`Ocultar ${notification.title}`} title="Ocultar" onClick={() => onDismiss([notification.id])} type="button"><X size={14} /></button>
-                </article>
-              );
-            })}
-            {!notifications.length ? <p className="notificationEmpty">No hay avisos pendientes.</p> : null}
-          </div>
-        </>
-      )}
+      <div className={`notificationTrayBody ${view === "settings" ? "settings" : "notifications"}`}>
+        {view === "settings" ? (
+          <NotificationSettingsPanel />
+        ) : (
+          <>
+            <div className="notificationTrayActions">
+              <button type="button" onClick={onRefresh}>Actualizar</button>
+              <button type="button" onClick={() => onRead(unreadIds)} disabled={!unreadIds.length}>Marcar leídos</button>
+              <button type="button" onClick={() => onDismiss(notifications.map((notification) => notification.id))} disabled={!notifications.length}>Limpiar</button>
+            </div>
+            <p className="srOnly" role="status" aria-live="polite" aria-atomic="true">{notifications.length} avisos activos; {unreadLabel}.</p>
+            <div className="notificationList">
+              {notifications.map((notification) => {
+                const meta = notificationKindMeta(notification.kind);
+                return (
+                  <article className={`notificationItem kind-${meta.tone} ${notification.read_at ? "" : "unread"} priority-${notification.priority}`} key={notification.id}>
+                    <button type="button" onClick={() => onOpen(notification)}>
+                      <span className="notificationItemTitle">{meta.icon}<strong>{notification.title}</strong></span>
+                      {notification.body ? <span className="notificationItemBody">{notification.body}</span> : null}
+                      <span className="notificationItemMeta">
+                        <span>{meta.label}</span>
+                        <time dateTime={notification.scheduled_for}>{formatOptionalSync(notification.scheduled_for)}</time>
+                      </span>
+                    </button>
+                    <button aria-label={`Ocultar ${notification.title}`} title="Ocultar" onClick={() => onDismiss([notification.id])} type="button"><X size={14} /></button>
+                  </article>
+                );
+              })}
+              {!notifications.length ? <p className="notificationEmpty">No hay avisos pendientes.</p> : null}
+            </div>
+          </>
+        )}
+      </div>
     </section>
     </>
   );
@@ -1495,8 +1497,7 @@ function TaskCreateModal({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseBodyScrollLock = lockBodyScroll();
     window.requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input:not([type="checkbox"]):not([disabled])')?.focus());
     function handleDialogKeyboard(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -1517,7 +1518,7 @@ function TaskCreateModal({
     }
     window.addEventListener("keydown", handleDialogKeyboard);
     return () => {
-      document.body.style.overflow = previousOverflow;
+      releaseBodyScrollLock();
       window.removeEventListener("keydown", handleDialogKeyboard);
     };
   }, [onClose, open]);

@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { materialDisplayName } from "@/lib/material-display-name";
 
 export type TaskMaterialSection = {
@@ -259,8 +260,7 @@ export function TaskMaterialGallery({ materials }: { materials: TaskMaterial[] }
   useEffect(() => {
     if (!preview) return;
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const releaseBodyScrollLock = lockBodyScroll();
     closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setPreview(null);
@@ -282,7 +282,7 @@ export function TaskMaterialGallery({ materials }: { materials: TaskMaterial[] }
     document.addEventListener("keydown", onKeyDown);
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      releaseBodyScrollLock();
       previousFocusRef.current?.focus();
     };
   }, [preview]);

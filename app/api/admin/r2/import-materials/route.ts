@@ -10,6 +10,7 @@ import {
 } from "@/lib/server/r2-paths";
 import { errorResponse, HttpError, requirePermission } from "@/lib/server/authz";
 import { d1All, d1Run } from "@/lib/server/d1-data";
+import { materialDisplayName } from "@/lib/material-display-name";
 
 type ImportRequest = {
   dryRun?: boolean;
@@ -76,7 +77,8 @@ function ext(fileName: string) {
 }
 
 function titleFromFileName(fileName: string) {
-  return fileName.replace(/\.[a-z0-9]{2,8}$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim() || fileName;
+  const normalizedTitle = fileName.replace(/\.[a-z0-9]{2,8}$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return materialDisplayName(normalizedTitle);
 }
 
 function inferContentType(fileName: string) {

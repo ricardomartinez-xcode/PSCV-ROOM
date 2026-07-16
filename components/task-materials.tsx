@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { materialDisplayName } from "@/lib/material-display-name";
 
 export type TaskMaterialSection = {
   id: string;
@@ -51,10 +52,6 @@ type TaskMaterialPickerProps = {
 const EMPTY_MATERIALS: TaskMaterial[] = [];
 const MAX_TASK_MATERIALS = 50;
 
-function cleanTitle(value: string) {
-  return value.replace(/^_+/, "");
-}
-
 function mergeMaterials(current: TaskMaterial[], incoming: TaskMaterial[]) {
   const byId = new Map(current.map((material) => [material.id, material]));
   for (const material of incoming) byId.set(material.id, material);
@@ -88,7 +85,7 @@ function materialDownloadUrl(material: TaskMaterial) {
 
 function materialDetail(material: TaskMaterial) {
   const section = material.section?.name || material.section?.path;
-  const file = material.file_name || material.material_type || "Recurso";
+  const file = material.file_name ? materialDisplayName(material.file_name) : material.material_type || "Recurso";
   return section ? `${section} · ${file}` : file;
 }
 
@@ -213,7 +210,7 @@ export function TaskMaterialPicker({
               />
               <FileText size={18} aria-hidden="true" />
               <span>
-                <strong>{cleanTitle(material.title)}</strong>
+                <strong>{materialDisplayName(material.title)}</strong>
                 <small>{materialDetail(material)}</small>
               </span>
             </label>
@@ -231,8 +228,8 @@ export function TaskMaterialPicker({
         <div className="taskMaterialSelection" aria-label="Materiales seleccionados">
           {selected.map((material) => (
             <span key={material.id}>
-              <span>{cleanTitle(material.title)}</span>
-              <button type="button" aria-label={`Quitar ${material.title}`} onClick={() => toggle(material.id)}>
+              <span>{materialDisplayName(material.title)}</span>
+              <button type="button" aria-label={`Quitar ${materialDisplayName(material.title)}`} onClick={() => toggle(material.id)}>
                 <X size={14} aria-hidden="true" />
               </button>
             </span>
@@ -306,7 +303,7 @@ export function TaskMaterialGallery({ materials }: { materials: TaskMaterial[] }
             <article className="taskMaterialCard" key={material.id}>
               <FileText size={20} aria-hidden="true" />
               <div>
-                <strong>{cleanTitle(material.title)}</strong>
+                <strong>{materialDisplayName(material.title)}</strong>
                 <small>{materialDetail(material)}</small>
               </div>
               <div className="taskMaterialCardActions">
@@ -345,7 +342,7 @@ export function TaskMaterialGallery({ materials }: { materials: TaskMaterial[] }
             <header>
               <div>
                 <small>Vista previa del material</small>
-                <strong id="task-material-preview-title">{cleanTitle(preview.title)}</strong>
+                <strong id="task-material-preview-title">{materialDisplayName(preview.title)}</strong>
               </div>
               <button ref={closeButtonRef} type="button" aria-label="Cerrar vista previa" onClick={() => setPreview(null)}>
                 <X size={19} aria-hidden="true" />
@@ -353,11 +350,11 @@ export function TaskMaterialGallery({ materials }: { materials: TaskMaterial[] }
             </header>
             <div className="taskMaterialPreviewBody">
               {previewUrl && canRenderAsImage(preview) ? (
-                <img src={previewUrl} alt={preview.title} referrerPolicy="no-referrer" />
+                <img src={previewUrl} alt={materialDisplayName(preview.title)} referrerPolicy="no-referrer" />
               ) : previewUrl && canRenderAsPdf(preview) ? (
                 <iframe
                   src={previewUrl}
-                  title={`Vista previa de ${preview.title}`}
+                  title={`Vista previa de ${materialDisplayName(preview.title)}`}
                   sandbox=""
                   referrerPolicy="no-referrer"
                   tabIndex={-1}

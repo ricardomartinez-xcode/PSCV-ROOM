@@ -1,0 +1,73 @@
+name: Hotfix task material form callback narrowing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/task-material-form-callback-narrowing
+          fetch-depth: 0
+
+      - name: Apply callback narrowing hotfix
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path("components/task-material-experience.tsx")
+          source = path.read_text()
+
+          old = '''  const form = select.closest("form");
+          if (!(form instanceof HTMLFormElement)) return;
+
+          select.dataset.multiEnhanced = "true";
+
+          const initial = linkedIdsFromForm(form);
+          if (select.value) initial.add(select.value);
+
+          const selected = selectedByForm.get(form) ?? initial;
+          selectedByForm.set(form, selected);
+          touchedByForm.set(form, false);
+          '''
+
+          new = '''  const form = select.closest("form");
+          if (!(form instanceof HTMLFormElement)) return;
+          const htmlForm: HTMLFormElement = form;
+
+          select.dataset.multiEnhanced = "true";
+
+          const initial = linkedIdsFromForm(htmlForm);
+          if (select.value) initial.add(select.value);
+
+          const selected = selectedByForm.get(htmlForm) ?? initial;
+          selectedByForm.set(htmlForm, selected);
+          touchedByForm.set(htmlForm, false);
+          '''
+
+          if old not in source:
+              raise SystemExit("Expected block was not found")
+
+          source = source.replace(old, new, 1)
+          source = source.replace(
+              "touchedByForm.set(form, true);",
+              "touchedByForm.set(htmlForm, true);",
+              1,
+          )
+          path.write_text(source)
+
+      - name: Remove temporary workflow
+        run: rm .github/workflows/hotfix-task-material-form.yml
+
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/task-material-experience.tsx .github/workflows/hotfix-task-material-form.yml
+          git commit -m "fix: preserve form narrowing inside material callback"
+          git push origin HEAD:fix/task-material-form-callback-narrowing

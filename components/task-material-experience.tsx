@@ -175,7 +175,7 @@ function enhanceSelect(select: HTMLSelectElement) {
   if (select.dataset.multiEnhanced === "true") return;
 
   const form = select.closest("form");
-  if (!form) return;
+  if (!(form instanceof HTMLFormElement)) return;
 
   select.dataset.multiEnhanced = "true";
 

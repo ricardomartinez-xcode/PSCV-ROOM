@@ -176,15 +176,16 @@ function enhanceSelect(select: HTMLSelectElement) {
 
   const form = select.closest("form");
   if (!(form instanceof HTMLFormElement)) return;
+  const htmlForm: HTMLFormElement = form;
 
   select.dataset.multiEnhanced = "true";
 
-  const initial = linkedIdsFromForm(form);
+  const initial = linkedIdsFromForm(htmlForm);
   if (select.value) initial.add(select.value);
 
-  const selected = selectedByForm.get(form) ?? initial;
-  selectedByForm.set(form, selected);
-  touchedByForm.set(form, false);
+  const selected = selectedByForm.get(htmlForm) ?? initial;
+  selectedByForm.set(htmlForm, selected);
+  touchedByForm.set(htmlForm, false);
 
   const label = select.closest("label");
   if (label) label.style.display = "none";
@@ -254,8 +255,7 @@ function enhanceSelect(select: HTMLSelectElement) {
         ?? "Material";
 
       checkbox.addEventListener("change", () => {
-        touchedByForm.set(form, true);
-
+        touchedByForm.set(htmlForm, true);
         if (checkbox.checked) selected.add(material.id);
         else selected.delete(material.id);
 

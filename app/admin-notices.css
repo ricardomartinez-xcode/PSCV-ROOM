@@ -1,0 +1,288 @@
+.adminNoticesModule {
+  --notice-accent: #0f5f8f;
+  --notice-ink: #142033;
+  --notice-muted: #667085;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 14px !important;
+  background: #fff !important;
+  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.055) !important;
+  padding: 18px !important;
+}
+
+.adminNoticesModule > .adminCardHead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  margin: 0 !important;
+  padding: 0 0 16px !important;
+  border-bottom: 1px solid #e8edf3 !important;
+}
+
+.adminNoticesModule > .adminCardHead h3 {
+  margin: 0;
+  color: var(--notice-ink);
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.adminNoticesModule > .adminCardHead p:not(.adminModuleEyebrow) {
+  max-width: 720px;
+  margin: 5px 0 0;
+  color: var(--notice-muted);
+  line-height: 1.5;
+}
+
+.adminNoticesModule > .adminCardHead > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid #cbd8e5;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--notice-accent);
+  padding: 0 14px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.adminNoticesModule > .adminCardHead > button:hover:not(:disabled) {
+  background: #f4f9fc;
+}
+
+.adminNoticesModule .adminNoticeHelp {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.adminNoticesModule .adminNoticeHelp p {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-height: 118px;
+  margin: 0;
+  border: 1px solid #dfe7ef;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 14px 14px 14px 46px;
+  color: var(--notice-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.adminNoticesModule .adminNoticeHelp p::before {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: #e7f2f8;
+  color: var(--notice-accent);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.adminNoticesModule .adminNoticeHelp p:nth-child(1)::before { content: "1"; }
+.adminNoticesModule .adminNoticeHelp p:nth-child(2)::before { content: "2"; }
+.adminNoticesModule .adminNoticeHelp p:nth-child(3)::before { content: "3"; }
+
+.adminNoticesModule .adminNoticeHelp strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--notice-ink);
+  font-size: 13px;
+}
+
+.adminNoticesModule .adminNoticeForm {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  align-items: end !important;
+  margin: 0 !important;
+  border: 1px solid #dfe7ef !important;
+  border-radius: 12px !important;
+  background: #f7f9fc !important;
+  padding: 16px !important;
+}
+
+.adminNoticesModule .adminNoticeForm::before {
+  content: "Nuevo aviso";
+  grid-column: 1 / -1;
+  color: var(--notice-ink);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.adminNoticesModule .adminNoticeForm .wide {
+  grid-column: 1 / -1 !important;
+}
+
+.adminNoticesModule .adminNoticeForm label {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.adminNoticesModule .adminNoticeForm input,
+.adminNoticesModule .adminNoticeForm select,
+.adminNoticesModule .adminNoticeForm textarea {
+  width: 100%;
+  border: 1px solid #cfd9e4;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--notice-ink);
+  font: inherit;
+  outline: 0;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.adminNoticesModule .adminNoticeForm input,
+.adminNoticesModule .adminNoticeForm select {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.adminNoticesModule .adminNoticeForm textarea {
+  min-height: 128px !important;
+  padding: 11px 12px;
+  resize: vertical;
+}
+
+.adminNoticesModule .adminNoticeForm input:focus,
+.adminNoticesModule .adminNoticeForm select:focus,
+.adminNoticesModule .adminNoticeForm textarea:focus {
+  border-color: #5f9fbe;
+  box-shadow: 0 0 0 3px rgba(47, 126, 166, 0.13);
+}
+
+.adminNoticesModule .adminNoticeForm .primaryAction {
+  grid-column: 1 / -1 !important;
+  min-height: 46px !important;
+  margin: 0 !important;
+  border-radius: 10px !important;
+}
+
+.adminNoticesModule .adminResult {
+  margin: 0 !important;
+  border: 1px solid #b7dfc7;
+  border-radius: 10px;
+  background: #f0fbf4;
+  padding: 10px 12px;
+}
+
+.adminNoticesModule .adminNoticeList {
+  display: grid !important;
+  gap: 0 !important;
+  margin-top: 0 !important;
+  overflow: hidden;
+  border: 1px solid #dfe6ee;
+  border-radius: 12px;
+}
+
+.adminNoticesModule .adminNoticeList::before {
+  content: "Actividad reciente";
+  display: block;
+  border-bottom: 1px solid #e8edf3;
+  background: #f4f8fb;
+  padding: 11px 14px;
+  color: var(--notice-ink);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.adminNoticesModule .adminNoticeList article {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr);
+  align-items: center;
+  gap: 14px;
+  margin: 0 !important;
+  border: 0 !important;
+  border-bottom: 1px solid #e8edf3 !important;
+  border-left: 0 !important;
+  border-radius: 0 !important;
+  background: #fff !important;
+  padding: 12px 14px !important;
+}
+
+.adminNoticesModule .adminNoticeList article:last-of-type {
+  border-bottom: 0 !important;
+}
+
+.adminNoticesModule .adminNoticeList article:nth-of-type(even) {
+  background: #fafcfd !important;
+}
+
+.adminNoticesModule .adminNoticeList strong {
+  overflow: hidden;
+  color: var(--notice-ink);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adminNoticesModule .adminNoticeList span {
+  color: var(--notice-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.adminNoticesModule .adminNoticeList .muted {
+  margin: 0;
+  padding: 20px;
+  text-align: center;
+}
+
+@media (max-width: 920px) {
+  .adminNoticesModule .adminNoticeHelp,
+  .adminNoticesModule .adminNoticeForm {
+    grid-template-columns: 1fr !important;
+  }
+
+  .adminNoticesModule .adminNoticeForm .wide,
+  .adminNoticesModule .adminNoticeForm .primaryAction {
+    grid-column: auto !important;
+  }
+
+  .adminNoticesModule .adminNoticeList article {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+@media (max-width: 680px) {
+  .adminNoticesModule {
+    gap: 12px;
+    border-radius: 11px !important;
+    padding: 12px !important;
+  }
+
+  .adminNoticesModule > .adminCardHead {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .adminNoticesModule > .adminCardHead > button {
+    width: 100%;
+  }
+
+  .adminNoticesModule .adminNoticeHelp p {
+    min-height: 0;
+  }
+}

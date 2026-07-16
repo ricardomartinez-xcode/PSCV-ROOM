@@ -41,11 +41,28 @@
   z-index: 1250;
   width: min(380px, calc(100vw - 16px));
   max-height: min(620px, calc(100dvh - 82px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   border: 1px solid #d8e0ea;
   border-radius: 12px;
   background: #fff;
   box-shadow: 0 20px 60px rgb(15 23 42 / 18%);
+}
+
+.notificationTrayBody {
+  min-height: 0;
+}
+
+.notificationTrayBody.settings {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+}
+
+.notificationTrayBody.notifications {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
 }
 
 .notificationTrayHead {
@@ -120,8 +137,9 @@
 }
 
 .notificationList {
-  max-height: calc(min(620px, 100dvh - 82px) - 101px);
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
 }
 
 .notificationItem {
@@ -309,9 +327,5 @@
 
   .notificationTrayScrim {
     background: rgb(15 23 42 / 18%);
-  }
-
-  .notificationList {
-    max-height: calc(100dvh - 167px - env(safe-area-inset-bottom));
   }
 }

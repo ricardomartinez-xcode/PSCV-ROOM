@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, ExternalLink, Eye, FileText, FolderOpen, LayoutGrid, List, Search } from "lucide-react";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
+import { materialDisplayName } from "@/lib/material-display-name";
 
 type PreviewSize = "small" | "medium" | "large";
 
@@ -302,6 +303,8 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
   const type = material.material_type ?? material.content_type?.split("/").at(-1)?.toUpperCase() ?? "PDF";
   const isPdf = (material.content_type ?? material.file_name ?? material.title).toLowerCase().includes("pdf");
   const size = formatBytes(material.size_bytes);
+  const displayName = materialDisplayName(material.title);
+  const displayFileName = material.file_name ? materialDisplayName(material.file_name) : "Sin clasificación";
 
   return (
     <article className={`materialCardV2 ${view === "list" ? "list" : ""}`} style={{ "--material-color": color } as React.CSSProperties}>
@@ -312,17 +315,17 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
           <span>{type.slice(0, 8)}</span>
           {size ? <span>{size}</span> : null}
         </div>
-        <strong title={material.title}>{cleanTitle(material.title)}</strong>
-        <small title={section?.name ?? material.file_name ?? "Sin clasificación"}>{section?.name ?? material.file_name ?? "Sin clasificación"}</small>
+        <strong title={displayName}>{displayName}</strong>
+        <small title={section?.name ?? displayFileName}>{section?.name ?? displayFileName}</small>
       </div>
       <div className="materialActions">
         {previewUrl ? (
-          <a href={previewUrl} aria-label={`Previsualizar ${material.title}`} title="Previsualizar" target="_blank" rel="noreferrer">
+          <a href={previewUrl} aria-label={`Previsualizar ${displayName}`} title="Previsualizar" target="_blank" rel="noreferrer">
             <Eye size={16} />
           </a>
         ) : null}
         {openUrl ? (
-          <a href={openUrl} aria-label={`Abrir ${material.title}`} title="Abrir" target="_blank" rel="noreferrer">
+          <a href={openUrl} aria-label={`Abrir ${displayName}`} title="Abrir" target="_blank" rel="noreferrer">
             <ExternalLink size={16} />
           </a>
         ) : null}
@@ -443,10 +446,6 @@ function buildDemoLibrary(query: string): LibraryResponse {
     sections: sections.map((section) => ({ ...section, material_count: counts.get(section.id) ?? 0 })),
     materials,
   };
-}
-
-function cleanTitle(value: string) {
-  return value.replace(/^_+/, "").replace(/\.pdf$/i, ".pdf");
 }
 
 function formatBytes(value: number | null) {

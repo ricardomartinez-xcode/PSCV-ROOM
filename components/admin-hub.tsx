@@ -37,6 +37,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { MATERIAL_UPLOAD_ACCEPT, MAX_DIRECT_MATERIAL_BYTES } from "@/lib/material-file-policy";
+import { materialDisplayName } from "@/lib/material-display-name";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
 
@@ -1217,7 +1218,7 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
             return (
               <article className="adminMaterialResult" style={{ borderLeftColor: material.section?.color ?? "#2a79a6" }} key={material.id}>
                 <span className="adminMaterialResultIcon"><FileText size={18} aria-hidden="true" /></span>
-                <div><strong>{material.title}</strong><small>{material.section?.name ?? "Sin sección"} · {material.material_type ?? "Archivo"} · {formatByteCount(material.size_bytes ?? 0)}</small></div>
+                <div><strong>{materialDisplayName(material.title)}</strong><small>{material.section?.name ?? "Sin sección"} · {material.material_type ?? "Archivo"} · {formatByteCount(material.size_bytes ?? 0)}</small></div>
                 <div className="adminMaterialActions">{previewHref ? <a href={previewHref} target="_blank" rel="noreferrer"><Eye size={15} aria-hidden="true" />Vista previa</a> : null}{downloadHref ? <a href={downloadHref}><Download size={15} aria-hidden="true" />Descargar</a> : null}</div>
               </article>
             );

@@ -118,7 +118,8 @@
   max-height: 280px;
   min-width: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   gap: 8px;
   padding: 2px;
   scrollbar-gutter: stable;

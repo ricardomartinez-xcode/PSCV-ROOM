@@ -3,8 +3,31 @@ html {
   scrollbar-gutter: stable;
 }
 
+html,
 body {
-  overscroll-behavior-y: none;
+  overflow-x: clip;
+  overflow-y: auto;
+}
+
+body {
+  overscroll-behavior-y: auto;
+  touch-action: pan-x pan-y pinch-zoom;
+}
+
+.mobileApp,
+.screen {
+  overflow-x: clip;
+  overflow-y: visible;
+}
+
+.drawerNav,
+.notificationTrayBody.settings,
+.notificationList,
+.taskCreateModal,
+.taskMaterialOptions,
+.diagnosticDetailsBody {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y pinch-zoom;
 }
 
 .srOnly {

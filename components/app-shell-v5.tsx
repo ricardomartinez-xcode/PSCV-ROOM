@@ -1400,7 +1400,17 @@ function TaskDetailScreen({
             </DetailField>
             <DetailField label="Estado" value={task.status} icon={<ClipboardCheck size={17} />} />
             <DetailField label="Días restantes" value={String(task.daysRemaining)} />
-            {task.notes ? <DetailField label="Notas" value={task.notes} wide /> : null}
+            {task.notes ? (
+          <section className="taskInstructions" aria-labelledby="task-instructions-title">
+            <div className="taskInstructionsIcon" aria-hidden="true">
+              <ClipboardCheck size={20} strokeWidth={2} />
+            </div>
+            <div>
+              <h3 id="task-instructions-title">Instrucciones</h3>
+              <p>{task.notes}</p>
+            </div>
+          </section>
+        ) : null}
             {task.calendarEventId ? <DetailField label="Evento calendario" value={task.calendarEventId} /> : null}
             {task.lastSync ? <DetailField label="Última sincronización" value={formatOptionalSync(task.lastSync)} /> : null}
           </dl>
@@ -1493,7 +1503,7 @@ function TaskEditForm({
         />
       </>) : null}
       <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
-      <label className="wide">Notas<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
+      <label className="wide">Instrucciones<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
       <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
       <div className="detailEditActions">
         <button type="button" onClick={onCancel} disabled={busy}>Cancelar</button>
@@ -1651,7 +1661,7 @@ function TaskCreateModal({
             />
           </>) : null}
           <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
-          <label className="wide">Notas<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
+          <label className="wide">Instrucciones<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
           <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
           <button className="primaryAction" disabled={busy || !form.title.trim()} type="submit">{busy ? "Creando..." : form.itemKind === "event" ? "Crear evento" : "Crear tarea"}</button>
         </form>

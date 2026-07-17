@@ -270,18 +270,23 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
       return true;
     }
 
-    const { data, error } = await d1Client
-      .from("app_profiles")
-      .insert(nextProfile)
-      .select("id,email,full_name,control_number,role,active,can_edit_tasks,can_delete_tasks,can_manage_materials,can_manage_users,can_manage_settings,can_manage_group,can_manage_notifications,can_view_reports,can_manage_r2")
-      .single();
+    const response = await fetch("/api/admin/students", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        email: nextProfile.email,
+        fullName: nextProfile.full_name,
+        controlNumber: nextProfile.control_number ?? "",
+        active: true,
+      }),
+    });
 
-    if (error) {
-      onError(error.message);
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      onError(typeof payload.error === "string" ? payload.error : "No se pudo crear el alumno.");
       return false;
     }
 
-    setProfiles((current) => [...current, data as AppProfileRow].sort(sortProfiles));
     await reload();
     return true;
   }
@@ -290,12 +295,25 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
     const previous = profiles;
     setProfiles((current) => current.map((profile) => profile.id === id ? { ...profile, ...patch } : profile));
     if (!d1Client) return true;
-    const { error } = await d1Client.from("app_profiles").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", id);
-    if (error) {
+    const response = await fetch("/api/admin/students", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        id,
+        email: patch.email,
+        fullName: patch.full_name,
+        controlNumber: patch.control_number ?? "",
+        active: patch.active ?? true,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
       setProfiles(previous);
-      onError(error.message);
+      onError(typeof payload.error === "string" ? payload.error : "No se pudo actualizar el usuario.");
       return false;
     }
+
     await reload();
     return true;
   }

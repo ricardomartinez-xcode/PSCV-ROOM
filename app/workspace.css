@@ -403,6 +403,37 @@ a svg {
 }
 
 @media (max-width: 620px) {
+  .taskDetailScreen,
+  .detailSheet,
+  .detailHero,
+  .detailGrid,
+  .detailField,
+  .taskInstructions {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .detailToolbar {
+    flex-wrap: wrap;
+    gap: 0.65rem;
+  }
+
+  .detailToolbar > * {
+    min-width: 0;
+  }
+
+  .taskInstructions {
+    grid-template-columns: 1fr;
+    padding: 0.9rem;
+    border-radius: 16px;
+  }
+
+  .taskInstructionsIcon {
+    width: 2.15rem;
+    height: 2.15rem;
+  }
+
+
   .calendarPane .dayCell {
     min-height: 112px;
     padding: 6px 3px;
@@ -1081,6 +1112,45 @@ a svg {
   line-height: 1.06;
   letter-spacing: 0;
   overflow-wrap: anywhere;
+}
+
+.taskInstructions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+  align-items: start;
+  margin: 1rem 0 1.25rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.06);
+}
+
+.taskInstructionsIcon {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  color: var(--accent);
+}
+
+.taskInstructions h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.taskInstructions p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: 1.6;
 }
 
 .detailGrid {

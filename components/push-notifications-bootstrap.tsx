@@ -22,7 +22,31 @@ export type PushState =
   | "server-unavailable"
   | "error";
 
-type PushConfig = { enabled?: boolean; publicKey?: string | null };
+type PushConfig = {
+  enabled?: boolean;
+  publicKey?: string | null;
+  workerVersion?: string | null;
+};
+
+type StartupStage =
+  | "environment-check"
+  | "registerServiceWorker"
+  | "serviceWorker.ready"
+  | "GET /api/push/config"
+  | "PushManager.getSubscription"
+  | "PushSubscription.unsubscribe"
+  | "PushManager.subscribe"
+  | "POST /api/push/subscribe"
+  | "ready";
+
+type StartupDiagnostic = {
+  stage: StartupStage;
+  name: string;
+  message: string;
+  stack: string | null;
+  browser: string;
+  workerVersion: string | null;
+};
 type NavigatorWithStandalone = Navigator & { standalone?: boolean };
 const IOS_INSTALL_MESSAGE = "En iPhone o iPad, abre Safari, usa Compartir > Agregar a pantalla de inicio y entra desde ese icono.";
 
@@ -95,6 +119,30 @@ function broadcastPermissionChange() {
 export function PushNotificationsBootstrap({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PushState>("loading");
   const [message, setMessage] = useState("");
+  const [stage, setStage] = useState<StartupStage>("environment-check");
+  const [diagnostic, setDiagnostic] = useState<StartupDiagnostic | null>(null);
+  const [retryToken, setRetryToken] = useState(0);
+  const stageRef = useRef<StartupStage>("environment-check");
+  const workerVersionRef = useRef<string | null>(null);
+
+  const updateStage = useCallback((nextStage: StartupStage) => {
+    stageRef.current = nextStage;
+    setStage(nextStage);
+  }, []);
+
+  const failStartup = useCallback((error: unknown) => {
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    setMessage(normalized.message || "No fue posible configurar Web Push.");
+    setDiagnostic({
+      stage: stageRef.current,
+      name: normalized.name || "Error",
+      message: normalized.message || "No fue posible configurar Web Push.",
+      stack: normalized.stack ?? null,
+      browser: navigator.userAgent,
+      workerVersion: workerVersionRef.current,
+    });
+    setState("error");
+  }, []);
   const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const subscriptionRef = useRef<PushSubscription | null>(null);
   const syncPromiseRef = useRef<Promise<void> | null>(null);
@@ -128,10 +176,14 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
 
       setState("subscribing");
       setMessage("");
+      setDiagnostic(null);
+      updateStage("registerServiceWorker");
       const registration = registrationRef.current ?? await registerServiceWorker();
       registrationRef.current = registration;
+      updateStage("serviceWorker.ready");
       await navigator.serviceWorker.ready;
 
+      updateStage("GET /api/push/config");
       const configResponse = await fetch("/api/push/config", {
         mode: "same-origin",
         credentials: "include",
@@ -141,24 +193,29 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       });
       if (!configResponse.ok) throw new Error(await readError(configResponse));
       const config = await configResponse.json() as PushConfig;
+      workerVersionRef.current = config.workerVersion ?? null;
       if (!config.enabled || !config.publicKey) {
         setMessage("El servidor todavía no tiene disponible la configuración Web Push.");
         setState("server-unavailable");
         return;
       }
 
+      updateStage("PushManager.getSubscription");
       let subscription = await registration.pushManager.getSubscription();
       if (subscription && !sameApplicationServerKey(subscription, config.publicKey)) {
+        updateStage("PushSubscription.unsubscribe");
         await subscription.unsubscribe();
         subscription = null;
       }
       if (!subscription) {
+        updateStage("PushManager.subscribe");
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: decodeApplicationServerKey(config.publicKey),
         });
       }
 
+      updateStage("POST /api/push/subscribe");
       const subscribeResponse = await fetch("/api/push/subscribe", {
         method: "POST",
         mode: "same-origin",
@@ -171,6 +228,8 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       if (!subscribeResponse.ok) throw new Error(await readError(subscribeResponse));
 
       subscriptionRef.current = subscription;
+      updateStage("ready");
+      setDiagnostic(null);
       setMessage("");
       setState("active");
     })();
@@ -181,7 +240,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
     } finally {
       if (syncPromiseRef.current === syncPromise) syncPromiseRef.current = null;
     }
-  }, []);
+  }, [updateStage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,6 +261,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
           }
           return;
         }
+        updateStage("registerServiceWorker");
         registrationRef.current = await registerServiceWorker();
         if (Notification.permission === "granted") {
           await syncSubscription();
@@ -210,8 +270,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
         }
       } catch (error) {
         if (!cancelled) {
-          setMessage(error instanceof Error ? error.message : "No fue posible configurar las notificaciones.");
-          setState("error");
+          failStartup(error);
         }
       }
     };
@@ -223,8 +282,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       if (Notification.permission === "granted") {
         void syncSubscription().catch((error: unknown) => {
           if (cancelled) return;
-          setMessage(error instanceof Error ? error.message : "No fue posible configurar las notificaciones.");
-          setState("error");
+          failStartup(error);
         });
       } else {
         setState(Notification.permission === "denied" ? "denied" : "prompt");
@@ -238,7 +296,7 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       window.removeEventListener("focus", refreshPermission);
       window.removeEventListener("pscv:notification-permission-changed", refreshPermission);
     };
-  }, [syncSubscription]);
+  }, [failStartup, retryToken, syncSubscription, updateStage]);
 
   const activate = useCallback(async () => {
     try {
@@ -263,10 +321,9 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
       }
       await syncSubscription();
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "No fue posible activar las notificaciones.");
-      setState("error");
+      failStartup(error);
     }
-  }, [syncSubscription]);
+  }, [failStartup, syncSubscription]);
 
   const sendTest = useCallback(async () => {
     try {
@@ -326,6 +383,67 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
     sendTest,
     deactivate,
   }), [state, message, activate, sendTest, deactivate]);
+
+  if (state !== "active") {
+    const isFailure = state === "error" || state === "server-unavailable";
+    return (
+      <main
+        role={isFailure ? "alert" : "status"}
+        aria-live={isFailure ? "assertive" : "polite"}
+        style={{
+          minHeight: "100dvh",
+          display: "grid",
+          placeItems: "center",
+          padding: "24px",
+          background: "#f5f5f5",
+          color: "#111",
+          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        }}
+      >
+        <section style={{ width: "min(100%, 760px)", background: "#fff", border: "1px solid #d7d7d7", borderRadius: 16, padding: 24 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>
+            PSCV Room · Web Push
+          </p>
+          <h1 style={{ margin: "0 0 12px", fontSize: "clamp(24px, 5vw, 40px)", lineHeight: 1.05 }}>
+            {isFailure ? "La aplicación no puede iniciar" : "Preparando notificaciones"}
+          </h1>
+          <p style={{ margin: "0 0 20px", lineHeight: 1.5 }}>
+            {message || `Etapa actual: ${stage}`}
+          </p>
+
+          {state === "prompt" && (
+            <button type="button" onClick={() => void activate()} style={{ minHeight: 44, padding: "10px 16px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "#fff", fontWeight: 700 }}>
+              Activar notificaciones y continuar
+            </button>
+          )}
+
+          {(state === "install-required" || state === "denied" || state === "unsupported") && (
+            <div style={{ padding: 16, border: "1px solid #d7d7d7", borderRadius: 12, background: "#fafafa" }}>
+              <strong>Acción requerida</strong>
+              <p style={{ margin: "8px 0 0", lineHeight: 1.5 }}>{message}</p>
+            </div>
+          )}
+
+          {diagnostic && (
+            <details open style={{ marginTop: 20 }}>
+              <summary style={{ cursor: "pointer", fontWeight: 700 }}>Diagnóstico técnico</summary>
+              <dl style={{ display: "grid", gridTemplateColumns: "minmax(120px, 180px) 1fr", gap: "8px 16px", marginTop: 16, overflowWrap: "anywhere" }}>
+                <dt>Etapa</dt><dd style={{ margin: 0 }}><code>{diagnostic.stage}</code></dd>
+                <dt>Error</dt><dd style={{ margin: 0 }}><code>{diagnostic.name}</code></dd>
+                <dt>Mensaje</dt><dd style={{ margin: 0 }}>{diagnostic.message}</dd>
+                <dt>Worker</dt><dd style={{ margin: 0 }}><code>{diagnostic.workerVersion ?? "desconocida"}</code></dd>
+                <dt>Navegador</dt><dd style={{ margin: 0 }}><code>{diagnostic.browser}</code></dd>
+              </dl>
+              {diagnostic.stack && <pre style={{ marginTop: 16, padding: 16, overflow: "auto", whiteSpace: "pre-wrap", background: "#111", color: "#fff", borderRadius: 12, fontSize: 12 }}>{diagnostic.stack}</pre>}
+              <button type="button" onClick={() => { setDiagnostic(null); setMessage(""); setState("loading"); setRetryToken((value) => value + 1); }} style={{ minHeight: 44, marginTop: 16, padding: "10px 16px", borderRadius: 10, border: "1px solid #111", background: "#fff", color: "#111", fontWeight: 700 }}>
+                Reintentar inicialización
+              </button>
+            </details>
+          )}
+        </section>
+      </main>
+    );
+  }
 
   return (
     <PushNotificationsContext.Provider value={value}>

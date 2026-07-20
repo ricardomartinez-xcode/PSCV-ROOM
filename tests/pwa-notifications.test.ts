@@ -59,3 +59,17 @@ test("iOS installation and notification settings are accessible", () => {
   assert.match(deliveryCss, /min-height: 44px/);
   assert.match(deliveryCss, /:focus-visible/);
 });
+
+
+test("Web Push initialization fails closed with actionable diagnostics", () => {
+  assert.match(bootstrap, /state !== "active"/);
+  assert.match(bootstrap, /La aplicación no puede iniciar/);
+  assert.match(bootstrap, /registerServiceWorker/);
+  assert.match(bootstrap, /serviceWorker\.ready/);
+  assert.match(bootstrap, /GET \/api\/push\/config/);
+  assert.match(bootstrap, /PushManager\.subscribe/);
+  assert.match(bootstrap, /POST \/api\/push\/subscribe/);
+  assert.match(bootstrap, /diagnostic\.stack/);
+  assert.match(bootstrap, /diagnostic\.browser/);
+  assert.match(bootstrap, /diagnostic\.workerVersion/);
+});

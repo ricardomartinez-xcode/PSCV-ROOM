@@ -12,6 +12,9 @@ export async function GET(request: Request) {
       ok: true,
       enabled,
       publicKey: enabled ? env.VAPID_PUBLIC_KEY ?? null : null,
+      workerVersion: (env as CloudflareEnv & {
+        CF_VERSION_METADATA?: { id?: string };
+      }).CF_VERSION_METADATA?.id ?? null,
     }, {
       headers: { "Cache-Control": "no-store" },
     });

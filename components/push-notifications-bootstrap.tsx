@@ -119,7 +119,6 @@ function broadcastPermissionChange() {
 export function PushNotificationsBootstrap({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PushState>("loading");
   const [message, setMessage] = useState("");
-  const [stage, setStage] = useState<StartupStage>("environment-check");
   const [diagnostic, setDiagnostic] = useState<StartupDiagnostic | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const stageRef = useRef<StartupStage>("environment-check");
@@ -127,7 +126,6 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
 
   const updateStage = useCallback((nextStage: StartupStage) => {
     stageRef.current = nextStage;
-    setStage(nextStage);
   }, []);
 
   const failStartup = useCallback((error: unknown) => {
@@ -387,7 +385,9 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
   if (state !== "active") {
     const isFailure = state === "error" || state === "server-unavailable";
     const statusTitle = isFailure ? "La aplicación no puede iniciar" : "Preparando notificaciones";
-    const statusMessage = message || `Etapa actual: ${stage}`;
+    const statusMessage = message || (state === "prompt"
+      ? "Activa las notificaciones para recibir avisos importantes y continuar."
+      : "Estamos preparando los avisos de este dispositivo. Esto tomará solo un momento.");
 
     return (
       <main

@@ -1,4 +1,5 @@
 .libraryShell {
+  box-sizing: border-box;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -49,7 +50,7 @@
 
 .materialLibraryResults { min-width: 0; max-width: 100%; display: grid; gap: 16px; }
 .librarySectionStack { min-width: 0; max-width: 100%; display: grid; gap: 22px; }
-.librarySectionGroup { min-width: 0; max-width: 100%; overflow: hidden; padding: 16px; border: 1px solid #dde5f0; border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgba(19, 38, 63, .045); }
+.librarySectionGroup { box-sizing: border-box; min-width: 0; max-width: 100%; overflow: hidden; padding: 16px; border: 1px solid #dde5f0; border-radius: 20px; background: #fff; box-shadow: 0 10px 28px rgba(19, 38, 63, .045); }
 .librarySectionHeading { display: flex; gap: 16px; align-items: center; justify-content: space-between; padding-bottom: 13px; margin-bottom: 14px; border-bottom: 1px solid #eef2f7; }
 .librarySectionHeading > div { min-width: 0; display: flex; align-items: center; gap: 10px; }
 .sectionHeadingMark { width: 8px; height: 38px; flex: 0 0 auto; border-radius: 999px; }
@@ -61,14 +62,14 @@
 .materialGrid { min-width: 0; max-width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(245px, 100%), 1fr)); gap: 14px; }
 .materialGrid.compact { grid-template-columns: repeat(auto-fill, minmax(min(230px, 100%), 1fr)); gap: 12px; }
 .materialListV2 { display: grid; gap: 9px; }
-.materialCardV2 { min-width: 0; min-height: 178px; display: grid; grid-template-columns: 58px minmax(0, 1fr); grid-template-rows: auto auto; gap: 10px 12px; padding: 13px; overflow: hidden; border: 1px solid #dbe4f0; border-top: 3px solid var(--material-color); border-radius: 16px; background: #fff; box-shadow: 0 8px 20px rgba(16, 24, 40, .035); }
+.materialCardV2 { box-sizing: border-box; min-width: 0; min-height: 178px; display: grid; grid-template-columns: 58px minmax(0, 1fr); grid-template-rows: auto auto; gap: 10px 12px; padding: 13px; overflow: hidden; border: 1px solid #dbe4f0; border-top: 3px solid var(--material-color); border-radius: 16px; background: #fff; box-shadow: 0 8px 20px rgba(16, 24, 40, .035); }
 .materialCardV2.list { min-height: 82px; grid-template-columns: 46px minmax(0, 1fr) auto; grid-template-rows: auto; align-items: center; }
 .materialThumb { width: 58px; height: 70px; overflow: hidden; display: grid; align-content: center; justify-items: center; gap: 5px; border-radius: 13px; color: var(--material-color); background: color-mix(in srgb, var(--material-color) 12%, white); font-size: 10px; font-weight: 900; letter-spacing: .04em; }
 .materialCardV2.list .materialThumb { width: 46px; height: 52px; border-radius: 11px; }
 .materialThumb.hasPreview { background: #e8edf4; }
 .materialThumb img { width: 100%; height: 100%; object-fit: cover; }
 .materialContent { min-width: 0; display: grid; align-content: start; gap: 7px; }
-.materialMetaLine { display: flex; flex-wrap: wrap; gap: 5px; }
+.materialMetaLine { min-width: 0; max-width: 100%; overflow: hidden; display: flex; flex-wrap: wrap; gap: 5px; }
 .materialMetaLine span { max-width: 100%; overflow: hidden; padding: 3px 7px; border-radius: 999px; color: #536274; background: #f3f6fa; font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
 .materialMetaLine span:first-child { color: var(--material-color); background: color-mix(in srgb, var(--material-color) 10%, white); }
 .materialContent strong { min-height: 38px; overflow: hidden; color: #172033; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: 15px; line-height: 1.27; letter-spacing: -.015em; }
@@ -107,9 +108,9 @@
   .sectionGroupMore { padding: 7px; font-size: 0; }
   .sectionGroupMore span { font-size: 11px; }
   .materialGrid, .materialGrid.compact { grid-template-columns: minmax(0, 1fr); gap: 10px; }
-  .materialCardV2 { width: 100%; max-width: 100%; min-height: 118px; grid-template-columns: 45px minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 14px; }
+  .materialCardV2 { inline-size: 100%; max-inline-size: 100%; min-height: 118px; grid-template-columns: 45px minmax(0, 1fr); gap: 8px; padding: 10px; border-radius: 14px; }
   .materialThumb { width: 45px; height: 54px; border-radius: 11px; }
-  .materialContent strong { min-height: 36px; font-size: 13px; }
+  .materialContent strong { min-height: 36px; max-width: 100%; overflow-wrap: anywhere; font-size: 13px; }
   .materialMetaLine { gap: 4px; }
   .materialMetaLine span { padding: 2px 5px; font-size: 9px; }
   .materialActions { grid-column: 1 / -1; }

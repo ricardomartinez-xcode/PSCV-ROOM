@@ -9,6 +9,7 @@ test("library groups the all-areas screen by academic section", () => {
   assert.match(source, /const shouldGroup = sectionId === ALL_SECTIONS && !query\.trim\(\) && sectionGroups\.length > 1;/);
   assert.match(source, /librarySectionGroup/);
   assert.match(source, /SECTION_PREVIEW_LIMIT = 4/);
+  assert.match(source, /group\.materials\.slice\(0, SECTION_PREVIEW_LIMIT\)/);
   assert.match(source, /Ver todos/);
 });
 

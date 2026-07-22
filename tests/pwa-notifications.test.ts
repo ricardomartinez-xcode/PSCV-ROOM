@@ -42,12 +42,23 @@ test("system notifications share stable tags and service-worker navigation data"
   assert.match(providers, /data: \{ url: actionPath, notificationId: notification\.id \}/);
 });
 
-test("the manifest does not advertise an unsafe maskable icon", () => {
+test("the manifest advertises Android-compatible raster and maskable icons", () => {
   assert.ok(manifest.icons?.length);
-  assert.equal(manifest.icons?.[0]?.type, "image/svg+xml");
-  assert.equal(manifest.icons?.[0]?.sizes, "any");
-  assert.equal(manifest.icons?.[0]?.purpose, "any");
-  assert.doesNotMatch(JSON.stringify(manifest.icons), /maskable/);
+  assert.ok(
+    manifest.icons?.some(
+      (icon) => icon.type === "image/png" && icon.sizes === "192x192" && icon.purpose === "any",
+    ),
+  );
+  assert.ok(
+    manifest.icons?.some(
+      (icon) => icon.type === "image/png" && icon.sizes === "512x512" && icon.purpose === "any",
+    ),
+  );
+  assert.ok(
+    manifest.icons?.some(
+      (icon) => icon.type === "image/png" && icon.sizes === "512x512" && icon.purpose === "maskable",
+    ),
+  );
 });
 
 test("iOS installation and notification settings are accessible", () => {

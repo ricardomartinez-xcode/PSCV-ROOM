@@ -386,60 +386,70 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
 
   if (state !== "active") {
     const isFailure = state === "error" || state === "server-unavailable";
+    const statusTitle = isFailure ? "La aplicación no puede iniciar" : "Preparando notificaciones";
+    const statusMessage = message || `Etapa actual: ${stage}`;
+
     return (
       <main
-        role={isFailure ? "alert" : "status"}
+        className="loginScreen authPage"
+        aria-busy={!isFailure}
         aria-live={isFailure ? "assertive" : "polite"}
-        style={{
-          minHeight: "100dvh",
-          display: "grid",
-          placeItems: "center",
-          padding: "24px",
-          background: "#f5f5f5",
-          color: "#111",
-          fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
-        }}
       >
-        <section style={{ width: "min(100%, 760px)", background: "#fff", border: "1px solid #d7d7d7", borderRadius: 16, padding: 24 }}>
-          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>
-            PSCV Room · Web Push
-          </p>
-          <h1 style={{ margin: "0 0 12px", fontSize: "clamp(24px, 5vw, 40px)", lineHeight: 1.05 }}>
-            {isFailure ? "La aplicación no puede iniciar" : "Preparando notificaciones"}
-          </h1>
-          <p style={{ margin: "0 0 20px", lineHeight: 1.5 }}>
-            {message || `Etapa actual: ${stage}`}
-          </p>
+        <section className="loginCard authCard authCardSimple authStatusCard" style={{ width: "min(100%, 760px)" }}>
+          <img src="/icon.svg" className="authLogoMain" alt="PSCV Room" />
+          <div>
+            <h1 className="authTitle">Verificando tu acceso institucional</h1>
+            <p style={{ margin: "12px 0 0" }}>
+              Estamos comprobando tu sesión segura antes de abrir PSCV Room.
+            </p>
+          </div>
 
-          {state === "prompt" && (
-            <button type="button" onClick={() => void activate()} style={{ minHeight: 44, padding: "10px 16px", borderRadius: 10, border: "1px solid #111", background: "#111", color: "#fff", fontWeight: 700 }}>
-              Activar notificaciones y continuar
-            </button>
-          )}
+          <div
+            role={isFailure ? "alert" : "status"}
+            style={{
+              width: "100%",
+              padding: 18,
+              border: `1px solid ${isFailure ? "#f1aeb5" : "#cbd5e1"}`,
+              borderRadius: 14,
+              background: isFailure ? "#fff5f5" : "#f8fafc",
+              textAlign: "left",
+            }}
+          >
+            <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>
+              Estado de notificaciones
+            </p>
+            <h2 style={{ margin: "0 0 8px", fontSize: 20, lineHeight: 1.2 }}>{statusTitle}</h2>
+            <p style={{ margin: 0, lineHeight: 1.5 }}>{statusMessage}</p>
 
-          {(state === "install-required" || state === "denied" || state === "unsupported") && (
-            <div style={{ padding: 16, border: "1px solid #d7d7d7", borderRadius: 12, background: "#fafafa" }}>
-              <strong>Acción requerida</strong>
-              <p style={{ margin: "8px 0 0", lineHeight: 1.5 }}>{message}</p>
-            </div>
-          )}
-
-          {diagnostic && (
-            <details open style={{ marginTop: 20 }}>
-              <summary style={{ cursor: "pointer", fontWeight: 700 }}>Diagnóstico técnico</summary>
-              <dl style={{ display: "grid", gridTemplateColumns: "minmax(120px, 180px) 1fr", gap: "8px 16px", marginTop: 16, overflowWrap: "anywhere" }}>
-                <dt>Etapa</dt><dd style={{ margin: 0 }}><code>{diagnostic.stage}</code></dd>
-                <dt>Error</dt><dd style={{ margin: 0 }}><code>{diagnostic.name}</code></dd>
-                <dt>Mensaje</dt><dd style={{ margin: 0 }}>{diagnostic.message}</dd>
-                <dt>Worker</dt><dd style={{ margin: 0 }}><code>{diagnostic.workerVersion ?? "desconocida"}</code></dd>
-                <dt>Navegador</dt><dd style={{ margin: 0 }}><code>{diagnostic.browser}</code></dd>
-              </dl>
-              {diagnostic.stack && <pre style={{ marginTop: 16, padding: 16, overflow: "auto", whiteSpace: "pre-wrap", background: "#111", color: "#fff", borderRadius: 12, fontSize: 12 }}>{diagnostic.stack}</pre>}
-              <button type="button" onClick={() => { setDiagnostic(null); setMessage(""); setState("loading"); setRetryToken((value) => value + 1); }} style={{ minHeight: 44, marginTop: 16, padding: "10px 16px", borderRadius: 10, border: "1px solid #111", background: "#fff", color: "#111", fontWeight: 700 }}>
-                Reintentar inicialización
+            {state === "prompt" && (
+              <button className="microsoftButton" type="button" onClick={() => void activate()} style={{ marginTop: 16 }}>
+                Activar notificaciones y continuar
               </button>
-            </details>
-          )}
+            )}
+
+            {(state === "install-required" || state === "denied" || state === "unsupported") && (
+              <p style={{ margin: "14px 0 0", fontWeight: 700 }}>Acción requerida para continuar.</p>
+            )}
+
+            {diagnostic && (
+              <details open style={{ marginTop: 18 }}>
+                <summary style={{ cursor: "pointer", fontWeight: 700 }}>Diagnóstico técnico</summary>
+                <dl style={{ display: "grid", gridTemplateColumns: "minmax(110px, 160px) 1fr", gap: "8px 16px", marginTop: 14, overflowWrap: "anywhere" }}>
+                  <dt>Etapa</dt><dd style={{ margin: 0 }}><code>{diagnostic.stage}</code></dd>
+                  <dt>Error</dt><dd style={{ margin: 0 }}><code>{diagnostic.name}</code></dd>
+                  <dt>Mensaje</dt><dd style={{ margin: 0 }}>{diagnostic.message}</dd>
+                  <dt>Worker</dt><dd style={{ margin: 0 }}><code>{diagnostic.workerVersion ?? "desconocida"}</code></dd>
+                  <dt>Navegador</dt><dd style={{ margin: 0 }}><code>{diagnostic.browser}</code></dd>
+                </dl>
+                {diagnostic.stack && <pre style={{ marginTop: 16, padding: 16, overflow: "auto", whiteSpace: "pre-wrap", background: "#111", color: "#fff", borderRadius: 12, fontSize: 12 }}>{diagnostic.stack}</pre>}
+                <button className="authSecondaryButton" type="button" onClick={() => { setDiagnostic(null); setMessage(""); setState("loading"); setRetryToken((value) => value + 1); }} style={{ marginTop: 16, paddingInline: 16 }}>
+                  Reintentar inicialización
+                </button>
+              </details>
+            )}
+          </div>
+
+          {!isFailure && state !== "prompt" && <div className="loader" aria-hidden="true" />}
         </section>
       </main>
     );

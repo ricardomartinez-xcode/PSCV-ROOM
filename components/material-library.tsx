@@ -55,7 +55,7 @@ type SectionGroup = {
 };
 
 const ALL_SECTIONS = "all";
-const SECTION_PREVIEW_LIMIT = 6;
+const SECTION_PREVIEW_LIMIT = 4;
 const hasD1Config = hasD1BrowserConfig();
 
 export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibraryProps) {

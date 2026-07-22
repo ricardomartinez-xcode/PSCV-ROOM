@@ -8,7 +8,7 @@ const styles = readFileSync(new URL("../app/material-library.css", import.meta.u
 test("library groups the all-areas screen by academic section", () => {
   assert.match(source, /const shouldGroup = sectionId === ALL_SECTIONS && !query\.trim\(\) && sectionGroups\.length > 1;/);
   assert.match(source, /librarySectionGroup/);
-  assert.match(source, /SECTION_PREVIEW_LIMIT = 6/);
+  assert.match(source, /SECTION_PREVIEW_LIMIT = 4/);
   assert.match(source, /Ver todos/);
 });
 
@@ -22,4 +22,6 @@ test("library UI has responsive grouped-section styling", () => {
   assert.match(styles, /\.librarySectionGroup/);
   assert.match(styles, /\.librarySectionHeading/);
   assert.match(styles, /\.materialGrid\.compact/);
+  assert.match(styles, /overflow-x:\s*clip/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });

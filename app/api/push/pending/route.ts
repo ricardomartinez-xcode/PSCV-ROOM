@@ -14,6 +14,8 @@ type NotificationRow = {
   title: string;
   body: string;
   action_url: string | null;
+  media_url: string | null;
+  media_type: string | null;
 };
 
 export async function POST(request: Request) {
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
     }
 
     const notification = await env.DB.prepare(
-      `SELECT id, kind, priority, title, body, action_url
+      `SELECT id, kind, priority, title, body, action_url, media_url, media_type
          FROM notifications
         WHERE id = ?
           AND dismissed_at IS NULL

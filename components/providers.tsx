@@ -86,7 +86,8 @@ async function showSystemNotification(notification: AppNotification) {
   const actionPath = safeClientActionPath(notification.action_url ?? notificationActionUrl(notification.id));
   const options: NotificationOptions = {
     body: notification.body || "Tienes un aviso nuevo en PSCV Room.",
-    icon: "/icon.svg",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
     tag: `pscv-${notification.id}`,
     data: { url: actionPath, notificationId: notification.id },
   };

@@ -487,3 +487,7 @@
     padding-bottom: calc(14px + env(safe-area-inset-bottom));
   }
 }
+
+.notificationMedia { width: 100%; max-height: 360px; object-fit: contain; border-radius: 14px; margin-top: 14px; background: #f1f5f9; }
+.notificationMediaAudio { width: 100%; margin-top: 14px; }
+.notificationMediaLink { display: inline-flex; margin-top: 14px; font-weight: 700; text-decoration: underline; }

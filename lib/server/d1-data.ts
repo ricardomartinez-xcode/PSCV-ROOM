@@ -120,7 +120,7 @@ const tableConfigs: Record<string, TableConfig> = {
   },
   notifications: {
     id: true,
-    columns: ["id", "profile_id", "kind", "priority", "title", "body", "entity", "entity_id", "action_url", "scheduled_for", "read_at", "dismissed_at", "created_by", "created_at"],
+    columns: ["id", "profile_id", "kind", "priority", "title", "body", "media_url", "media_type", "entity", "entity_id", "action_url", "scheduled_for", "read_at", "dismissed_at", "created_by", "created_at"],
   },
   audit_log: {
     id: true,

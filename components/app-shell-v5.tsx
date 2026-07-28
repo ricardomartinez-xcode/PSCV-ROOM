@@ -176,6 +176,8 @@ type AppNotification = {
   priority: "low" | "normal" | "high";
   title: string;
   body: string;
+  media_url: string | null;
+  media_type: "image" | "video" | "audio" | "file" | null;
   entity: string | null;
   entity_id: string | null;
   action_url: string | null;
@@ -1111,6 +1113,10 @@ function NotificationDetailDialog({
         <div className="notificationDetailContent">
           <h2 id="notification-detail-title">{notification.title}</h2>
           <p id="notification-detail-body">{notification.body || "Este aviso no incluye información adicional."}</p>
+          {notification.media_url && notification.media_type === "image" ? <img className="notificationMedia" src={notification.media_url} alt="Archivo adjunto del aviso" /> : null}
+          {notification.media_url && notification.media_type === "video" ? <video className="notificationMedia" src={notification.media_url} controls playsInline /> : null}
+          {notification.media_url && notification.media_type === "audio" ? <audio className="notificationMediaAudio" src={notification.media_url} controls /> : null}
+          {notification.media_url && notification.media_type === "file" ? <a className="notificationMediaLink" href={notification.media_url} target="_blank" rel="noreferrer">Abrir archivo adjunto</a> : null}
         </div>
         <footer className="notificationDetailFooter">
           <div>

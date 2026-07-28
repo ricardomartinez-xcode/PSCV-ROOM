@@ -1,5 +1,6 @@
 const CACHE_VERSION = "pscv-push-v4";
-const APP_ICON_URL = "/icon.svg";
+const APP_ICON_URL = "/icons/icon-192.png";
+const APP_BADGE_URL = "/icons/icon-192.png";
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -74,6 +75,8 @@ self.addEventListener("push", (event) => {
     await self.registration.showNotification(title, {
       body,
       icon: APP_ICON_URL,
+      badge: APP_BADGE_URL,
+      image: typeof notification?.media_url === "string" && notification.media_type === "image" ? safeAppUrl(notification.media_url) : undefined,
       tag,
       renotify: false,
       data: { url, notificationId: rawId || null },

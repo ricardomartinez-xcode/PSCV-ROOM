@@ -18,7 +18,7 @@ export async function GET(request: Request) {
     const now = new Date().toISOString();
     const [notifications, preferences] = await Promise.all([
       d1All<Record<string, unknown>>(
-        `SELECT id, kind, priority, title, body, entity, entity_id, action_url, scheduled_for, read_at, dismissed_at, created_at
+        `SELECT id, kind, priority, title, body, media_url, media_type, entity, entity_id, action_url, scheduled_for, read_at, dismissed_at, created_at
          FROM notifications
          WHERE (profile_id = ? OR profile_id IS NULL)
            AND dismissed_at IS NULL

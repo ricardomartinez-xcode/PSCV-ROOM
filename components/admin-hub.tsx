@@ -403,6 +403,8 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
   const [audience, setAudience] = useState("all");
   const [priority, setPriority] = useState("normal");
   const [kind, setKind] = useState("system");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaType, setMediaType] = useState("image");
   const [busy, setBusy] = useState(false);
   const [recent, setRecent] = useState<AdminNotification[]>([]);
   const [result, setResult] = useState<string | null>(null);
@@ -433,13 +435,14 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, body, audience, priority, kind }),
+        body: JSON.stringify({ title, body, audience, priority, kind, media_url: mediaUrl.trim() || null, media_type: mediaUrl.trim() ? mediaType : null }),
       });
       const payload = await response.json() as { inserted?: number; systemDeliveryQueued?: boolean; email?: EmailDispatchResult; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "No se pudo enviar el aviso.");
       setResult(notificationResultLabel(payload.inserted ?? 0, Boolean(payload.systemDeliveryQueued), payload.email));
       setTitle("");
       setBody("");
+      setMediaUrl("");
       await loadRecent();
       window.dispatchEvent(new CustomEvent("pscv:notifications-changed"));
     } catch (error) {
@@ -485,6 +488,8 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
       <form className="adminNoticeForm" onSubmit={sendNotification}>
         <label className="wide">Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Aviso para el grupo" required /></label>
         <label className="wide">Mensaje<textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Detalle opcional" /></label>
+        <label className="wide">Archivo multimedia (URL)<input type="url" value={mediaUrl} onChange={(event) => setMediaUrl(event.target.value)} placeholder="https://... imagen, video, audio o archivo" /></label>
+        <label>Tipo de archivo<select value={mediaType} onChange={(event) => setMediaType(event.target.value)} disabled={!mediaUrl.trim()}><option value="image">Imagen</option><option value="video">Video</option><option value="audio">Audio</option><option value="file">Archivo</option></select></label>
         <label>Audiencia<select value={audience} onChange={(event) => setAudience(event.target.value)}><option value="all">Todos</option><option value="students">Alumnos</option><option value="admins">Administradores</option></select></label>
         <label>Tipo<select value={kind} onChange={(event) => setKind(event.target.value)}><option value="system">Sistema</option><option value="reminder">Recordatorio</option><option value="material_added">Material</option><option value="task_updated">Tarea</option></select></label>
         <label>Prioridad<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Baja</option><option value="normal">Normal</option><option value="high">Alta</option></select></label>

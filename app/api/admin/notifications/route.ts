@@ -13,6 +13,8 @@ const notificationSchema = z.object({
   kind: z.enum(["system", "reminder", "material_added", "task_updated"]).default("system"),
   priority: z.enum(["low", "normal", "high"]).default("normal"),
   audience: z.enum(["all", "students", "admins"]).default("all"),
+  media_url: z.string().url().max(2048).nullable().optional(),
+  media_type: z.enum(["image", "video", "audio", "file"]).nullable().optional(),
 });
 
 type ProfileTarget = {
@@ -24,7 +26,7 @@ export async function GET(request: Request) {
   try {
     await requirePermission(request, "notifications:manage");
     const data = await d1All<AdminNotificationRow>(
-      `SELECT id, profile_id, kind, priority, title, body, entity, entity_id, read_at, dismissed_at, created_at
+      `SELECT id, profile_id, kind, priority, title, body, media_url, media_type, entity, entity_id, read_at, dismissed_at, created_at
        FROM notifications
        ORDER BY created_at DESC
        LIMIT 500`,
@@ -63,9 +65,9 @@ export async function POST(request: Request) {
 
     for (const row of rows) {
       await d1Run(
-        `INSERT INTO notifications (id, profile_id, kind, priority, title, body, entity, entity_id, action_url, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'broadcast', ?, ?, ?)`,
-        [row.id, row.profile_id, row.kind, row.priority, row.title, row.body, body.audience, row.action_url, profile.id],
+        `INSERT INTO notifications (id, profile_id, kind, priority, title, body, media_url, media_type, entity, entity_id, action_url, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'broadcast', ?, ?, ?)`,
+        [row.id, row.profile_id, row.kind, row.priority, row.title, row.body, body.media_url ?? null, body.media_type ?? null, body.audience, row.action_url, profile.id],
       );
     }
 

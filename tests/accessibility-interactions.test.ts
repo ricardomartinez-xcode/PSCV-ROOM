@@ -19,3 +19,9 @@ test("notification refresh announces a concise status instead of the interactive
   assert.doesNotMatch(shell, /className="notificationList" aria-live/);
   assert.match(accessibility, /\.srOnly/);
 });
+
+test("task creation focus initializes once and does not reset while typing", () => {
+  assert.match(shell, /useContainedDialogFocus\(open, dialogRef, onClose\)/);
+  assert.match(shell, /data-dialog-autofocus value=\{form\.title\}/);
+  assert.doesNotMatch(shell, /\}, \[onClose, open\]\);/);
+});

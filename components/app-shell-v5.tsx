@@ -793,7 +793,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
-        {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} profile={profile} onError={setError} /> : null}
+        {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onError={setError} /> : null}
         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
         {tab === "taskDetail" ? <TaskDetailScreen task={selectedTask} canEdit={capabilities.canEditTasks} courses={courses} taskTypes={taskTypes} onBack={() => go(detailOrigin)} onDone={(id) => void markDone(id)} onSave={(id, form) => updateTaskFromDetail(id, form)} /> : null}
         {tab === "admin" ? (
@@ -1454,7 +1454,7 @@ function ActivityKindFields({ form, courses, taskTypes, onChange }: { form: Task
         <button type="button" aria-pressed={form.itemKind === "task"} className={form.itemKind === "task" ? "active" : ""} onClick={() => selectKind("task")}><ListTodo size={18} />Tarea</button>
         <button type="button" aria-pressed={form.itemKind === "event"} className={form.itemKind === "event" ? "active event" : "event"} onClick={() => selectKind("event")}><CalendarDays size={18} />Evento</button>
       </div>
-      <label className="wide">Título<input value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
+      <label className="wide">Título<input data-dialog-autofocus value={form.title} onChange={(event) => onChange("title", event.target.value)} required /></label>
       <label>Materia<select value={form.courseId} onChange={(event) => onChange("courseId", event.target.value)}>{courses.length ? courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>) : <option value="">Sin materias</option>}</select></label>
       <label>Tipo<select value={visibleTypes.some((type) => type.id === form.typeId) ? form.typeId : (visibleTypes[0]?.id ?? "")} onChange={(event) => selectType(event.target.value)}>{visibleTypes.length ? visibleTypes.map((type) => <option key={type.id} value={type.id}>{type.name}</option>) : <option value="">{form.itemKind === "event" ? "Evento" : "Tarea"}</option>}</select></label>
       {form.itemKind === "event" ? (
@@ -1608,33 +1608,7 @@ function TaskCreateModal({
 }) {
   const dialogRef = useRef<HTMLElement | null>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    const releaseBodyScrollLock = lockBodyScroll();
-    window.requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input:not([type="checkbox"]):not([disabled])')?.focus());
-    function handleDialogKeyboard(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-      if (event.key !== "Tab") return;
-      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-      if (!focusable?.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-    window.addEventListener("keydown", handleDialogKeyboard);
-    return () => {
-      releaseBodyScrollLock();
-      window.removeEventListener("keydown", handleDialogKeyboard);
-    };
-  }, [onClose, open]);
+  useContainedDialogFocus(open, dialogRef, onClose);
 
   if (!open) return null;
 
@@ -1676,7 +1650,11 @@ function TaskCreateModal({
   );
 }
 
-function Group({ members, d1Client, role, profile, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: Role; profile: Profile | null; onError: (error: string | null) => void }) {
+function Group({ members, d1Client, role, canManageMembers, profile, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: Role; canManageMembers: boolean; profile: Profile | null; onError: (error: string | null) => void }) {
+  const [memberRows, setMemberRows] = useState<UiGroupMember[]>(members);
+  const [memberForm, setMemberForm] = useState({ id: "", fullName: "", email: "", controlNumber: "", active: true });
+  const [memberBusy, setMemberBusy] = useState(false);
+  const [memberMessage, setMemberMessage] = useState<string | null>(null);
   const [columns, setColumns] = useState<BooleanGroupColumn[]>(fixedBooleanColumns);
   const [values, setValues] = useState<GroupValueStore>({});
   const [newColumnLabel, setNewColumnLabel] = useState("");
@@ -1684,6 +1662,60 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
   const [editingLabel, setEditingLabel] = useState("");
   const [storageReady, setStorageReady] = useState(false);
   const [usingRemote, setUsingRemote] = useState(false);
+
+
+  useEffect(() => { setMemberRows(members); }, [members]);
+
+  function resetMemberForm() {
+    setMemberForm({ id: "", fullName: "", email: "", controlNumber: "", active: true });
+  }
+
+  function editMember(member: UiGroupMember) {
+    setMemberForm({ id: member.profileId ?? "", fullName: member.fullName, email: member.email, controlNumber: member.controlNumber, active: true });
+    setMemberMessage(null);
+  }
+
+  async function saveMember(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canManageMembers || memberBusy) return;
+    setMemberBusy(true);
+    setMemberMessage(null);
+    try {
+      const editing = Boolean(memberForm.id);
+      const response = await fetch("/api/admin/students", {
+        method: editing ? "PATCH" : "POST", credentials: "include",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ ...(editing ? { id: memberForm.id } : {}), fullName: memberForm.fullName, email: memberForm.email, controlNumber: memberForm.controlNumber, active: memberForm.active }),
+      });
+      const payload = await response.json() as { student?: Record<string, unknown>; message?: string; error?: string };
+      if (!response.ok || !payload.student) throw new Error(payload.error ?? "No se pudo guardar el alumno.");
+      const saved = toGroupMember(payload.student);
+      setMemberRows((current) => {
+        const next = current.some((member) => member.profileId === saved.profileId)
+          ? current.map((member) => member.profileId === saved.profileId ? { ...member, ...saved } : member)
+          : [...current, saved];
+        return next.sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+      });
+      setMemberMessage(payload.message ?? (editing ? "Alumno actualizado." : "Alumno agregado."));
+      resetMemberForm();
+    } catch (error) { onError(error instanceof Error ? error.message : "No se pudo guardar el alumno."); }
+    finally { setMemberBusy(false); }
+  }
+
+  async function removeMember(member: UiGroupMember) {
+    if (!canManageMembers || !member.profileId || memberBusy) return;
+    if (!window.confirm(`Eliminar a ${member.fullName} de la lista de grupo?`)) return;
+    setMemberBusy(true);
+    try {
+      const response = await fetch("/api/admin/students", { method: "DELETE", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ id: member.profileId }) });
+      const payload = await response.json() as { message?: string; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo eliminar el alumno.");
+      setMemberRows((current) => current.filter((row) => row.profileId !== member.profileId));
+      if (memberForm.id === member.profileId) resetMemberForm();
+      setMemberMessage(payload.message ?? "Alumno eliminado.");
+    } catch (error) { onError(error instanceof Error ? error.message : "No se pudo eliminar el alumno."); }
+    finally { setMemberBusy(false); }
+  }
 
   const loadGroupConfig = useCallback(async () => {
     if (d1Client && role === "admin") {
@@ -1869,13 +1901,26 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
       <section className="groupToolbar">
         <div>
           <strong>Lista de grupo</strong>
-          <span>{members.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Sin sincronización remota"}</span>
+          <span>{memberRows.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Sin sincronización remota"}</span>
         </div>
         <label>
           <input value={newColumnLabel} onChange={(event) => setNewColumnLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void addColumn(); }} placeholder="Nuevo encabezado" />
           <button onClick={() => void addColumn()} type="button"><Plus size={16} />Columna</button>
         </label>
       </section>
+      {canManageMembers ? (
+        <form className="groupMemberForm" onSubmit={saveMember}>
+          <label>Nombre completo<input value={memberForm.fullName} onChange={(event) => setMemberForm((current) => ({ ...current, fullName: event.target.value }))} required /></label>
+          <label>Correo electrónico<input type="email" value={memberForm.email} onChange={(event) => setMemberForm((current) => ({ ...current, email: event.target.value }))} required /></label>
+          <label>Número de control<input value={memberForm.controlNumber} onChange={(event) => setMemberForm((current) => ({ ...current, controlNumber: event.target.value }))} /></label>
+          <label className="groupMemberActive"><input type="checkbox" checked={memberForm.active} onChange={(event) => setMemberForm((current) => ({ ...current, active: event.target.checked }))} /> Activo</label>
+          <div className="groupMemberActions">
+            {memberForm.id ? <button type="button" onClick={resetMemberForm} disabled={memberBusy}>Cancelar</button> : null}
+            <button className="primaryAction" type="submit" disabled={memberBusy || !memberForm.fullName.trim() || !memberForm.email.trim()}>{memberBusy ? "Guardando…" : memberForm.id ? "Guardar cambios" : "Agregar alumno"}</button>
+          </div>
+          {memberMessage ? <p className="groupMemberMessage" role="status">{memberMessage}</p> : null}
+        </form>
+      ) : null}
       <div className="tableWrap groupTableWrap">
         <table className="appTable memberTable">
           <thead>
@@ -1883,6 +1928,7 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
               <th>No. Control</th>
               <th>Correo electrónico</th>
               <th>Nombre completo</th>
+              {canManageMembers ? <th className="memberActionsHeader">Acciones</th> : null}
               {columns.map((column) => (
                 <th className="booleanHeader" key={column.id}>
                   <div className="groupColumnHeader">
@@ -1905,11 +1951,12 @@ function Group({ members, d1Client, role, profile, onError }: { members: UiGroup
             </tr>
           </thead>
           <tbody>
-            {members.map((member) => (
+            {memberRows.map((member) => (
               <tr key={member.controlNumber}>
                 <td>{member.controlNumber}</td>
                 <td>{member.email}</td>
                 <td>{member.fullName}</td>
+                {canManageMembers ? <td className="memberActionsCell"><button type="button" onClick={() => editMember(member)} aria-label={`Editar ${member.fullName}`}><Edit3 size={14} /></button><button type="button" onClick={() => void removeMember(member)} aria-label={`Eliminar ${member.fullName}`} disabled={memberBusy}><Trash2 size={14} /></button></td> : null}
                 {columns.map((column) => {
                   const checked = cellValue(member, column);
                   return (

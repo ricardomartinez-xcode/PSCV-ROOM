@@ -80,14 +80,24 @@ jobs:
         if: always()
         run: npx wrangler delete --name "$TEMP_WORKER_NAME" --force || true
 
-      - name: Publish latest report snapshot
+      - name: Publish latest migration summary
         if: always()
         shell: bash
         run: |
           test -f r2-migration-report.json || exit 0
-          content="$(base64 -w0 r2-migration-report.json)"
-          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json" --jq .sha 2>/dev/null || true)"
-          args=(-X PUT "repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json" -f message="chore: publish R2 migration report [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
+          jq ' {
+            mode,
+            startedAt,
+            finishedAt,
+            copied: (.copied | length),
+            reused: (.reused | length),
+            failures,
+            databaseVerification
+          }' r2-migration-report.json > r2-migration-summary.json
+          content="$(base64 -w0 r2-migration-summary.json)"
+          path="outputs/r2-migration-summary-latest.json"
+          current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${path}" --jq .sha 2>/dev/null || true)"
+          args=(-X PUT "repos/${GITHUB_REPOSITORY}/contents/${path}" -f message="chore: publish R2 migration summary [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
           if [ -n "$current_sha" ]; then args+=(-f sha="$current_sha"); fi
           gh api "${args[@]}" >/dev/null
 

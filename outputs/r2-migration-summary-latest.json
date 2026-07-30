@@ -1,0 +1,11 @@
+{
+  "mode": "execute",
+  "startedAt": "2026-07-30T04:00:09.441Z",
+  "finishedAt": "2026-07-30T04:00:14.515Z",
+  "copied": 0,
+  "reused": 0,
+  "failures": [
+    "Worker R2 respondió 404 para Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/2026/cronograma-o-carta-descriptiva_-formato_2022.docx"
+  ],
+  "databaseVerification": null
+}

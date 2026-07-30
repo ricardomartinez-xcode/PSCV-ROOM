@@ -60,9 +60,15 @@ jobs:
             }
           }
           EOF
-          output="$(npx wrangler deploy --config wrangler.r2-copy-temp.jsonc 2>&1 | tee /dev/stderr)"
-          url="$(printf '%s\n' "$output" | grep -Eo 'https://[^[zspace:]]+\.workers\.dev' | tail -1)"
-          test -n "$url"
+          npx wrangler deploy --config wrangler.r2-copy-temp.jsonc
+          subdomain="$(curl -fsS \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
+            | jq -r '.result.subdomain')"
+          test -n "$subdomain"
+          test "$subdomain" != "null"
+          url="https://${TEMP_WORKER_NAME}.${subdomain}.workers.dev"
           echo "::add-mask::$token"
           echo "COPY_WORKER_TOKEN=$token" >> "$GITHUB_ENV"
           echo "COPY_WORKER_URL=$url" >> "$GITHUB_ENV"
@@ -81,7 +87,7 @@ jobs:
           test -f r2-migration-report.json || exit 0
           content="$(base64 -w0 r2-migration-report.json)"
           current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json" --jq .sha 2>/dev/null || true)"
-          args=(-X PUT repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json -f message="chore: publish R2 migration report [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
+          args=(-X PUT "repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json" -f message="chore: publish R2 migration report [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
           if [ -n "$current_sha" ]; then args+=(-f sha="$current_sha"); fi
           gh api "${args[@]}" >/dev/null
 

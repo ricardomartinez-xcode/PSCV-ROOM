@@ -33,6 +33,18 @@ jobs:
         run: |
           test -n "$CLOUDFLARE_API_TOKEN"
           npx wrangler whoami >/dev/null
+      - name: Enable noninteractive R2 uploads
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/r2-migrate-approved.mjs")
+          source = path.read_text()
+          old = '"--file", sourceFile, "--remote"]);'
+          new = '"--file", sourceFile, "--remote", "--force"]);'
+          if old not in source:
+              raise SystemExit("R2 put call was not found")
+          path.write_text(source.replace(old, new, 1))
+          PY
       - name: Copy, verify and remap R2 materials
         run: node scripts/r2-migrate-approved.mjs
       - name: Publish latest report snapshot

@@ -1,9 +1,19 @@
 {
-  "mode": "dry-run",
-  "startedAt": "2026-07-30T03:12:20.573Z",
+  "mode": "execute",
+  "startedAt": "2026-07-30T03:14:59.275Z",
   "copied": [],
-  "reused": [],
-  "failures": [],
+  "reused": [
+    {
+      "id": "bb719b15-a3bf-40a9-b8bf-457274d85c59",
+      "source": "Alteraciones de la conducta/2026/48895628-f800-4be7-ac4d-7a4f24bb25a6-cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/2026/cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "sectionId": "section-sixth-conduct",
+      "sha256": "b0127556aa0f7752f6b284ce6838528a2e40e11777782cc9f95d9810f7723ed0"
+    }
+  ],
+  "failures": [
+    "Command failed: npx wrangler r2 object get psicologia/Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Actividades de exposición y trabajo final.pptx --file /tmp/pscv-r2-migration-lqlL4b/1-target.bin --remote\n\u001b[31m✘ \u001b[41;31m[\u001b[41;97mERROR\u001b[41;31m]\u001b[0m \u001b[1mThe specified key does not exist.\u001b[0m\n\n\n🪵  Logs were written to \"/home/runner/.config/.wrangler/logs/wrangler-2026-07-30_03-15-13_100.log\"\n"
+  ],
   "moves": [
     {
       "id": "bb719b15-a3bf-40a9-b8bf-457274d85c59",
@@ -923,5 +933,6 @@
       "target": "Materiales de clase/Sexto cuatrimestre/Psicología del Aprendizaje/Libro-La educacion encierra un tesoro.pdf",
       "sectionId": "section-sixth-learning"
     }
-  ]
+  ],
+  "finishedAt": "2026-07-30T03:15:13.540Z"
 }

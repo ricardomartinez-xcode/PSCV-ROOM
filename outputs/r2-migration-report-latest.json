@@ -1,0 +1,927 @@
+{
+  "mode": "dry-run",
+  "startedAt": "2026-07-30T03:12:20.573Z",
+  "copied": [],
+  "reused": [],
+  "failures": [],
+  "moves": [
+    {
+      "id": "bb719b15-a3bf-40a9-b8bf-457274d85c59",
+      "source": "Alteraciones de la conducta/2026/48895628-f800-4be7-ac4d-7a4f24bb25a6-cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/2026/cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "sectionId": "section-sixth-conduct"
+    },
+    {
+      "id": "0ffdafda-3f1f-44f0-b260-0229aecef4ab",
+      "source": "Alteraciones de la conducta/Actividades de exposición y trabajo final.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Actividades de exposición y trabajo final.pptx",
+      "sectionId": "section-sixth-conduct"
+    },
+    {
+      "id": "fa485031-f233-4aa2-aaa3-12dcae95d1d7",
+      "source": "Alteraciones de la conducta/HISTORIA CLÍNICA.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/HISTORIA CLÍNICA.pptx",
+      "sectionId": "section-sixth-conduct"
+    },
+    {
+      "id": "53cf9949-ae3b-49f6-8b67-d2d42a1ee38c",
+      "source": "Alteraciones de la conducta/Proyecto Final.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Proyecto Final.pptx",
+      "sectionId": "section-sixth-conduct"
+    },
+    {
+      "id": "df6fffc9-a0ee-44d1-860f-59639de059ba",
+      "source": "Compendio de Psicología/Articulos de Investigación /365778944-Protocolo-WAIS-IV-1.pdf",
+      "target": "Recursos Generales/Psicometría/365778944-Protocolo-WAIS-IV-1.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "b035fd60-f085-4df4-a213-1fb3a8470775",
+      "source": "Compendio de Psicología/Articulos de Investigación /Effects Of Working Memory Training.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Effects Of Working Memory Training.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "9b6dd71d-f096-4e7d-9ce2-c031d22b7234",
+      "source": "Compendio de Psicología/Articulos de Investigación /Is Working Memory Training Effective A meta analytic review.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Is Working Memory Training Effective A meta analytic review.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "1c1775c8-59f9-4ac5-960f-fd9473c1650e",
+      "source": "Compendio de Psicología/Articulos de Investigación /MANUAL DE APLICACION WAIS IV.pdf",
+      "target": "Recursos Generales/Psicometría/MANUAL DE APLICACION WAIS IV.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "6ee76204-a445-42e8-b7a2-c11602860b79",
+      "source": "Compendio de Psicología/Articulos de Investigación /Memoria de trabajo y Envejecimiento.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Memoria de trabajo y Envejecimiento.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "3647f0d8-99ce-41e8-9001-9bae69155cec",
+      "source": "Compendio de Psicología/Articulos de Investigación /Metodología de la Investigación Sampieri.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Metodología de la Investigación Sampieri.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "15ade0b6-7ca5-4f29-91fc-c989644c6f33",
+      "source": "Compendio de Psicología/Articulos de Investigación /Resumen-APA-7-ed-2019-11-6.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Resumen-APA-7-ed-2019-11-6.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "56b8803b-fedb-4cf6-a4b4-eefd1c330c08",
+      "source": "Compendio de Psicología/Articulos de Investigación /The Benefits of Working Memory Training.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/The Benefits of Working Memory Training.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "6725a817-6fef-431d-84d4-a174d54940e6",
+      "source": "Compendio de Psicología/Articulos de Investigación /The Social Isolation triggered by covid-19.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/The Social Isolation triggered by covid-19.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "d4effd59-5a9d-4dda-a3ef-1b663cedba8d",
+      "source": "Compendio de Psicología/Articulos de Investigación /Tipo de memoria, aptitudes y estrategias en el proceso de memorización de estudiantes de piano.pdf",
+      "target": "Recursos Generales/Investigación y Metodología/Artículos de investigación/Tipo de memoria, aptitudes y estrategias en el proceso de memorización de estudiantes de piano.pdf",
+      "sectionId": "section-resources-research"
+    },
+    {
+      "id": "23379831-458f-4b39-8801-3a101bcbbafe",
+      "source": "Compendio de Psicología/Criminología/50 Asesinos Seriales.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/50 Asesinos Seriales.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "c91e2640-c390-4ac2-aa45-b491f7b4d1de",
+      "source": "Compendio de Psicología/Criminología/Analisis Criminologico de Los Asesinos en Serie - Alberto Pintado Alcazar.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Analisis Criminologico de Los Asesinos en Serie - Alberto Pintado Alcazar.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "dfd5fca9-d859-4429-be21-81838b16e6ea",
+      "source": "Compendio de Psicología/Criminología/Aportaciones a la psicología jurídica y forense desde Iberoamérica.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Aportaciones a la psicología jurídica y forense desde Iberoamérica.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "ad957c07-fae8-4ed4-b420-c321b6560b1f",
+      "source": "Compendio de Psicología/Criminología/Articulo Introduccion perfilacion criminal.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Articulo Introduccion perfilacion criminal.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "a739e110-131a-4dcb-8302-584ab185fc86",
+      "source": "Compendio de Psicología/Criminología/Asesinos_seriales_ETIOLOGIA_DE_SUS_CRIME.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Asesinos_seriales_ETIOLOGIA_DE_SUS_CRIME.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "f0a284f5-3ed9-490a-baeb-ca6e060080a4",
+      "source": "Compendio de Psicología/Criminología/Boletín Criminológico PERFIL DE UN VIOLADOR EN SERIE.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Boletín Criminológico PERFIL DE UN VIOLADOR EN SERIE.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "b6bffb6b-e045-4d34-a2c0-69d44d4389c5",
+      "source": "Compendio de Psicología/Criminología/Casos prácticos en psicología forense 2.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Casos prácticos en psicología forense 2.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "77899a40-10ee-46a2-a806-b09bd51867e6",
+      "source": "Compendio de Psicología/Criminología/El perfil criminal del falsificador de obras de arte.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/El perfil criminal del falsificador de obras de arte.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "0319297f-55af-4220-8dbf-534f33631a14",
+      "source": "Compendio de Psicología/Criminología/Emailing Perfil criminal _ Diapositivas. -FB.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Emailing Perfil criminal _ Diapositivas. -FB.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "6a38a449-393e-477f-b924-a1576b6cd3bd",
+      "source": "Compendio de Psicología/Criminología/Enciclopedia-de-asesinos-seriales-Biografia.pdfEMdD.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Enciclopedia-de-asesinos-seriales-Biografia.pdfEMdD.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "c898602b-feb8-4098-bf41-6956913ccae0",
+      "source": "Compendio de Psicología/Criminología/La perfilacion criminal Tipologias.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/La perfilacion criminal Tipologias.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "e2d454b7-123a-4554-acfb-30e716ba1fc2",
+      "source": "Compendio de Psicología/Criminología/Libro Perfilacion Alfredo Velasco.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Libro Perfilacion Alfredo Velasco.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "e6af0ea1-cff5-4b15-aea6-877409a2deaa",
+      "source": "Compendio de Psicología/Criminología/Manual de Psicologia Juridica - Emilio Mira y Lopez.pdf",
+      "target": "Recursos Generales/Psicometría/Criminología/Manual de Psicologia Juridica - Emilio Mira y Lopez.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "16d797d7-e396-4bec-b1c7-6cf4da617498",
+      "source": "Compendio de Psicología/Criminología/PERFIL DEL ASESINO SERIAL COLOMBIANO.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/PERFIL DEL ASESINO SERIAL COLOMBIANO.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "cf03af60-26bf-4950-844f-b3900d515c2d",
+      "source": "Compendio de Psicología/Criminología/PERFILES CRIMINALES EN LA FISCALÍA DEL.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/PERFILES CRIMINALES EN LA FISCALÍA DEL.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "8c6e291e-75ff-4b41-a9d7-4b764537f9b5",
+      "source": "Compendio de Psicología/Criminología/Perfil psicológico de __víctimas de violencia de __género, credibilidad y __sentencias.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Perfil psicológico de __víctimas de violencia de __género, credibilidad y __sentencias.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "da79d74c-b28c-4e7e-ba4e-80d0d910e06b",
+      "source": "Compendio de Psicología/Criminología/Perfilacion Criminal, En la mente del Asesino - Jorge Jimenez Serrano.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Perfilacion Criminal, En la mente del Asesino - Jorge Jimenez Serrano.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "7b761b0f-852e-4478-82c7-3c4b01e10e54",
+      "source": "Compendio de Psicología/Criminología/Perfilacion Criminal_ Manual Fo - Instituto Europeo de Ciencias F.pdf",
+      "target": "Recursos Generales/Psicometría/Criminología/Perfilacion Criminal_ Manual Fo - Instituto Europeo de Ciencias F.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "8de7b1ec-66a6-4dc2-8b11-3479d3648b0c",
+      "source": "Compendio de Psicología/Criminología/Perfilacion_criminologica_una_revision_d.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Perfilacion_criminologica_una_revision_d.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "0088cd40-63dd-49cb-a998-55ba063f5b77",
+      "source": "Compendio de Psicología/Criminología/Perfiles Criminales - Vicente Garrido.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Perfiles Criminales - Vicente Garrido.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "f2cb45a9-475e-4d81-b565-8edc765790ec",
+      "source": "Compendio de Psicología/Criminología/Perfiles criminales.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Perfiles criminales.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "17f842f1-28f4-495a-b9ba-80d6d6b88a52",
+      "source": "Compendio de Psicología/Criminología/Profiler. Los secretos del análisis de conducta criminal - Castro.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Profiler. Los secretos del análisis de conducta criminal - Castro.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "ca9c3233-f3b5-4e34-9d1d-2a8e54c336d7",
+      "source": "Compendio de Psicología/Criminología/Psicologia Forense - Estudio de la mente criminal.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Psicologia Forense - Estudio de la mente criminal.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "d7fa2aa4-cee5-4f5b-abef-da23671e715a",
+      "source": "Compendio de Psicología/Criminología/Psicología forense. Manual de técnicas y aplicaciones.pdf",
+      "target": "Recursos Generales/Psicometría/Criminología/Psicología forense. Manual de técnicas y aplicaciones.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "8b6ff7cd-8297-4caf-93c5-42f9433cc324",
+      "source": "Compendio de Psicología/Criminología/Psicología para juristas.pdf",
+      "target": "Recursos Generales/Psicología Jurídica y Forense/Psicología para juristas.pdf",
+      "sectionId": "section-resources-legal"
+    },
+    {
+      "id": "b5bb26b5-1af9-4314-8df6-23ef551c6f8e",
+      "source": "Compendio de Psicología/Criminología/manual_practico_del_perfil_criminologico_-_jimenez_serrano__1_.pdf",
+      "target": "Recursos Generales/Psicometría/Criminología/manual_practico_del_perfil_criminologico_-_jimenez_serrano__1_.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "f5dcbe05-466d-4c04-9993-0d985c77e7f4",
+      "source": "Compendio de Psicología/Pscopatologías/2026/Freud-Amorrortu-3.pdf",
+      "target": "Recursos Generales/Psicopatología/2026/Freud-Amorrortu-3.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "f7c6f577-21ef-4de5-b92a-4d1e3ee8bf3e",
+      "source": "Compendio de Psicología/Pscopatologías/Aprendiendo de los psicopatas ( - Cesar Landaeta.pdf",
+      "target": "Recursos Generales/Psicopatología/Aprendiendo de los psicopatas ( - Cesar Landaeta.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "51131199-bacf-4d19-a3ba-3a32c65a12ac",
+      "source": "Compendio de Psicología/Pscopatologías/Cara a cara con el psicópata - Vicente Garrido Genovés.pdf",
+      "target": "Recursos Generales/Psicopatología/Cara a cara con el psicópata - Vicente Garrido Genovés.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "bac725b8-9cd2-4f3b-80cf-d95d1e99489a",
+      "source": "Compendio de Psicología/Pscopatologías/Desordenes Fronterizos y Narcisismo Patologico.pdf",
+      "target": "Recursos Generales/Psicopatología/Desordenes Fronterizos y Narcisismo Patologico.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "aa7e0598-ecf9-42dd-b130-04406a45f168",
+      "source": "Compendio de Psicología/Pscopatologías/El narcisismo.pdf",
+      "target": "Recursos Generales/Psicopatología/El narcisismo.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "2ae8d6cd-e46e-4319-b724-fe8fbe4666d8",
+      "source": "Compendio de Psicología/Pscopatologías/Guia Clinica para los trastornos de ansiedad en niños y adolescentes.pdf",
+      "target": "Recursos Generales/Psicopatología/Guia Clinica para los trastornos de ansiedad en niños y adolescentes.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "ece8eb9a-f7ae-4ec6-bf88-a18ac860a235",
+      "source": "Compendio de Psicología/Pscopatologías/Hernandez Bayona Guillermo - Psicopatologia Basica.pdf",
+      "target": "Recursos Generales/Psicopatología/Hernandez Bayona Guillermo - Psicopatologia Basica.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "62f11053-29c0-4603-a8b2-652f7d02ea3c",
+      "source": "Compendio de Psicología/Pscopatologías/Historia de la Psicopatologia y Fenomenologia Existencial-1.pdf",
+      "target": "Recursos Generales/Psicopatología/Historia de la Psicopatologia y Fenomenologia Existencial-1.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "42f7b351-c90b-465c-8a3a-22a2e4d3a534",
+      "source": "Compendio de Psicología/Pscopatologías/Historia de los sintomas de los trastornos mentales_booksmedicos.org.pdf",
+      "target": "Recursos Generales/Psicopatología/Historia de los sintomas de los trastornos mentales_booksmedicos.org.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "02d253fb-5242-4644-8869-8c29c7a8ec62",
+      "source": "Compendio de Psicología/Pscopatologías/Introduccion a la psicopatologia y la psiquiatria_booksmedicos.org.pdf",
+      "target": "Recursos Generales/Psicopatología/Introduccion a la psicopatologia y la psiquiatria_booksmedicos.org.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "4a4c32c2-d3ea-4a0b-a9b5-ab88309999d4",
+      "source": "Compendio de Psicología/Pscopatologías/Los 11 trastornos mentales más sorprendentes.pdf",
+      "target": "Recursos Generales/Psicopatología/Los 11 trastornos mentales más sorprendentes.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "5ebeb65e-473d-4fa6-8f9e-6af7ac41be0a",
+      "source": "Compendio de Psicología/Pscopatologías/PSICOPATOLOGÍA 1.pdf",
+      "target": "Recursos Generales/Psicopatología/PSICOPATOLOGÍA 1.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "87327704-9e71-47e2-bdfd-85c286a8d797",
+      "source": "Compendio de Psicología/Pscopatologías/Psicopatologia-Infantil-Basica-Teoria-y-Casos-Clinicos.pdf",
+      "target": "Recursos Generales/Psicopatología/Psicopatologia-Infantil-Basica-Teoria-y-Casos-Clinicos.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "7ef87ac7-b224-40e3-adc6-6634a54cab8f",
+      "source": "Compendio de Psicología/Pscopatologías/_Crees que estás loco_ Psicopatología Y Psicoterapia de la Psicosis -  A. Morrison _ Julia C. Renton _ Paul French _ Richard Bentall - copia.pdf",
+      "target": "Recursos Generales/Psicopatología/_Crees que estás loco_ Psicopatología Y Psicoterapia de la Psicosis -  A. Morrison _ Julia C. Renton _ Paul French _ Richard Bentall - copia.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "1f9088c7-3569-4e41-913c-22645acebcea",
+      "source": "Compendio de Psicología/Pscopatologías/_La sabiduria de los psicopatas - Kevin Dutton-1-1.pdf",
+      "target": "Recursos Generales/Psicopatología/_La sabiduria de los psicopatas - Kevin Dutton-1-1.pdf",
+      "sectionId": "section-resources-psychopathology"
+    },
+    {
+      "id": "cd1d74ec-e8d2-4c2a-a307-d79747ca38de",
+      "source": "Compendio de Psicología/Psicologia educativa/1_Fundamentos de la enseñanza-aprendizaje de matemáticas.pdf",
+      "target": "Recursos Generales/Psicología Educativa/1_Fundamentos de la enseñanza-aprendizaje de matemáticas.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "4ccebbb3-6b1e-4dbb-aa77-9e49175071e7",
+      "source": "Compendio de Psicología/Psicologia educativa/Articulo-Psicologia educacion INTRODUCCCION.pdf",
+      "target": "Recursos Generales/Psicología Educativa/Articulo-Psicologia educacion INTRODUCCCION.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "18fefc7c-52a6-4338-9902-c2344a8faffa",
+      "source": "Compendio de Psicología/Psicologia educativa/Manual para psicólogos educativos - Candido J. Inglés Saura.pdf",
+      "target": "Recursos Generales/Psicometría/Psicologia educativa/Manual para psicólogos educativos - Candido J. Inglés Saura.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "f8a9f207-fabe-4148-92f9-f51bea8e111d",
+      "source": "Compendio de Psicología/Psicologia educativa/Psicologia-Educativa.pdf",
+      "target": "Recursos Generales/Psicología Educativa/Psicologia-Educativa.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "33871a0f-834c-4d0a-8d11-51403084b44e",
+      "source": "Compendio de Psicología/Psicologia educativa/Psicologia_para_el_Docente.pdf",
+      "target": "Recursos Generales/Psicología Educativa/Psicologia_para_el_Docente.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "4993e521-b7bc-4a05-bd69-1d93f08a9a3b",
+      "source": "Compendio de Psicología/Psicologia educativa/Teorias_del_Aprendizaje.pdf",
+      "target": "Recursos Generales/Psicología Educativa/Teorias_del_Aprendizaje.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "01c0d7d7-fb0c-479d-aeb2-60977774548d",
+      "source": "Compendio de Psicología/Psicologia educativa/psicologia-de-la-educacion.pdf",
+      "target": "Recursos Generales/Psicología Educativa/psicologia-de-la-educacion.pdf",
+      "sectionId": "section-resources-educational"
+    },
+    {
+      "id": "28beaf76-75c8-42f5-ae3d-4100c82b0bff",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/3-Abuso sexual Infantil.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/3-Abuso sexual Infantil.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "4b3286b6-8093-44e6-b514-18c935805164",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/Abuso Sexual Menores.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/Abuso Sexual Menores.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "4f7c4701-72e9-47d1-9766-79024dd016c3",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/Abuso sexual Infantil-1.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/Abuso sexual Infantil-1.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "73180b81-21c3-48b5-8d5a-63851e572950",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/Atencion en abuso sexua linfantil.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/Atencion en abuso sexua linfantil.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "631d88c3-e412-4a45-a738-0d8e3ac2ada2",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/EVALUACION PSICOLOGICA EN ABUSO SEXUAL INFANTIL.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/EVALUACION PSICOLOGICA EN ABUSO SEXUAL INFANTIL.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "79d2aa4e-ddbe-4d50-ba13-4d0d3571352c",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/El cristal roto_ Sobreviviendo al abuso sexual en la infancia - Joseluis Canales.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/El cristal roto_ Sobreviviendo al abuso sexual en la infancia - Joseluis Canales.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "a200ba77-51f8-47f6-b122-ba0409a3f9d4",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/Manual abuso sexual.pdf",
+      "target": "Recursos Generales/Psicometría/Abuso Sexual/Manual abuso sexual.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "0cfa4c03-7345-4c61-9f79-9155475b0ccc",
+      "source": "Compendio de Psicología/Psicología Clínica/Abuso Sexual/los-juegos-de-la-deteccion-de-abuso-sexual.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Abuso Sexual/los-juegos-de-la-deteccion-de-abuso-sexual.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "944427e4-0bb0-431a-ae9e-c929977e7b66",
+      "source": "Compendio de Psicología/Psicología Clínica/CUESTIONARIO DE AFRONTAMIENTO DEL ESTRES (CAE)- BONIFACIO SANDIN Y PALOMA CHOROT.pdf",
+      "target": "Recursos Generales/Psicometría/CUESTIONARIO DE AFRONTAMIENTO DEL ESTRES (CAE)- BONIFACIO SANDIN Y PALOMA CHOROT.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "679eb4be-b753-4312-a6e6-735322b70473",
+      "source": "Compendio de Psicología/Psicología Clínica/Castanedo.SeisEnfoquesPsicoterapeuticos.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Castanedo.SeisEnfoquesPsicoterapeuticos.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "361e9dd8-dd56-457d-9714-0bc0d8e111ba",
+      "source": "Compendio de Psicología/Psicología Clínica/Claves psicobiologicas, diagnosticas y de intervencion en el autismo.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Claves psicobiologicas, diagnosticas y de intervencion en el autismo.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "d73adb1b-65c1-41e8-9736-f3f131343b57",
+      "source": "Compendio de Psicología/Psicología Clínica/DSM 5 Esp Completo.pdf",
+      "target": "Recursos Generales/Psicología Clínica/DSM 5 Esp Completo.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "f2bc831f-1838-47e2-9eda-bd76e1bcc966",
+      "source": "Compendio de Psicología/Psicología Clínica/DSM-5 Casos Clinicos.pdf",
+      "target": "Recursos Generales/Psicología Clínica/DSM-5 Casos Clinicos.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "3d182215-3c9d-4289-becb-5b7a74354d3e",
+      "source": "Compendio de Psicología/Psicología Clínica/Diccionario de fobias (Gálvez).pdf",
+      "target": "Recursos Generales/Psicología Clínica/Diccionario de fobias (Gálvez).pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "5888325f-6b15-492f-a1d1-9ea9a702b0f7",
+      "source": "Compendio de Psicología/Psicología Clínica/El cerebro del siglo XXI.pdf",
+      "target": "Recursos Generales/Psicología Clínica/El cerebro del siglo XXI.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "50d79db3-917b-4347-bbd6-cfbd59c6d32b",
+      "source": "Compendio de Psicología/Psicología Clínica/Formulación de casos y diseño de tratamientos Cognitivo-Conductuales.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Formulación de casos y diseño de tratamientos Cognitivo-Conductuales.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "fa316ea5-ec4c-419a-add3-990e7fb4a0ba",
+      "source": "Compendio de Psicología/Psicología Clínica/Guia clinica seguimiento del duelo.pdf · versión 1.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Guia clinica seguimiento del duelo.pdf · versión 1.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "ef6e3f84-f7c4-4396-b5c1-39a4f5af5ac0",
+      "source": "Compendio de Psicología/Psicología Clínica/Guia_clinica_para_la_evaluacion.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Guia_clinica_para_la_evaluacion.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "fd882623-54f0-4cf4-95a2-d6fc195d03b7",
+      "source": "Compendio de Psicología/Psicología Clínica/Introduccion_a_la_Psicologia_Clinica.pdf.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Introduccion_a_la_Psicologia_Clinica.pdf.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "d6fede41-8a71-4b15-b9da-dd5860a626e5",
+      "source": "Compendio de Psicología/Psicología Clínica/LIBRO-CASOS-CLINICOS.pdf",
+      "target": "Recursos Generales/Psicología Clínica/LIBRO-CASOS-CLINICOS.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "98ed77ad-91b8-4e01-8771-e14328737c24",
+      "source": "Compendio de Psicología/Psicología Clínica/LIBROPsicologiaClinica.pdf",
+      "target": "Recursos Generales/Psicología Clínica/LIBROPsicologiaClinica.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "dfb936cb-c7e0-4006-beab-12e8d03f9483",
+      "source": "Compendio de Psicología/Psicología Clínica/MODELO-DE-INFORME-CLINICO.pdf",
+      "target": "Recursos Generales/Psicología Clínica/MODELO-DE-INFORME-CLINICO.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "772ef5b2-615c-43ee-8b58-6dedeafd2b11",
+      "source": "Compendio de Psicología/Psicología Clínica/Manual de Técnicas de Intervención Cognitivo Conductuales. Ruiz, Díaz & Villalobos.pdf",
+      "target": "Recursos Generales/Psicometría/Manual de Técnicas de Intervención Cognitivo Conductuales. Ruiz, Díaz & Villalobos.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "f166f467-09cb-4737-8352-cfb5043f8d5b",
+      "source": "Compendio de Psicología/Psicología Clínica/Manual de psicoterapias_ Teoría y técnicas - Alberto Rodríguez Morejón.pdf",
+      "target": "Recursos Generales/Psicometría/Manual de psicoterapias_ Teoría y técnicas - Alberto Rodríguez Morejón.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "ec59ebb2-2919-4a46-b173-fbd0ed3861e2",
+      "source": "Compendio de Psicología/Psicología Clínica/Manual del Psicologo Clinico.pdf",
+      "target": "Recursos Generales/Psicometría/Manual del Psicologo Clinico.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "afd5fee6-b2e5-438a-881e-0117764c0b2f",
+      "source": "Compendio de Psicología/Psicología Clínica/Manual para elaborar informes psicologicos.pdf",
+      "target": "Recursos Generales/Psicometría/Manual para elaborar informes psicologicos.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "cd0a259b-55d0-4e5c-8c98-2448b5757e6c",
+      "source": "Compendio de Psicología/Psicología Clínica/Manual teorico, practico de psicoterapias cognitivas- Isabel Caro.pdf",
+      "target": "Recursos Generales/Psicometría/Manual teorico, practico de psicoterapias cognitivas- Isabel Caro.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "5065a220-9724-4622-bd60-9a9a85acb028",
+      "source": "Compendio de Psicología/Psicología Clínica/Modificación de conducta ebook- MartinG.-Pear-J.-.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Modificación de conducta ebook- MartinG.-Pear-J.-.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "7ae9b7b7-3118-4ebb-8411-8e1c0f5a8057",
+      "source": "Compendio de Psicología/Psicología Clínica/Olivares, J. - Tecnicas de modificacion de conducta.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Olivares, J. - Tecnicas de modificacion de conducta.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "6bcb8855-b6bb-4fad-8bbd-da5fc39b0bf5",
+      "source": "Compendio de Psicología/Psicología Clínica/Psicologia Fisiologica.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Psicologia Fisiologica.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "5142630b-ee5b-49a5-b05d-f3091e7cb163",
+      "source": "Compendio de Psicología/Psicología Clínica/Sanchez Escobedo, Pedro - Psicología Clinica.pdf",
+      "target": "Recursos Generales/Psicología Clínica/Sanchez Escobedo, Pedro - Psicología Clinica.pdf",
+      "sectionId": "section-resources-clinical"
+    },
+    {
+      "id": "9b827c62-01df-43bf-a029-f57b06d902d1",
+      "source": "Compendio de Psicología/Psicología Clínica/cuestionario de stai (cuestionario de ansiedad).doc",
+      "target": "Recursos Generales/Psicometría/cuestionario de stai (cuestionario de ansiedad).doc",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "f54fe841-59c5-43eb-9993-43140fab9317",
+      "source": "Compendio de Psicología/Psicología Clínica/manual psicologia clinica.pdf",
+      "target": "Recursos Generales/Psicometría/manual psicologia clinica.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "1ba04594-0cc6-4a35-a90a-7d4db12bab8d",
+      "source": "Compendio de Psicología/Psicología general/APA 7_0-.pdf",
+      "target": "Recursos Generales/Psicología General/APA 7_0-.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "9e045fc5-fbdd-477f-8bad-4b02b0de97ea",
+      "source": "Compendio de Psicología/Psicología general/Codigo ético del psicólogo.pdf",
+      "target": "Recursos Generales/Psicología General/Codigo ético del psicólogo.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "d3adb0c4-ed94-43b9-b738-6a35a98e01df",
+      "source": "Compendio de Psicología/Psicología general/Introduccion_A_La_Psicologia_Linda_David.pdf",
+      "target": "Recursos Generales/Psicología General/Introduccion_A_La_Psicologia_Linda_David.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "6cb2075b-0917-43c4-ba57-bec3e3cfbbea",
+      "source": "Compendio de Psicología/Psicología general/METODOLOGÍA DE LA INVESTIGACIÓN 5TA EDICIÓN.pdf",
+      "target": "Recursos Generales/Psicología General/METODOLOGÍA DE LA INVESTIGACIÓN 5TA EDICIÓN.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "06658395-f008-4278-8137-3bebd12fbc8d",
+      "source": "Compendio de Psicología/Psicología general/Paul Ekman- detectar mentiras.pdf",
+      "target": "Recursos Generales/Psicología General/Paul Ekman- detectar mentiras.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "a33309a9-9b4c-4700-8a59-b70a918485e1",
+      "source": "Compendio de Psicología/Psicología general/Procesos Psicológicos Básicos.pdf",
+      "target": "Recursos Generales/Psicología General/Procesos Psicológicos Básicos.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "1158fcff-f9b0-476b-861b-6202ac92594d",
+      "source": "Compendio de Psicología/Psicología general/Teorias de la Personalidad - Albert Bandura.pdf",
+      "target": "Recursos Generales/Psicología General/Teorias de la Personalidad - Albert Bandura.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "f0182c95-1fe3-4d33-97a9-f7b1dd99da0b",
+      "source": "Compendio de Psicología/Psicología general/Teorias-de-la-Personalidad.pdf",
+      "target": "Recursos Generales/Psicología General/Teorias-de-la-Personalidad.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "e883bb7a-ba8b-4d0c-86e9-6a26a8179852",
+      "source": "Compendio de Psicología/Psicología general/Teorias_de_la_Personalidad_-_Duane_P._an.pdf",
+      "target": "Recursos Generales/Psicología General/Teorias_de_la_Personalidad_-_Duane_P._an.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "473a602e-46a6-46a3-810a-bafeb481c66e",
+      "source": "Compendio de Psicología/Psicología general/Teorías de la Personalidad Mc GrawHill 8va.pdf",
+      "target": "Recursos Generales/Psicología General/Teorías de la Personalidad Mc GrawHill 8va.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "f18f8b9e-b633-4dbd-a541-a5239fa88ce6",
+      "source": "Compendio de Psicología/Psicología general/Teorías de la Personalidad N.S. Dicaprio.pdf",
+      "target": "Recursos Generales/Psicología General/Teorías de la Personalidad N.S. Dicaprio.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "39ce4da2-07ff-40ed-bbee-2af384a438ca",
+      "source": "Compendio de Psicología/Psicología general/teoricos de la personalidad george boeree.pdf",
+      "target": "Recursos Generales/Psicología General/teoricos de la personalidad george boeree.pdf",
+      "sectionId": "section-resources-general"
+    },
+    {
+      "id": "c51ceeda-4f12-4120-890f-e094310bdfab",
+      "source": "Compendio de Psicología/Psicología organizacional/700 Dinámicas de grupos.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/700 Dinámicas de grupos.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "d17502f9-022b-439a-a6ce-1267a951b971",
+      "source": "Compendio de Psicología/Psicología organizacional/Dialnet-RolDelPsicologoOrganizacionalEnLaGestionDeTalentoH-6741904.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Dialnet-RolDelPsicologoOrganizacionalEnLaGestionDeTalentoH-6741904.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "04a10058-4ddc-4705-a9d4-d347419d7c79",
+      "source": "Compendio de Psicología/Psicología organizacional/Estrella-Gestion-Capital-Humano.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Estrella-Gestion-Capital-Humano.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "a2cb0a08-1839-47ce-87fd-0d30b6a82163",
+      "source": "Compendio de Psicología/Psicología organizacional/Etica en las organizaciones.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Etica en las organizaciones.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "d638f81a-095b-46d7-9fcc-17d0f9941d01",
+      "source": "Compendio de Psicología/Psicología organizacional/Manejo de los recursos humanos.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Manejo de los recursos humanos.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "ea9d5195-456e-48b7-bb53-329557b3393b",
+      "source": "Compendio de Psicología/Psicología organizacional/ORGANIZACIONAL Clima y ambiente organizacional .pdf---PDFFFFF.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/ORGANIZACIONAL Clima y ambiente organizacional .pdf---PDFFFFF.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "7ad88d61-4a88-49d3-9994-a05f0de34c4d",
+      "source": "Compendio de Psicología/Psicología organizacional/Perfil de psico organizacional.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Perfil de psico organizacional.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "2864d4f4-ccb3-41ce-95b5-a9769aff9e5c",
+      "source": "Compendio de Psicología/Psicología organizacional/Psicología industrial organizacional, 6ta Edición - Michael G. Aamodt.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Psicología industrial organizacional, 6ta Edición - Michael G. Aamodt.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "75039dc2-faff-46a2-aa89-14b71e622006",
+      "source": "Compendio de Psicología/Psicología organizacional/Psicología organizacional - Fernando Zepeda Hernández.pdf",
+      "target": "Recursos Generales/Psicología Organizacional/Psicología organizacional - Fernando Zepeda Hernández.pdf",
+      "sectionId": "section-resources-organizational"
+    },
+    {
+      "id": "1bff2793-1947-4a32-93cc-29e537fbafa8",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Compendio de instrumentos de evaluación psicológica - Laura López.pdf",
+      "target": "Recursos Generales/Psicometría/Compendio de instrumentos de evaluación psicológica - Laura López.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "fbf00d50-9d0c-4ee5-970a-1baa0bf9d349",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Cuestionario de adaptación para adolescentes/Cuadernillo/CUADERNILLO_Compressed.pdf",
+      "target": "Recursos Generales/Psicometría/Cuestionario de adaptación para adolescentes/Cuadernillo/CUADERNILLO_Compressed.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "91432210-2fd0-4a87-bbce-ff101951bdbc",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Cuestionario de adaptación para adolescentes/Hoja de respuesta y Plantilla/Plantilla.pdf",
+      "target": "Recursos Generales/Psicometría/Cuestionario de adaptación para adolescentes/Hoja de respuesta y Plantilla/Plantilla.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "ea5973c4-14c1-45cd-b8cd-7e846738df64",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Cuestionario de adaptación para adolescentes/Hoja de respuesta y Plantilla/Plantillas-del-CAP-ADO-más-la-hoja-de-respuesta.pdf",
+      "target": "Recursos Generales/Psicometría/Cuestionario de adaptación para adolescentes/Hoja de respuesta y Plantilla/Plantillas-del-CAP-ADO-más-la-hoja-de-respuesta.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "9f42b359-655e-4569-a455-f2177e348989",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Cuestionario de adaptación para adolescentes/Manual/MANUAL_Compressed.pdf",
+      "target": "Recursos Generales/Psicometría/Cuestionario de adaptación para adolescentes/Manual/MANUAL_Compressed.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "282308c6-e205-4710-81e9-87528402f23f",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Cuestionario de procrastinación -EPA- adapato online -Martinez y Silva-México.pdf",
+      "target": "Recursos Generales/Psicometría/Cuestionario de procrastinación -EPA- adapato online -Martinez y Silva-México.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "9ffb9e49-83dd-4990-9e3f-84084812c0b9",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Escala de Ansiedad por Coronavirus Un Nuevo Instrumento para Medir Síntomas de Ansiedad Asociados al COVID-19.pdf",
+      "target": "Recursos Generales/Psicometría/Escala de Ansiedad por Coronavirus Un Nuevo Instrumento para Medir Síntomas de Ansiedad Asociados al COVID-19.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "4ad07529-b2ee-4e20-b9e2-bd4f49a5d55f",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Escala de autoetima de Rosenberg.pdf",
+      "target": "Recursos Generales/Psicometría/Escala de autoetima de Rosenberg.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "df5d1146-4739-4040-8294-e5b17945ffd9",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Escala de miedo al covid.19.pdf",
+      "target": "Recursos Generales/Psicometría/Escala de miedo al covid.19.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "eba90251-77de-4603-9e40-7a23897517cd",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Hamilton Rating Scale for Depression (Hamilton, 1960_ Escala de Hamilton para la Depresión)..PDF",
+      "target": "Recursos Generales/Psicometría/Hamilton Rating Scale for Depression (Hamilton, 1960_ Escala de Hamilton para la Depresión)..PDF",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "d79d08a9-678b-4b19-be5a-4d0d31dfda48",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/INSTRUMENTOS DE EVALUACION PSICOLÓGICA- Tiene varios completos.pdf",
+      "target": "Recursos Generales/Psicometría/INSTRUMENTOS DE EVALUACION PSICOLÓGICA- Tiene varios completos.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "8d60ee6b-c217-4cea-88f6-6880af566e36",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Instrumentos de Evaluacion Psicologica en psicología de la salud.pdf",
+      "target": "Recursos Generales/Psicometría/Instrumentos de Evaluacion Psicologica en psicología de la salud.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "872cebb5-7471-469e-a9b4-da1b7b7a2f75",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Perfil_de_Herrmann.pdf",
+      "target": "Recursos Generales/Psicometría/Perfil_de_Herrmann.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "450cd353-c393-4487-9e07-6b6e2a1f5841",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Pruebas Psicológicas. Una Introducción a la Práctica 2da. Edición Thomas P. Hogan.pdf",
+      "target": "Recursos Generales/Psicometría/Pruebas Psicológicas. Una Introducción a la Práctica 2da. Edición Thomas P. Hogan.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "70812aa0-cfb9-4d69-850f-87f5bd87570a",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/ROBERT GREGORY-Pruebas Psicológicas- Descripción de pruebas.pdf",
+      "target": "Recursos Generales/Psicometría/ROBERT GREGORY-Pruebas Psicológicas- Descripción de pruebas.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "b110e406-62a1-44b4-8a79-0f20bd22ef52",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/TEST La persona bajo la lluvia- Adapatacion y aplicacion.pdf",
+      "target": "Recursos Generales/Psicometría/TEST La persona bajo la lluvia- Adapatacion y aplicacion.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "8f4a2563-e8c1-42f3-982d-73533b78fc9b",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/TEST NACAD.pdf",
+      "target": "Recursos Generales/Psicometría/TEST NACAD.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "af97cdd0-ebf3-4005-9049-9c5fcd511eab",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Test Psicológicos y Evaluación - Lewis Aiken.pdf",
+      "target": "Recursos Generales/Psicometría/Test Psicológicos y Evaluación - Lewis Aiken.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "ef0f9dac-2188-47cd-80b6-e0d2c6db3092",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Test-de-estilos-de-aprendizaje-de-Felder-Felder-y-Silverman.pdf",
+      "target": "Recursos Generales/Psicometría/Test-de-estilos-de-aprendizaje-de-Felder-Felder-y-Silverman.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "562026df-9022-4737-826b-96250712cb88",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/Tests psicologicos y evaluacion.pdf",
+      "target": "Recursos Generales/Psicometría/Tests psicologicos y evaluacion.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "be21b407-d770-45bf-90f8-73cdaa3e42a0",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/catalogo pruebas psicologicas.pdf",
+      "target": "Recursos Generales/Psicometría/catalogo pruebas psicologicas.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "4cf30e70-4f92-425e-b4f3-9d69e7335305",
+      "source": "Compendio de Psicología/Test, cuestionarios, etc/test_de_prueba_de_estilos_de_pensamientos.pdf",
+      "target": "Recursos Generales/Psicometría/test_de_prueba_de_estilos_de_pensamientos.pdf",
+      "sectionId": "section-resources-psychometrics"
+    },
+    {
+      "id": "f40afd91-3081-43e6-b6e6-01b044fd78a3",
+      "source": "Evaluacion Psicológica I/vanedela.pptx.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Evaluación Psicológica I/vanedela.pptx.pdf",
+      "sectionId": "section-sixth-assessment"
+    },
+    {
+      "id": "e33f6602-740e-4ae2-8dab-f23f87ebbfad",
+      "source": "Procesos Grupales/2026/018a73a4-393b-4efa-bdb3-06cf6b8e1803-psicologia_social_de_los_procesos_grupales_cap-9.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/2026/psicologia_social_de_los_procesos_grupales_cap-9.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "40613fda-4f48-49f6-8e80-8b7caaf73b5b",
+      "source": "Procesos Grupales/2026/74e8e704-12a5-440a-80ea-09a791d2af6e-tecnicas-de-dinamica-de-grupos.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/2026/tecnicas-de-dinamica-de-grupos.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "a4979349-4b1b-4729-ad18-0428ab2efffa",
+      "source": "Procesos Grupales/Presentaciones de Clases/2026/8b24f640-10b0-4346-85df-1d2a695eb293-sesion-17-18-dinamizando-los-grupos-1.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/2026/sesion-17-18-dinamizando-los-grupos-1.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "f362254a-1d86-4727-8460-87c1eea931ba",
+      "source": "Procesos Grupales/Presentaciones de Clases/2026/cae89917-9bf2-417c-8831-5ae34bec71eb-sesion-21_tecnicas-grupales.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/2026/sesion-21_tecnicas-grupales.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "2495cf35-04d8-48f2-aec2-f5130a1d8b74",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 10-11_ Diversidad y Comunicación.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 10-11_ Diversidad y Comunicación.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "3fbbdcfb-8f0c-44e9-be7a-6d4d1d01d43b",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 12_ Ámbitos de aplicación.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 12_ Ámbitos de aplicación.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "f6164f95-e6e7-45a1-b0d5-9d2b00220716",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 2_ concepto y reflexiones.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 2_ concepto y reflexiones.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "a06dde24-cb44-4c57-9996-c63577070778",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 3-4  concepto, tipologia y estructura.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 3-4  concepto, tipologia y estructura.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "266dbfa9-9d08-4400-b632-deee02c973d0",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 5-6 Estructura de grupos 1.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 5-6 Estructura de grupos 1.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "42318fd9-eea0-42c9-98da-9e103ea6005a",
+      "source": "Procesos Grupales/Presentaciones de Clases/Sesión 7-9_Socialización, Cohesión.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Presentaciones de Clases/Sesión 7-9_Socialización, Cohesión.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "93bfe972-96e6-48cd-a920-cf8ec27b8b5d",
+      "source": "Procesos Grupales/Sanchez Jose C - Psicologia De Los Grupos_Cap 17.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Sanchez Jose C - Psicologia De Los Grupos_Cap 17.pdf",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "f78d873d-1214-47b4-8419-aad85001e88d",
+      "source": "Procesos Grupales/Tarea_Propiedades de Grupo.docx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Teoría y Práctica de Procesos Grupales/Tarea_Propiedades de Grupo.docx",
+      "sectionId": "section-sixth-groups"
+    },
+    {
+      "id": "ac3cd846-bffa-4cb1-b3ea-c80977e47816",
+      "source": "Teorias del Aprendizaje/2026/415a1f7c-d039-4165-9a8f-6f388633b488-libro-diagnostico-y-tratamiento-de-los-problemas-de-aprendizaje.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Psicología del Aprendizaje/2026/libro-diagnostico-y-tratamiento-de-los-problemas-de-aprendizaje.pdf",
+      "sectionId": "section-sixth-learning"
+    },
+    {
+      "id": "c98c0918-aadd-41e6-a0be-989d173798bf",
+      "source": "Teorias del Aprendizaje/Libro-La educacion encierra un tesoro.pdf",
+      "target": "Materiales de clase/Sexto cuatrimestre/Psicología del Aprendizaje/Libro-La educacion encierra un tesoro.pdf",
+      "sectionId": "section-sixth-learning"
+    }
+  ]
+}

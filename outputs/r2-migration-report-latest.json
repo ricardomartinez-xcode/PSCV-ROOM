@@ -1,6 +1,6 @@
 {
   "mode": "execute",
-  "startedAt": "2026-07-30T03:26:18.584Z",
+  "startedAt": "2026-07-30T03:39:29.242Z",
   "copied": [],
   "reused": [
     {
@@ -23,10 +23,17 @@
       "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/HISTORIA CLÍNICA.pptx",
       "sectionId": "section-sixth-conduct",
       "sha256": "0c4b84b10ad1e9360fe2095d4e75c87f44931a969009f85818a0f639ad1a9382"
+    },
+    {
+      "id": "53cf9949-ae3b-49f6-8b67-d2d42a1ee38c",
+      "source": "Alteraciones de la conducta/Proyecto Final.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Proyecto Final.pptx",
+      "sectionId": "section-sixth-conduct",
+      "sha256": "52115c029a5dff97eef4853a5b3eb564c99357e83e179ee2a8f6b7e0e1bb2422"
     }
   ],
   "failures": [
-    "No se pudo verificar el destino después de reintentos: Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Proyecto Final.pptx"
+    "No se pudo verificar el destino después de reintentos: Recursos Generales/Psicometría/365778944-Protocolo-WAIS-IV-1.pdf"
   ],
   "moves": [
     {
@@ -948,5 +955,5 @@
       "sectionId": "section-sixth-learning"
     }
   ],
-  "finishedAt": "2026-07-30T03:27:25.391Z"
+  "finishedAt": "2026-07-30T03:41:00.670Z"
 }

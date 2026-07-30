@@ -128,6 +128,23 @@ function sectionFor(target) {
   return sections.find(([prefix]) => target.startsWith(prefix))?.[1] ?? "section-resources-general";
 }
 
+
+async function copyViaWorker(move) {
+  const response = await fetch(`${process.env.COPY_WORKER_URL}/copy`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${process.env.COPY_WORKER_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ source: move.source, target: move.target }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error ?? `Worker R2 respondió ${response.status} para ${move.target}`);
+  }
+  return payload;
+}
+
 function hash(path) {
   return createHash("sha256").update(readFileSync(path)).digest("hex");
 }
@@ -161,35 +178,13 @@ try {
   }
 
   for (const [index, move] of report.moves.entries()) {
-    const sourceFile = join(workdir, `${index}-source.bin`);
-    const targetFile = join(workdir, `${index}-target.bin`);
-    runWrangler(["r2", "object", "get", `${BUCKET}/${move.source}`, "--file", sourceFile, "--remote"]);
-    const sourceHash = hash(sourceFile);
-
-    rmSync(targetFile, { force: true });
-    const existing = tryWrangler(["r2", "object", "get", `${BUCKET}/${move.target}`, "--file", targetFile, "--remote"]);
-    if (existing.status === 0) {
-      const targetHash = hash(targetFile);
-      if (targetHash !== sourceHash) throw new Error(`Destino existente con contenido distinto: ${move.target}`);
-      report.reused.push({ ...move, sha256: sourceHash });
-    } else {
-      runWrangler(["r2", "object", "put", `${BUCKET}/${move.target}`, "--file", sourceFile, "--remote", "--force"]);
-      let verified = false;
-      for (let attempt = 0; attempt < 7; attempt += 1) {
-        rmSync(targetFile, { force: true });
-        await new Promise((resolve) => setTimeout(resolve, Math.min(15000, 1000 * (2 ** attempt))));
-        const verification = tryWrangler(["r2", "object", "get", `${BUCKET}/${move.target}`, "--file", targetFile, "--remote"]);
-        if (verification.status !== 0) continue;
-        const targetHash = hash(targetFile);
-        if (targetHash !== sourceHash) throw new Error(`Hash distinto después de copiar: ${move.target}`);
-        verified = true;
-        break;
-      }
-      if (!verified) throw new Error(`No se pudo verificar el destino después de reintentos: ${move.target}`);
-      report.copied.push({ ...move, sha256: sourceHash });
+    if (!process.env.COPY_WORKER_URL || !process.env.COPY_WORKER_TOKEN) {
+      throw new Error("Falta la configuración del Worker temporal de copia R2.");
     }
-    rmSync(sourceFile, { force: true });
-    rmSync(targetFile, { force: true });
+    const result = await copyViaWorker(move);
+    const record = { ...move, size: result.size, etag: result.etag };
+    if (result.reused) report.reused.push(record);
+    else report.copied.push(record);
     console.log(`[${index + 1}/${report.moves.length}] verificado: ${move.target}`);
   }
 

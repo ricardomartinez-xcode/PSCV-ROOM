@@ -166,16 +166,26 @@ try {
     runWrangler(["r2", "object", "get", `${BUCKET}/${move.source}`, "--file", sourceFile, "--remote"]);
     const sourceHash = hash(sourceFile);
 
+    rmSync(targetFile, { force: true });
     const existing = tryWrangler(["r2", "object", "get", `${BUCKET}/${move.target}`, "--file", targetFile, "--remote"]);
     if (existing.status === 0) {
       const targetHash = hash(targetFile);
       if (targetHash !== sourceHash) throw new Error(`Destino existente con contenido distinto: ${move.target}`);
       report.reused.push({ ...move, sha256: sourceHash });
     } else {
-      runWrangler(["r2", "object", "put", `${BUCKET}/${move.target}`, "--file", sourceFile, "--remote"]);
-      runWrangler(["r2", "object", "get", `${BUCKET}/${move.target}`, "--file", targetFile, "--remote"]);
-      const targetHash = hash(targetFile);
-      if (targetHash !== sourceHash) throw new Error(`Hash distinto después de copiar: ${move.target}`);
+      runWrangler(["r2", "object", "put", `${BUCKET}/${move.target}`, "--file", sourceFile, "--remote", "--force"]);
+      let verified = false;
+      for (let attempt = 0; attempt < 7; attempt += 1) {
+        rmSync(targetFile, { force: true });
+        await new Promise((resolve) => setTimeout(resolve, Math.min(15000, 1000 * (2 ** attempt))));
+        const verification = tryWrangler(["r2", "object", "get", `${BUCKET}/${move.target}`, "--file", targetFile, "--remote"]);
+        if (verification.status !== 0) continue;
+        const targetHash = hash(targetFile);
+        if (targetHash !== sourceHash) throw new Error(`Hash distinto después de copiar: ${move.target}`);
+        verified = true;
+        break;
+      }
+      if (!verified) throw new Error(`No se pudo verificar el destino después de reintentos: ${move.target}`);
       report.copied.push({ ...move, sha256: sourceHash });
     }
     rmSync(sourceFile, { force: true });

@@ -9,7 +9,7 @@ on:
         default: DRY_RUN
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   migrate:
@@ -20,6 +20,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       MIGRATION_CONFIRM: ${{ inputs.example_input }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,6 +35,16 @@ jobs:
           npx wrangler whoami >/dev/null
       - name: Copy, verify and remap R2 materials
         run: node scripts/r2-migrate-approved.mjs
+      - name: Publish latest report snapshot
+        if: always()
+        shell: bash
+        run: |
+          test -f r2-migration-report.json || exit 0
+          content="$(base64 -w0 r2-migration-report.json)"
+          current_sha="$(gh api repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json --jq .sha 2>/dev/null || true)"
+          args=(-X PUT "repos/${GITHUB_REPOSITORY}/contents/outputs/r2-migration-report-latest.json" -f message="chore: publish R2 migration report [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
+          if [ -n "$current_sha" ]; then args+=(-f sha="$current_sha"); fi
+          gh api "${args[@]}" >/dev/null
       - name: Upload migration report
         if: always()
         uses: actions/upload-artifact@v4

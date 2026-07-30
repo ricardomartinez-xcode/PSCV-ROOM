@@ -1,6 +1,6 @@
 {
   "mode": "execute",
-  "startedAt": "2026-07-30T03:21:36.344Z",
+  "startedAt": "2026-07-30T03:26:18.584Z",
   "copied": [],
   "reused": [
     {
@@ -16,10 +16,17 @@
       "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Actividades de exposición y trabajo final.pptx",
       "sectionId": "section-sixth-conduct",
       "sha256": "1d05f730fa7a2c3b4a8411ef51e77edcfec20809e303afff88beb63afd9cae98"
+    },
+    {
+      "id": "fa485031-f233-4aa2-aaa3-12dcae95d1d7",
+      "source": "Alteraciones de la conducta/HISTORIA CLÍNICA.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/HISTORIA CLÍNICA.pptx",
+      "sectionId": "section-sixth-conduct",
+      "sha256": "0c4b84b10ad1e9360fe2095d4e75c87f44931a969009f85818a0f639ad1a9382"
     }
   ],
   "failures": [
-    "Command failed: npx wrangler r2 object get psicologia/Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/HISTORIA CLÍNICA.pptx --file /tmp/pscv-r2-migration-UvwHZZ/2-target.bin --remote\n\u001b[31m✘ \u001b[41;31m[\u001b[41;97mERROR\u001b[41;31m]\u001b[0m \u001b[1mThe specified key does not exist.\u001b[0m\n\n\n🪵  Logs were written to \"/home/runner/.config/.wrangler/logs/wrangler-2026-07-30_03-21-49_128.log\"\n"
+    "No se pudo verificar el destino después de reintentos: Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Proyecto Final.pptx"
   ],
   "moves": [
     {
@@ -941,5 +948,5 @@
       "sectionId": "section-sixth-learning"
     }
   ],
-  "finishedAt": "2026-07-30T03:21:49.563Z"
+  "finishedAt": "2026-07-30T03:27:25.391Z"
 }

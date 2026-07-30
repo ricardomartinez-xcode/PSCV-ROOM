@@ -39,11 +39,17 @@ jobs:
           from pathlib import Path
           path = Path("scripts/r2-migrate-approved.mjs")
           source = path.read_text()
-          old = '"--file", sourceFile, "--remote"]);'
-          new = '"--file", sourceFile, "--remote", "--force"]);'
-          if old not in source:
+          marker = 'runWrangler(["r2", "object", "put",'
+          start = source.find(marker)
+          if start < 0:
               raise SystemExit("R2 put call was not found")
-          path.write_text(source.replace(old, new, 1))
+          old = '"--remote"]);'
+          position = source.find(old, start)
+          if position < 0:
+              raise SystemExit("R2 put remote flag was not found")
+          replacement = '"--remote", "--force"]);'
+          source = source[:position] + replacement + source[position + len(old):]
+          path.write_text(source)
           PY
       - name: Copy, verify and remap R2 materials
         run: node scripts/r2-migrate-approved.mjs

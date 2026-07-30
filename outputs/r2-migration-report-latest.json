@@ -1,10 +1,25 @@
 {
   "mode": "execute",
-  "startedAt": "2026-07-30T03:18:09.989Z",
+  "startedAt": "2026-07-30T03:21:36.344Z",
   "copied": [],
-  "reused": [],
+  "reused": [
+    {
+      "id": "bb719b15-a3bf-40a9-b8bf-457274d85c59",
+      "source": "Alteraciones de la conducta/2026/48895628-f800-4be7-ac4d-7a4f24bb25a6-cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/2026/cronograma-o-carta-descriptiva_-formato_2022.docx",
+      "sectionId": "section-sixth-conduct",
+      "sha256": "b0127556aa0f7752f6b284ce6838528a2e40e11777782cc9f95d9810f7723ed0"
+    },
+    {
+      "id": "0ffdafda-3f1f-44f0-b260-0229aecef4ab",
+      "source": "Alteraciones de la conducta/Actividades de exposición y trabajo final.pptx",
+      "target": "Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/Actividades de exposición y trabajo final.pptx",
+      "sectionId": "section-sixth-conduct",
+      "sha256": "1d05f730fa7a2c3b4a8411ef51e77edcfec20809e303afff88beb63afd9cae98"
+    }
+  ],
   "failures": [
-    "Command failed: npx wrangler r2 object get psicologia/Alteraciones de la conducta/2026/48895628-f800-4be7-ac4d-7a4f24bb25a6-cronograma-o-carta-descriptiva_-formato_2022.docx --file /tmp/pscv-r2-migration-tHRkuW/0-source.bin --remote --force\n\u001b[31m✘ \u001b[41;31m[\u001b[41;97mERROR\u001b[41;31m]\u001b[0m \u001b[1mUnknown argument: force\u001b[0m\n\n\n🪵  Logs were written to \"/home/runner/.config/.wrangler/logs/wrangler-2026-07-30_03-18-12_525.log\"\n"
+    "Command failed: npx wrangler r2 object get psicologia/Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/HISTORIA CLÍNICA.pptx --file /tmp/pscv-r2-migration-UvwHZZ/2-target.bin --remote\n\u001b[31m✘ \u001b[41;31m[\u001b[41;97mERROR\u001b[41;31m]\u001b[0m \u001b[1mThe specified key does not exist.\u001b[0m\n\n\n🪵  Logs were written to \"/home/runner/.config/.wrangler/logs/wrangler-2026-07-30_03-21-49_128.log\"\n"
   ],
   "moves": [
     {
@@ -926,5 +941,5 @@
       "sectionId": "section-sixth-learning"
     }
   ],
-  "finishedAt": "2026-07-30T03:18:12.982Z"
+  "finishedAt": "2026-07-30T03:21:49.563Z"
 }

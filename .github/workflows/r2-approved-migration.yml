@@ -78,6 +78,18 @@ jobs:
             exit 1
           fi
 
+      - name: Make D1 batch compatible
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("scripts/r2-migrate-approved.mjs")
+          source = path.read_text()
+          source = source.replace('const statements = ["BEGIN TRANSACTION;"];', 'const statements = [];')
+          source = source.replace('  statements.push("COMMIT;");\n', '')
+          path.write_text(source)
+          PY
+          node --check scripts/r2-migrate-approved.mjs
+
       - name: Copy, verify and remap R2 materials
         run: node scripts/r2-migrate-approved.mjs
 
@@ -106,7 +118,7 @@ jobs:
           content="$(base64 -w0 r2-migration-summary.json)"
           path="outputs/r2-migration-summary-latest.json"
           current_sha="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${path}" --jq .sha 2>/dev/null || true)"
-          args=(-X PUT "repos/${GITHUB_REPOSITORY}/contents/${path}" -f message="chore: publish R2 migration summary [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
+          args=(-X PUT nrepos/${GITHUB_REPOSITORY}/contents/${path}" -f message="chore: publish R2 migration summary [skip ci]" -f content="$content" -f branch="${GITHUB_REF_NAME}")
           if [ -n "$current_sha" ]; then args+=(-f sha="$current_sha"); fi
           gh api "${args[@]}" >/dev/null
 

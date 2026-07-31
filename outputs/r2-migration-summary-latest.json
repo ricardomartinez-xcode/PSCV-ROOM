@@ -1,11 +1,11 @@
 {
   "mode": "execute",
-  "startedAt": "2026-07-30T04:00:09.441Z",
-  "finishedAt": "2026-07-30T04:00:14.515Z",
+  "startedAt": "2026-07-31T00:56:42.044Z",
+  "finishedAt": "2026-07-31T00:57:15.066Z",
   "copied": 0,
-  "reused": 0,
+  "reused": 153,
   "failures": [
-    "Worker R2 respondió 404 para Materiales de clase/Sexto cuatrimestre/Alteraciones de la Conducta/2026/cronograma-o-carta-descriptiva_-formato_2022.docx"
+    "Command failed: npx wrangler d1 execute pscv-room --remote --file /tmp/pscv-r2-migration-bh2Eli/apply.sql\n\u001b[33m▲ \u001b[43;33m[\u001b[43;30mWARNING\u001b[43;33m]\u001b[0m \u001b[1m⚠️ This process may take some time, during which your D1 database will be unavailable to serve queries.\u001b[0m\n\n\n\u001b[31m✘ \u001b[41;31m[\u001b[41;97mERROR\u001b[41;31m]\u001b[0m \u001b[1mTo execute a transaction, please use the state.storage.transaction() or state.storage.transactionSync() APIs instead of the SQL BEGIN TRANSACTION or SAVEPOINT statements. The JavaScript API is safer because it will automatically roll back on exceptions, and because it interacts correctly with Durable Objects' automatic atomic write coalescing.\u001b[0m\n\n\n🪵  Logs were written to \"/home/runner/.config/.wrangler/logs/wrangler-2026-07-31_00-57-13_581.log\"\n"
   ],
   "databaseVerification": null
 }

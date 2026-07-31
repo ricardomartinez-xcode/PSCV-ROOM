@@ -21,7 +21,6 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       MIGRATION_CONFIRM: ${{ inputs.example_input }}
       GH_TOKEN: ${{ github.token }}
-      TEMP_WORKER_NAME: pscv-r2-copy-temp
     steps:
       - uses: actions/checkout@v4
 
@@ -38,54 +37,64 @@ jobs:
           test -n "$CLOUDFLARE_API_TOKEN"
           npx wrangler whoami >/dev/null
 
-      - name: Deploy temporary protected R2 copy worker
+      - name: Start private remote R2 preview
         shell: bash
         run: |
           set -euo pipefail
           token="$(openssl rand -hex 32)"
-          cat > wrangler.r2-copy-temp.jsonc <<EOF
+          cat > wrangler.r2-copy-preview.jsonc <<EOF2
           {
-            "name": "${TEMP_WORKER_NAME}",
+            "name": "pscv-r2-copy-preview",
             "main": "scripts/r2-copy-worker.mjs",
             "compatibility_date": "2026-07-30",
-            "workers_dev": true,
             "r2_buckets": [
               {
                 "binding": "R2",
-                "bucket_name": "psicologia"
+                "bucket_name": "psicologia",
+                "remote": true
               }
             ],
             "vars": {
               "MIGRATION_TOKEN": "${token}"
             }
           }
-          EOF
-          npx wrangler deploy --config wrangler.r2-copy-temp.jsonc
-          subdomain="$(curl -fsS \
-            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            -H "Content-Type: application/json" \
-            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workers/subdomain" \
-            | jq -r '.result.subdomain')"
-          test -n "$subdomain"
-          test "$subdomain" != "null"
-          url="https://${TEMP_WORKER_NAME}.${subdomain}.workers.dev"
+          EOF2
           echo "::add-mask::$token"
           echo "COPY_WORKER_TOKEN=$token" >> "$GITHUB_ENV"
-          echo "COPY_WORKER_URL=$url" >> "$GITHUB_ENV"
+          echo "COPY_WORKER_URL=http://127.0.0.1:8787" >> "$GITHUB_ENV"
+          nohup npx wrangler dev --remote             --config wrangler.r2-copy-preview.jsonc             --port 8787             --local-protocol http             > wrangler-r2-preview.log 2>&1 &
+          echo $! > wrangler-r2-preview.pid
+
+          ready=0
+          for _ in $(seq 1 60); do
+            if curl -sS --max-time 3 -o /dev/null http://127.0.0.1:8787/; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat wrangler-r2-preview.log
+            exit 1
+          fi
 
       - name: Copy, verify and remap R2 materials
         run: node scripts/r2-migrate-approved.mjs
 
-      - name: Remove temporary R2 copy worker
+      - name: Stop private R2 preview
         if: always()
-        run: npx wrangler delete --name "$TEMP_WORKER_NAME" --force || true
+        shell: bash
+        run: |
+          if [ -f wrangler-r2-preview.pid ]; then
+            kill "$(cat wrangler-r2-preview.pid)" 2>/dev/null || true
+          fi
 
       - name: Publish latest migration summary
         if: always()
         shell: bash
         run: |
           test -f r2-migration-report.json || exit 0
-          jq ' {
+          jq '{
             mode,
             startedAt,
             finishedAt,
@@ -106,6 +115,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: r2-migration-report-${{ github.run_id }}
-          path: r2-migration-report.json
+          path: |
+            r2-migration-report.json
+            wrangler-r2-preview.log
           if-no-files-found: warn
           retention-days: 30

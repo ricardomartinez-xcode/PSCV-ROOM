@@ -1,0 +1,41 @@
+name: Configure Cloudflare Images runtime
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      - name: Verify Cloudflare Images permission
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}"
+          response="$(curl --fail-with-body --silent --show-error --request POST --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" --form 'requireSignedURLs=false' "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/images/v2/direct_upload")"
+          image_id="$(jq -r '.result.id // empty' <<<"$response")"
+          test -n "$image_id"
+          curl --fail-with-body --silent --show-error --request DELETE --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/images/v1/${image_id}" >/dev/null
+      - name: Configure Worker secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' "$CLOUDFLARE_ACCOUNT_ID" | npx wrangler secret put CLOUDFLARE_ACCOUNT_ID --config wrangler.jsonc
+          printf '%s' "$CLOUDFLARE_API_TOKEN" | npx wrangler secret put CLOUDFLARE_IMAGES_API_TOKEN --config wrangler.jsonc
+          npx wrangler secret list --config wrangler.jsonc > /tmp/worker-secrets.json
+          jq -e 'map(.name) | index("CLOUDFLARE_ACCOUNT_ID") != null' /tmp/worker-secrets.json >/dev/null
+          jq -e 'map(.name) | index("CLOUDFLARE_IMAGES_API_TOKEN") != null' /tmp/worker-secrets.json >/dev/null

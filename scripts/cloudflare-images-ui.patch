@@ -1,0 +1,153 @@
+diff --git a/components/admin-hub.tsx b/components/admin-hub.tsx
+index f20eb4a..96d8770 100644
+--- a/components/admin-hub.tsx
++++ b/components/admin-hub.tsx
+@@ -40,6 +40,7 @@ import { MATERIAL_UPLOAD_ACCEPT, MAX_DIRECT_MATERIAL_BYTES } from "@/lib/materia
+ import { materialDisplayName } from "@/lib/material-display-name";
+ import { createD1BrowserClient } from "@/lib/d1/client";
+ import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
++import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
+ 
+ type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
+ type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
+@@ -403,8 +404,7 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
+   const [audience, setAudience] = useState("all");
+   const [priority, setPriority] = useState("normal");
+   const [kind, setKind] = useState("system");
+-  const [mediaUrl, setMediaUrl] = useState("");
+-  const [mediaType, setMediaType] = useState("image");
++  const [image, setImage] = useState<UploadedImage | null>(null);
+   const [busy, setBusy] = useState(false);
+   const [recent, setRecent] = useState<AdminNotification[]>([]);
+   const [result, setResult] = useState<string | null>(null);
+@@ -435,14 +435,14 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
+         method: "POST",
+         credentials: "include",
+         headers: { "Content-Type": "application/json" },
+-        body: JSON.stringify({ title, body, audience, priority, kind, media_url: mediaUrl.trim() || null, media_type: mediaUrl.trim() ? mediaType : null }),
++        body: JSON.stringify({ title, body, audience, priority, kind, media_id: image?.id ?? null, media_url: image?.url ?? null, media_type: image ? "image" : null }),
+       });
+       const payload = await response.json() as { inserted?: number; systemDeliveryQueued?: boolean; email?: EmailDispatchResult; error?: string };
+       if (!response.ok) throw new Error(payload.error ?? "No se pudo enviar el aviso.");
+       setResult(notificationResultLabel(payload.inserted ?? 0, Boolean(payload.systemDeliveryQueued), payload.email));
+       setTitle("");
+       setBody("");
+-      setMediaUrl("");
++      setImage(null);
+       await loadRecent();
+       window.dispatchEvent(new CustomEvent("pscv:notifications-changed"));
+     } catch (error) {
+@@ -488,8 +488,7 @@ function NotificationsPanel({ onError }: { onError: (error: string | null) => vo
+       <form className="adminNoticeForm" onSubmit={sendNotification}>
+         <label className="wide">Título<input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Aviso para el grupo" required /></label>
+         <label className="wide">Mensaje<textarea value={body} onChange={(event) => setBody(event.target.value)} placeholder="Detalle opcional" /></label>
+-        <label className="wide">Archivo multimedia (URL)<input type="url" value={mediaUrl} onChange={(event) => setMediaUrl(event.target.value)} placeholder="https://... imagen, video, audio o archivo" /></label>
+-        <label>Tipo de archivo<select value={mediaType} onChange={(event) => setMediaType(event.target.value)} disabled={!mediaUrl.trim()}><option value="image">Imagen</option><option value="video">Video</option><option value="audio">Audio</option><option value="file">Archivo</option></select></label>
++        <CloudflareImageUpload value={image} category="announcement" label="Imagen del aviso" onChange={setImage} />
+         <label>Audiencia<select value={audience} onChange={(event) => setAudience(event.target.value)}><option value="all">Todos</option><option value="students">Alumnos</option><option value="admins">Administradores</option></select></label>
+         <label>Tipo<select value={kind} onChange={(event) => setKind(event.target.value)}><option value="system">Sistema</option><option value="reminder">Recordatorio</option><option value="material_added">Material</option><option value="task_updated">Tarea</option></select></label>
+         <label>Prioridad<select value={priority} onChange={(event) => setPriority(event.target.value)}><option value="low">Baja</option><option value="normal">Normal</option><option value="high">Alta</option></select></label>
+diff --git a/components/app-shell-v5.tsx b/components/app-shell-v5.tsx
+index 1aa7af7..77c083a 100644
+--- a/components/app-shell-v5.tsx
++++ b/components/app-shell-v5.tsx
+@@ -31,6 +31,7 @@ import { AdminHub } from "@/components/admin-hub";
+ import { useAuthSession } from "@/components/auth-session-provider";
+ import { MaterialLibrary } from "@/components/material-library";
+ import { NotificationSettingsPanel } from "@/components/providers";
++import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
+ import {
+   TaskMaterialGallery,
+   TaskMaterialPicker,
+@@ -142,6 +143,7 @@ type TaskForm = {
+   notes: string;
+   materialNeeded: string;
+   materialIds: string[];
++  image: UploadedImage | null;
+ };
+ 
+ type TaskFormChange = <K extends keyof TaskForm>(key: K, value: TaskForm[K]) => void;
+@@ -225,6 +227,7 @@ function newTaskForm(defaults: Partial<TaskForm> = {}): TaskForm {
+     notes: "",
+     materialNeeded: "",
+     materialIds: [],
++    image: null,
+     ...defaults,
+   };
+ }
+@@ -468,6 +471,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+         daysRemaining: calculateDaysRemaining(dueDate),
+         notes: form.notes.trim(),
+         platformUrl: form.platformUrl.trim(),
++        imageId: form.image?.id,
++        imageUrl: form.image?.url,
+         visibleToReaders: form.visible,
+         courseColor: course?.color,
+         taskTypeColor: type?.color ?? undefined,
+@@ -502,6 +507,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+           material_url: form.materialUrl.trim() || null,
+           platform_url: form.platformUrl.trim() || null,
+           notes: form.notes.trim() || null,
++          image_id: form.image?.id ?? null,
++          image_url: form.image?.url ?? null,
+           material_needed: form.materialNeeded.trim() || null,
+         }),
+       });
+@@ -570,6 +577,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+         daysRemaining: calculateDaysRemaining(dueDate),
+         notes: form.notes.trim(),
+         platformUrl: form.platformUrl.trim(),
++        imageId: form.image?.id,
++        imageUrl: form.image?.url,
+         visibleToReaders: form.visible,
+         courseColor: course?.color ?? task.courseColor,
+         taskTypeColor: type?.color ?? task.taskTypeColor,
+@@ -603,6 +612,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+           material_url: form.materialUrl.trim() || null,
+           platform_url: form.platformUrl.trim() || null,
+           notes: form.notes.trim() || null,
++          image_id: form.image?.id ?? null,
++          image_url: form.image?.url ?? null,
+         }),
+       });
+       const body = await response.json().catch(() => ({})) as { error?: string; calendarError?: string | null };
+@@ -1406,6 +1417,7 @@ function TaskDetailScreen({
+             </DetailField>
+             <DetailField label="Estado" value={task.status} icon={<ClipboardCheck size={17} />} />
+             <DetailField label="Días restantes" value={String(task.daysRemaining)} />
++            {task.imageUrl ? <img className="taskContentImage" src={task.imageUrl} alt={`Imagen de ${task.title}`} /> : null}
+             {task.notes ? (
+           <section className="taskInstructions" aria-labelledby="task-instructions-title">
+             <div className="taskInstructionsIcon" aria-hidden="true">
+@@ -1510,6 +1522,7 @@ function TaskEditForm({
+       </>) : null}
+       <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
+       <label className="wide">Instrucciones<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
++      <CloudflareImageUpload value={form.image} category={form.itemKind} label={form.itemKind === "event" ? "Imagen del evento" : "Imagen para las instrucciones"} onChange={(image) => onChange("image", image)} />
+       <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
+       <div className="detailEditActions">
+         <button type="button" onClick={onCancel} disabled={busy}>Cancelar</button>
+@@ -1642,6 +1655,7 @@ function TaskCreateModal({
+           </>) : null}
+           <label className="wide">Link plataforma<input value={form.platformUrl} onChange={(event) => onChange("platformUrl", event.target.value)} /></label>
+           <label className="wide">Instrucciones<textarea value={form.notes} onChange={(event) => onChange("notes", event.target.value)} /></label>
++      <CloudflareImageUpload value={form.image} category={form.itemKind} label={form.itemKind === "event" ? "Imagen del evento" : "Imagen para las instrucciones"} onChange={(image) => onChange("image", image)} />
+           <label className="taskCheck"><input type="checkbox" checked={form.visible} onChange={(event) => onChange("visible", event.target.checked)} /> Visible para alumnos</label>
+           <button className="primaryAction" disabled={busy || !form.title.trim()} type="submit">{busy ? "Creando..." : form.itemKind === "event" ? "Crear evento" : "Crear tarea"}</button>
+         </form>
+@@ -2091,6 +2105,8 @@ function toTask(row: Record<string, unknown>): UiTask {
+     daysRemaining,
+     notes: row.notes ? String(row.notes) : "",
+     platformUrl: row.platform_url ? String(row.platform_url) : "",
++    imageId: row.image_id ? String(row.image_id) : undefined,
++    imageUrl: row.image_url ? String(row.image_url) : undefined,
+     visibleToReaders: Boolean(row.visible_to_students),
+     courseColor: course?.color ? String(course.color) : undefined,
+     taskTypeColor: type?.color ? String(type.color) : undefined,
+@@ -2195,5 +2211,6 @@ function taskToForm(task: UiTask, courses: CourseConfig[], taskTypes: TaskTypeCo
+     notes: task.notes ?? "",
+     materialNeeded: task.materialNeeded ?? "",
+     materialIds: (task.linkedMaterials ?? []).map((material) => material.id),
++    image: task.imageId && task.imageUrl ? { id: task.imageId, url: task.imageUrl } : null,
+   });
+ }

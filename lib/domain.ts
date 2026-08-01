@@ -36,6 +36,8 @@ export type Task = {
   daysRemaining: number;
   notes?: string;
   platformUrl?: string;
+  imageId?: string;
+  imageUrl?: string;
   calendarEventId?: string;
   lastSync?: string;
   visibleToReaders: boolean;

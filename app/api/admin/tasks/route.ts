@@ -22,6 +22,8 @@ const taskCreateSchema = z.object({
   material_url: z.string().nullable(),
   platform_url: z.string().nullable(),
   notes: z.string().nullable(),
+  image_id: z.string().nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
 });
 
 type CreatedTaskRow = {

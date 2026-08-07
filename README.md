@@ -125,3 +125,8 @@ docs/                 Arquitectura y migración
 - Permisos por perfil admin.
 - Auditoria y reportes disponibles en Admin.
 - Smoke automatizado para contratos principales.
+
+
+## Cloudflare Images
+
+Configura `CLOUDFLARE_IMAGES_API_TOKEN` con permiso **Cloudflare Images: Edit** y `CLOUDFLARE_ACCOUNT_ID` como variables protegidas del Worker.

@@ -18,6 +18,7 @@ import "./admin-notices.css";
 import "./admin-workspaces.css";
 import "./mobile-calendar.css";
 import "./task-materials.css";
+import "./cloudflare-images.css";
 import "./accessibility.css";
 
 export const metadata: Metadata = {

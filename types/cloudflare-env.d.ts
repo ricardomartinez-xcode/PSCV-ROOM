@@ -31,6 +31,8 @@ declare global {
     DEV_AUTH_EMAIL?: string;
     ALLOW_DEV_AUTH?: string;
     R2_PUBLIC_BASE_URL?: string;
+    CLOUDFLARE_ACCOUNT_ID?: string;
+    CLOUDFLARE_IMAGES_API_TOKEN?: string;
     RESEND_API_KEY?: string;
     EMAIL_FROM?: string;
     VAPID_PUBLIC_KEY?: string;

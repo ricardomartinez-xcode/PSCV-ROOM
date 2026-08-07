@@ -6,6 +6,7 @@ import { d1All, d1First, d1Run, executeDataQuery } from "@/lib/server/d1-data";
 import { dismissEventReminders, syncEventReminders } from "@/lib/server/event-reminders";
 import { dispatchTaskPushNotificationsInBackground } from "@/lib/server/push-delivery";
 import { taskRejectsBucketMaterials } from "@/lib/server/task-material-links";
+import { deleteCloudflareImage } from "@/lib/server/cloudflare-images";
 
 const taskPatchSchema = z.object({
   title: z.string().min(1).optional(),
@@ -24,6 +25,8 @@ const taskPatchSchema = z.object({
   material_url: z.string().nullable().optional(),
   platform_url: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  image_id: z.string().nullable().optional(),
+  image_url: z.string().url().nullable().optional(),
 });
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -154,6 +157,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         actorId: profile.id,
       });
       await dispatchTaskPushNotificationsInBackground([after.id]);
+    }
+
+    if (before.image_id && patch.image_id !== undefined && patch.image_id !== before.image_id) {
+      await deleteCloudflareImage(String(before.image_id)).catch(() => undefined);
     }
 
     await writeAudit({ actorId: profile.id, action: "task.update", entityId: id, before, after: result.data });

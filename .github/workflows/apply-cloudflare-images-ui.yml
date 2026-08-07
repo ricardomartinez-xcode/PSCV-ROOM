@@ -20,5 +20,12 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add components/admin-hub.tsx components/app-shell-v5.tsx
+          set -euo pipefail
+          git apply --check scripts/cloudflare-images-ui.patch
+          git apply scripts/cloudflare-images-ui.patch
+          rm scripts/cloudflare-images-ui.patch
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/admin-hub.tsx components/app-shell-v5.tsx scripts/cloudflare-images-ui.patch
           git commit -m 'feat: connect Cloudflare Images to task and notice forms'
           git push origin HEAD:feature/cloudflare-images-media

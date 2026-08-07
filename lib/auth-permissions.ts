@@ -43,6 +43,7 @@ export type SessionCapabilities = {
 };
 
 export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+export const MICROSOFT_LOGOUT_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/logout";
 
 const EMPTY_CAPABILITIES: SessionCapabilities = {
   isStudent: false,

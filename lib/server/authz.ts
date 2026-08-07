@@ -77,6 +77,12 @@ function getCachedProfile(key: string) {
   return cached.profile;
 }
 
+export function invalidateProfileCache(profileId?: string) {
+  for (const [key, cached] of profileCache.entries()) {
+    if (!profileId || cached.profile.id === profileId) profileCache.delete(key);
+  }
+}
+
 function cacheProfile(key: string, profile: ServerProfile) {
   if (profileCache.size >= PROFILE_CACHE_MAX_ENTRIES && !profileCache.has(key)) {
     const oldestKey = profileCache.keys().next().value;

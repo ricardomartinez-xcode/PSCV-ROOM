@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { HttpError } from "@/lib/server/authz";
+import { HttpError, invalidateProfileCache } from "@/lib/server/authz";
 import { d1All, d1First, d1Run } from "@/lib/server/d1-data";
 
 export const studentInputSchema = z
@@ -198,6 +198,7 @@ export async function saveStudent(
     );
   }
 
+  invalidateProfileCache(id);
   const student = await findStudentById(id);
   if (!student) {
     throw new HttpError(500, "No se pudo recuperar el alumno guardado.");
@@ -219,6 +220,7 @@ export async function deleteStudent(id: string, actorId: string) {
   }
 
   await d1Run(`DELETE FROM app_profiles WHERE id = ? AND role = 'student'`, [id]);
+  invalidateProfileCache(id);
   await writeAudit(actorId, "student.deleted", id, {
     email: student.email,
     controlNumber: student.control_number,

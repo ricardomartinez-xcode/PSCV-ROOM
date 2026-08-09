@@ -40,7 +40,7 @@ import {
 import type { DeliveryType, GroupMember, Role, Task, TaskStatus } from "@/lib/domain";
 import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
-import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
+import { ACCESS_LOGOUT_PATH, MICROSOFT_LOGOUT_URL, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { NOTIFICATION_QUERY_PARAM } from "@/lib/notification-action";
 import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
@@ -379,9 +379,22 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     try {
       await d1Client.auth.signOut();
     } catch {
-      // Supabase-compatible logout is best effort; Cloudflare Access owns the real session.
+      // The browser adapter has no local auth token; Cloudflare Access owns the app session.
     }
-    window.location.assign(ACCESS_LOGOUT_PATH);
+
+    // Revoke Cloudflare Access first without navigating away, then close the
+    // Microsoft identity-provider session. This prevents the next login from
+    // silently returning to the same Microsoft account through SSO.
+    try {
+      await fetch(ACCESS_LOGOUT_PATH, {
+        credentials: "include",
+        cache: "no-store",
+        redirect: "manual",
+      });
+    } catch {
+      // Continue with Microsoft logout if the browser hides the manual redirect response.
+    }
+    window.location.assign(MICROSOFT_LOGOUT_URL);
   }
 
   async function loadNotifications() {
@@ -804,7 +817,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
-        {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onError={setError} /> : null}
+        {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onMembersChange={setMembers} onError={setError} /> : null}
         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
         {tab === "taskDetail" ? <TaskDetailScreen task={selectedTask} canEdit={capabilities.canEditTasks} courses={courses} taskTypes={taskTypes} onBack={() => go(detailOrigin)} onDone={(id) => void markDone(id)} onSave={(id, form) => updateTaskFromDetail(id, form)} /> : null}
         {tab === "admin" ? (
@@ -1664,7 +1677,7 @@ function TaskCreateModal({
   );
 }
 
-function Group({ members, d1Client, role, canManageMembers, profile, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: Role; canManageMembers: boolean; profile: Profile | null; onError: (error: string | null) => void }) {
+function Group({ members, d1Client, role, canManageMembers, profile, onMembersChange, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: Role; canManageMembers: boolean; profile: Profile | null; onMembersChange: (members: UiGroupMember[]) => void; onError: (error: string | null) => void }) {
   const [memberRows, setMemberRows] = useState<UiGroupMember[]>(members);
   const [memberForm, setMemberForm] = useState({ id: "", fullName: "", email: "", controlNumber: "", active: true });
   const [memberBusy, setMemberBusy] = useState(false);
@@ -1704,12 +1717,15 @@ function Group({ members, d1Client, role, canManageMembers, profile, onError }: 
       const payload = await response.json() as { student?: Record<string, unknown>; message?: string; error?: string };
       if (!response.ok || !payload.student) throw new Error(payload.error ?? "No se pudo guardar el alumno.");
       const saved = toGroupMember(payload.student);
-      setMemberRows((current) => {
-        const next = current.some((member) => member.profileId === saved.profileId)
-          ? current.map((member) => member.profileId === saved.profileId ? { ...member, ...saved } : member)
-          : [...current, saved];
-        return next.sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
-      });
+      const savedActive = payload.student.active === true || payload.student.active === 1 || payload.student.active === "1";
+      const next = savedActive
+        ? (memberRows.some((member) => member.profileId === saved.profileId)
+          ? memberRows.map((member) => member.profileId === saved.profileId ? { ...member, ...saved } : member)
+          : [...memberRows, saved])
+        : memberRows.filter((member) => member.profileId !== saved.profileId);
+      const sorted = next.sort((a, b) => a.fullName.localeCompare(b.fullName, "es"));
+      setMemberRows(sorted);
+      onMembersChange(sorted);
       setMemberMessage(payload.message ?? (editing ? "Alumno actualizado." : "Alumno agregado."));
       resetMemberForm();
     } catch (error) { onError(error instanceof Error ? error.message : "No se pudo guardar el alumno."); }
@@ -1724,7 +1740,9 @@ function Group({ members, d1Client, role, canManageMembers, profile, onError }: 
       const response = await fetch("/api/admin/students", { method: "DELETE", credentials: "include", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ id: member.profileId }) });
       const payload = await response.json() as { message?: string; error?: string };
       if (!response.ok) throw new Error(payload.error ?? "No se pudo eliminar el alumno.");
-      setMemberRows((current) => current.filter((row) => row.profileId !== member.profileId));
+      const next = memberRows.filter((row) => row.profileId !== member.profileId);
+      setMemberRows(next);
+      onMembersChange(next);
       if (memberForm.id === member.profileId) resetMemberForm();
       setMemberMessage(payload.message ?? "Alumno eliminado.");
     } catch (error) { onError(error instanceof Error ? error.message : "No se pudo eliminar el alumno."); }

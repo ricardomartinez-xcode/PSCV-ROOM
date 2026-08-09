@@ -408,13 +408,16 @@ function ensureMutationAllowed(table: string, query: DataQuery, profile: ServerP
     return;
   }
   if (table === "app_profiles") {
-    const values = Array.isArray(query.values) ? query.values[0] : query.values;
+    const rows = Array.isArray(query.values) ? query.values : query.values ? [query.values] : [];
+    const values = rows[0];
     const onlyOwnPreferences = query.action === "update" &&
       (query.filters ?? []).some((filter) => filter.op === "eq" && filter.column === "id" && filter.value === profile.id) &&
       values &&
       Object.keys(values).every((key) => key === "preferences" || key === "updated_at");
-    if (onlyOwnPreferences || can(profile, "can_manage_users")) return;
-    throw new HttpError(403, "No autorizado.");
+    if (onlyOwnPreferences) return;
+
+    if (profile.role === "owner") return;
+    throw new HttpError(403, "Las mutaciones administrativas de perfiles deben usar la API protegida de usuarios.");
   }
   throw new HttpError(403, "No autorizado.");
 }

@@ -296,16 +296,11 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
     const previous = profiles;
     setProfiles((current) => current.map((profile) => profile.id === id ? { ...profile, ...patch } : profile));
     if (!d1Client) return true;
-    const response = await fetch("/api/admin/students", {
+    const response = await fetch("/api/admin/users", {
       method: "PATCH",
+      credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        id,
-        email: patch.email,
-        fullName: patch.full_name,
-        controlNumber: patch.control_number ?? "",
-        active: patch.active ?? true,
-      }),
+      body: JSON.stringify({ id, ...patch }),
     });
 
     const payload = await response.json().catch(() => ({}));
@@ -315,6 +310,24 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
       return false;
     }
 
+    await loadProfiles();
+    await reload();
+    return true;
+  }
+
+  async function deleteProfile(id: string) {
+    const response = await fetch("/api/admin/users", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      onError(typeof payload.error === "string" ? payload.error : "No se pudo eliminar el usuario.");
+      return false;
+    }
+    await loadProfiles();
     await reload();
     return true;
   }
@@ -375,7 +388,7 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
         {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
         {activeTab === "sections" ? <SectionsPanel sections={sections} onUpdate={(id, patch) => void updateSection(id, patch)} /> : null}
         {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
-        {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} /> : null}
+        {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} onDelete={(id) => deleteProfile(id)} /> : null}
         {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
         {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
         {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
@@ -1253,7 +1266,7 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
   );
 }
 
-function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReload, onUpdate }: { profiles: AppProfileRow[]; loading: boolean; canManagePermissions: boolean; onCreate: (input: StudentDraft) => Promise<boolean>; onReload: () => void; onUpdate: (id: string, patch: Partial<AppProfileRow>) => Promise<boolean> }) {
+function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReload, onUpdate, onDelete }: { profiles: AppProfileRow[]; loading: boolean; canManagePermissions: boolean; onCreate: (input: StudentDraft) => Promise<boolean>; onReload: () => void; onUpdate: (id: string, patch: Partial<AppProfileRow>) => Promise<boolean>; onDelete: (id: string) => Promise<boolean> }) {
   const [draft, setDraft] = useState<StudentDraft>(() => emptyStudentDraft());
   const [busy, setBusy] = useState(false);
 
@@ -1276,7 +1289,7 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
       </form>
       <div className="adminUserList">
         {profiles.map((profile) => (
-          <UserAdminRow key={profile.id} profile={profile} canManagePermissions={canManagePermissions} onUpdate={onUpdate} />
+          <UserAdminRow key={profile.id} profile={profile} canManagePermissions={canManagePermissions} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
         {!profiles.length && !loading ? <p className="muted">No se pudieron cargar usuarios o no hay permisos RLS para leerlos.</p> : null}
       </div>
@@ -1284,15 +1297,17 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
   );
 }
 
-function UserAdminRow({ profile, canManagePermissions, onUpdate }: { profile: AppProfileRow; canManagePermissions: boolean; onUpdate: (id: string, patch: Partial<AppProfileRow>) => Promise<boolean> }) {
+function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { profile: AppProfileRow; canManagePermissions: boolean; onUpdate: (id: string, patch: Partial<AppProfileRow>) => Promise<boolean>; onDelete: (id: string) => Promise<boolean> }) {
   const [draft, setDraft] = useState(() => profileToDraft(profile));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     setDraft(profileToDraft(profile));
   }, [profile]);
 
   const dirty = draft.fullName !== (profile.full_name ?? "") || draft.email !== profile.email || draft.controlNumber !== (profile.control_number ?? "");
+  const canManageThisProfile = canManagePermissions || profile.role === "student";
 
   async function save() {
     setSaving(true);
@@ -1308,14 +1323,23 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate }: { profile: Ap
   return (
     <article className={`adminUserRow permissions ${profile.active ? "" : "inactive"}`}>
       <div className="adminUserFields">
-        <input aria-label="Nombre completo" value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} />
-        <input aria-label="Correo" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} />
-        <input aria-label="No. Control" value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="sin control" />
+        <input aria-label="Nombre completo" disabled={!canManageThisProfile} value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} />
+        <input aria-label="Correo" type="email" disabled={!canManageThisProfile} value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} />
+        <input aria-label="No. Control" disabled={!canManageThisProfile} value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="sin control" />
       </div>
       <select value={profile.role} disabled={!canManagePermissions} onChange={(event) => void onUpdate(profile.id, { role: event.target.value as AppProfileRow["role"] })}><option value="student">Alumno</option><option value="admin">Admin</option><option value="owner">Owner</option></select>
       <div className="adminUserActions">
-        <button type="button" onClick={() => void save()} disabled={saving || !dirty || !draft.email.trim() || !draft.fullName.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
-        <button type="button" onClick={() => void onUpdate(profile.id, { active: !profile.active })}>{profile.active ? "Desactivar" : "Activar"}</button>
+        <button type="button" onClick={() => void save()} disabled={!canManageThisProfile || saving || !dirty || !draft.email.trim() || !draft.fullName.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
+        <button type="button" disabled={!canManageThisProfile} onClick={() => void onUpdate(profile.id, { active: !profile.active })}>{profile.active ? "Desactivar" : "Activar"}</button>
+        <button
+          type="button"
+          disabled={!canManageThisProfile || deleting}
+          onClick={() => {
+            if (!window.confirm(`Eliminar a ${profile.full_name ?? profile.email}? Esta acción no se puede deshacer.`)) return;
+            setDeleting(true);
+            void onDelete(profile.id).finally(() => setDeleting(false));
+          }}
+        >{deleting ? "Eliminando..." : "Eliminar"}</button>
       </div>
       <div className="adminPermissionGrid">
         <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_edit_tasks} onChange={(event) => void onUpdate(profile.id, { can_edit_tasks: event.target.checked })} />Tareas</label>

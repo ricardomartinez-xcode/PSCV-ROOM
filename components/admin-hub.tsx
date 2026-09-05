@@ -41,16 +41,17 @@ import { materialDisplayName } from "@/lib/material-display-name";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
 import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
+import { UI_ICON_OPTIONS, UiIcon } from "@/lib/ui-icons";
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
-type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
+export type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
 type CardSize = "compact" | "medium" | "large";
 
-type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean };
+type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean; professorName: string; professorEmail: string; scheduleText: string };
 type SectionConfig = { id: string; name: string; path: string; color: string; icon: string; cardSize: CardSize; previewStyle: string; active: boolean };
 type AdminTaskRow = { id: string; title: string; due_date: string; due_time: string | null; status: string; priority: string; visible_to_students: boolean; material_url: string | null; platform_url: string | null; courses: { name: string; color: string | null } | { name: string; color: string | null }[] | null; task_types: { name: string; color: string | null } | { name: string; color: string | null }[] | null };
 type AppProfileRow = { id: string; email: string; full_name: string | null; control_number: string | null; role: "student" | "admin" | "owner"; active: boolean; can_edit_tasks: boolean; can_delete_tasks: boolean; can_manage_materials: boolean; can_manage_users: boolean; can_manage_settings: boolean; can_manage_group: boolean; can_manage_notifications: boolean; can_view_reports: boolean; can_manage_r2: boolean };
-type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize">;
+type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize" | "professorName" | "professorEmail" | "scheduleText">;
 type StudentDraft = { controlNumber: string; email: string; fullName: string };
 type UploadDestination = { id: string; sectionId: string | null; name: string; path: string; source: "d1" | "r2" };
 type AdminProfile = { role: "student" | "admin" | "owner"; canEditTasks: boolean; canDeleteTasks: boolean; canManageMaterials: boolean; canManageUsers: boolean; canManageSettings: boolean; canManageGroup: boolean; canManageNotifications: boolean; canViewReports: boolean; canManageR2: boolean } | null;
@@ -118,7 +119,7 @@ type AdminLibraryMaterial = {
 type AdminLibrarySection = { id: string; name: string; path: string; material_count?: number };
 type AdminLibraryPayload = { materials?: AdminLibraryMaterial[]; sections?: AdminLibrarySection[]; summary?: { materials: number; sections: number; providers: Record<string, number> }; error?: string };
 
-type AdminHubProps = { courses: CourseConfig[]; sections: SectionConfig[]; columns?: unknown[]; profile?: AdminProfile; d1Client: D1Browser | null; reload: () => Promise<void>; onCourses: (courses: CourseConfig[]) => void; onSections: (sections: SectionConfig[]) => void; onError: (error: string | null) => void };
+type AdminHubProps = { courses: CourseConfig[]; sections: SectionConfig[]; columns?: unknown[]; profile?: AdminProfile; d1Client: D1Browser | null; reload: () => Promise<void>; onCourses: (courses: CourseConfig[]) => void; onSections: (sections: SectionConfig[]) => void; onError: (error: string | null) => void; initialTab?: AdminTab };
 
 const tabs: Array<{ id: AdminTab; label: string; icon: LucideIcon }> = [
   { id: "general", label: "General", icon: LayoutDashboard },
@@ -133,8 +134,8 @@ const tabs: Array<{ id: AdminTab; label: string; icon: LucideIcon }> = [
   { id: "diagnostics", label: "Diagnóstico", icon: Activity },
 ];
 
-export function AdminHub({ courses, sections, profile = null, d1Client, reload, onCourses, onSections, onError }: AdminHubProps) {
-  const [activeTab, setActiveTab] = useState<AdminTab>("general");
+export function AdminHub({ courses, sections, profile = null, d1Client, reload, onCourses, onSections, onError, initialTab = "general" }: AdminHubProps) {
+  const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [profiles, setProfiles] = useState<AppProfileRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [adminTasks, setAdminTasks] = useState<AdminTaskRow[]>([]);
@@ -146,6 +147,10 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   useEffect(() => {
     if (!visibleTabs.some((tab) => tab.id === activeTab)) setActiveTab("general");
   }, [activeTab, visibleTabs]);
+
+  useEffect(() => {
+    if (visibleTabs.some((tab) => tab.id === initialTab)) setActiveTab(initialTab);
+  }, [initialTab, visibleTabs]);
 
   useEffect(() => {
     tabRefs.current[activeTab]?.scrollIntoView({ block: "nearest", inline: "nearest" });
@@ -206,10 +211,13 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
         color: input.color,
         icon: input.icon.trim() || "book",
         card_size: input.cardSize,
+        professor_name: input.professorName.trim() || null,
+        professor_email: input.professorEmail.trim() || null,
+        schedule_text: input.scheduleText.trim(),
         sort_order: courses.length * 10 + 10,
         active: true,
       })
-      .select("id,name,short_name,color,icon,card_size,active")
+      .select("id,name,short_name,color,icon,card_size,active,professor_name,professor_email,schedule_text")
       .single();
 
     if (error) {
@@ -993,8 +1001,11 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
         <label className="wide">Nombre<input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Nombre de la materia" required /></label>
         <label>Nombre corto<input value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} placeholder="Corto" /></label>
         <label>Color<input type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
-        <label>Icono<input value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))} placeholder="book" /></label>
+        <label>Icono<span className="iconSelectField"><UiIcon name={draft.icon} size={18} /><select value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span></label>
         <label>Tamaño<select value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select></label>
+        <label className="wide">Profesor<input value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Nombre del profesor" /></label>
+        <label className="wide">Correo del profesor<input type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="profesor@correo.mx" /></label>
+        <label className="wide">Horario semanal<input value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00 · Aula 3; Miércoles: 08:00-10:00 · Aula 3" /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.name.trim()}>{busy ? "Agregando..." : "Agregar materia"}</button>
       </form>
       <div className="adminRows">
@@ -1013,7 +1024,7 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
     setDraft(courseToDraft(course));
   }, [course]);
 
-  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize;
+  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize || draft.professorName !== course.professorName || draft.professorEmail !== course.professorEmail || draft.scheduleText !== course.scheduleText;
 
   async function save() {
     setSaving(true);
@@ -1023,6 +1034,9 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
       color: draft.color,
       icon: draft.icon.trim() || "book",
       cardSize: draft.cardSize,
+      professorName: draft.professorName.trim(),
+      professorEmail: draft.professorEmail.trim(),
+      scheduleText: draft.scheduleText.trim(),
     });
     if (!saved) setDraft(courseToDraft(course));
     setSaving(false);
@@ -1034,15 +1048,18 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
       <input aria-label="Nombre de materia" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
       <input aria-label="Nombre corto" value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} />
       <input aria-label="Color" type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} />
-      <input aria-label="Icono" value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))} />
+      <span className="iconSelectField"><UiIcon name={draft.icon} size={18} /><select aria-label="Icono" value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span>
       <select aria-label="Tamaño" value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select>
+      <input aria-label="Profesor" value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Profesor" />
+      <input aria-label="Correo del profesor" type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="Correo profesor" />
+      <input className="courseScheduleInput" aria-label="Horario semanal" value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00; Miércoles: 08:00-10:00" />
       <button type="button" onClick={() => void save()} disabled={saving || !dirty || !draft.name.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
       <button type="button" onClick={() => void onUpdate(course.id, { active: !course.active })}>{course.active ? "Desactivar" : "Activar"}</button>
     </div>
   );
 }
 
-function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><input aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })} /><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
+function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><span className="iconSelectField"><UiIcon name={section.icon} size={18} /><select aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
 
 function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canManageR2: boolean; d1Client: D1Browser | null; reload: () => Promise<void>; onError: (error: string | null) => void }) {
   const [destinations, setDestinations] = useState<UploadDestination[]>([]);
@@ -1423,11 +1440,11 @@ function compareAdminMaterials(firstMaterial: AdminLibraryMaterial, secondMateri
 }
 
 function emptyCourseDraft(): CourseDraft {
-  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium" };
+  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium", professorName: "", professorEmail: "", scheduleText: "" };
 }
 
 function courseToDraft(course: CourseConfig): CourseDraft {
-  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize };
+  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize, professorName: course.professorName, professorEmail: course.professorEmail, scheduleText: course.scheduleText };
 }
 
 function emptyStudentDraft(): StudentDraft {
@@ -1438,9 +1455,6 @@ function profileToDraft(profile: AppProfileRow): StudentDraft {
   return { controlNumber: profile.control_number ?? "", email: profile.email, fullName: profile.full_name ?? "" };
 }
 
-function sortProfiles(a: AppProfileRow, b: AppProfileRow) {
-  return (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email, "es");
-}
 
 function toCourseConfig(row: Record<string, unknown>): CourseConfig {
   return {
@@ -1451,6 +1465,9 @@ function toCourseConfig(row: Record<string, unknown>): CourseConfig {
     icon: String(row.icon ?? "book"),
     cardSize: row.card_size === "compact" || row.card_size === "large" ? row.card_size : "medium",
     active: Boolean(row.active ?? true),
+    professorName: String(row.professor_name ?? ""),
+    professorEmail: String(row.professor_email ?? ""),
+    scheduleText: String(row.schedule_text ?? ""),
   };
 }
 
@@ -1655,4 +1672,4 @@ function bucketDestinations(destinations: UploadDestination[]) {
 }
 
 function first<T>(value: T | T[] | null | undefined): T | null { return Array.isArray(value) ? value[0] ?? null : value ?? null; }
-function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }
+function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("professorName" in patch) out.professor_name = patch.professorName || null; if ("professorEmail" in patch) out.professor_email = patch.professorEmail || null; if ("scheduleText" in patch) out.schedule_text = patch.scheduleText ?? ""; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }

@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
@@ -15,7 +16,9 @@ import {
   ExternalLink,
   FileCheck2,
   FolderOpen,
+  GraduationCap,
   ListTodo,
+  MapPin,
   LogOut,
   Menu,
   Plus,
@@ -27,7 +30,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { AdminHub } from "@/components/admin-hub";
+import type { AdminTab } from "@/components/admin-hub";
 import { useAuthSession } from "@/components/auth-session-provider";
 import { MaterialLibrary } from "@/components/material-library";
 import { NotificationSettingsPanel } from "@/components/providers";
@@ -37,16 +40,22 @@ import {
   TaskMaterialPicker,
   type TaskMaterial,
 } from "@/components/task-materials";
-import type { DeliveryType, GroupMember, Role, Task, TaskStatus } from "@/lib/domain";
+import type { DeliveryType, GroupMember, Task, TaskStatus, ViewRole } from "@/lib/domain";
 import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
 import { ACCESS_LOGOUT_PATH, MICROSOFT_LOGOUT_URL, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { NOTIFICATION_QUERY_PARAM } from "@/lib/notification-action";
 import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
+import { UiIcon } from "@/lib/ui-icons";
+
+const AdminHub = dynamic(
+  () => import("@/components/admin-hub").then((module) => module.AdminHub),
+  { ssr: false, loading: () => <div className="adminModule adminLoading" role="status">Cargando administración…</div> },
+);
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
-type Tab = "calendar" | "tasks" | "materials" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
+type Tab = "calendar" | "tasks" | "materials" | "schedule" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
 type CardSize = "compact" | "medium" | "large";
 type DetailOrigin = Exclude<Tab, "taskDetail">;
 
@@ -102,6 +111,9 @@ type CourseConfig = {
   icon: string;
   cardSize: CardSize;
   active: boolean;
+  professorName: string;
+  professorEmail: string;
+  scheduleText: string;
 };
 
 type SectionConfig = {
@@ -237,6 +249,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const { profile: sessionProfile, identity, clearSession } = useAuthSession();
   const [profileOverride, setProfileOverride] = useState<Profile | null>(null);
   const [tab, setTab] = useState<Tab>("calendar");
+  const [initialAdminTab, setInitialAdminTab] = useState<AdminTab>("general");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -263,14 +276,24 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   const email = identity?.email ?? profile?.email ?? null;
   const prefs = profile?.preferences ?? fallbackPrefs;
   const capabilities = useMemo(() => getSessionCapabilities(profile), [profile]);
-  const shellRole: Role = capabilities.isAdmin || capabilities.isOwner ? "admin" : "reader";
-  const taskActionRole: Role = capabilities.canEditTasks ? "admin" : "reader";
+  const shellRole: ViewRole = capabilities.isAdmin || capabilities.isOwner ? "admin" : "reader";
+  const taskActionRole: ViewRole = capabilities.canEditTasks ? "admin" : "reader";
   const roleLabel = getRoleLabel(profile);
   const canViewCompleted = capabilities.isAdmin || capabilities.isOwner;
 
   useEffect(() => {
     setProfileOverride(null);
   }, [sessionProfile?.id]);
+
+  useEffect(() => {
+    if (!profile || !capabilities.canAccessAdmin) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("tab") !== "admin") return;
+    const requestedAdminTab = url.searchParams.get("adminTab");
+    const allowedAdminTabs: AdminTab[] = ["general", "tasks", "calendar", "courses", "sections", "materials", "users", "notifications", "reports", "diagnostics"];
+    if (requestedAdminTab && allowedAdminTabs.includes(requestedAdminTab as AdminTab)) setInitialAdminTab(requestedAdminTab as AdminTab);
+    setTab("admin");
+  }, [capabilities.canAccessAdmin, profile]);
 
   useEffect(() => {
     if (profile) void loadData(d1Client);
@@ -816,6 +839,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
           </>
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
+        {tab === "schedule" ? <ScheduleAndProfessors courses={courses.filter((course) => course.active)} /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
         {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onMembersChange={setMembers} onError={setError} /> : null}
         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
@@ -830,6 +854,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
             onCourses={setCourses}
             onSections={setSections}
             onError={setError}
+            initialTab={initialAdminTab}
           />
         ) : null}
       </section>
@@ -851,6 +876,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
         <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
+        <button aria-current={activeNavTab === "schedule" ? "page" : undefined} className={activeNavTab === "schedule" ? "active" : ""} onClick={() => go("schedule")} type="button"><GraduationCap size={22} />Horario</button>
         {capabilities.canAccessAdmin ? (
           <button aria-current={activeNavTab === "admin" ? "page" : undefined} className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
         ) : null}
@@ -964,7 +990,7 @@ function Drawer({
 }: {
   open: boolean;
   email: string;
-  role: Role;
+  role: ViewRole;
   roleLabel: string;
   active: Tab;
   sourceLabel: string;
@@ -994,6 +1020,7 @@ function Drawer({
           <DrawerItem icon={<CalendarDays size={20} />} label="Calendario" active={active === "calendar"} onClick={() => onSelect("calendar")} />
           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
+          <DrawerItem icon={<GraduationCap size={20} />} label="Horario y profesores" active={active === "schedule"} onClick={() => onSelect("schedule")} />
           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
           {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
           {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
@@ -1565,7 +1592,7 @@ function TaskList({
   onCreate,
 }: {
   tasks: UiTask[];
-  role: Role;
+  role: ViewRole;
   selectedTask: UiTask | null;
   density: CardSize;
   completedOnly?: boolean;
@@ -1677,7 +1704,7 @@ function TaskCreateModal({
   );
 }
 
-function Group({ members, d1Client, role, canManageMembers, profile, onMembersChange, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: Role; canManageMembers: boolean; profile: Profile | null; onMembersChange: (members: UiGroupMember[]) => void; onError: (error: string | null) => void }) {
+function Group({ members, d1Client, role, canManageMembers, profile, onMembersChange, onError }: { members: UiGroupMember[]; d1Client: D1Browser | null; role: ViewRole; canManageMembers: boolean; profile: Profile | null; onMembersChange: (members: UiGroupMember[]) => void; onError: (error: string | null) => void }) {
   const [memberRows, setMemberRows] = useState<UiGroupMember[]>(members);
   const [memberForm, setMemberForm] = useState({ id: "", fullName: "", email: "", controlNumber: "", active: true });
   const [memberBusy, setMemberBusy] = useState(false);
@@ -2043,8 +2070,74 @@ function Preferences({ profile, d1Client, onProfile, onError }: { profile: Profi
   );
 }
 
+
+const scheduleDayAliases: Record<string, { key: string; label: string; order: number }> = {
+  lunes: { key: "lunes", label: "Lunes", order: 1 }, lun: { key: "lunes", label: "Lunes", order: 1 },
+  martes: { key: "martes", label: "Martes", order: 2 }, mar: { key: "martes", label: "Martes", order: 2 },
+  miercoles: { key: "miercoles", label: "Miércoles", order: 3 }, mie: { key: "miercoles", label: "Miércoles", order: 3 },
+  jueves: { key: "jueves", label: "Jueves", order: 4 }, jue: { key: "jueves", label: "Jueves", order: 4 },
+  viernes: { key: "viernes", label: "Viernes", order: 5 }, vie: { key: "viernes", label: "Viernes", order: 5 },
+  sabado: { key: "sabado", label: "Sábado", order: 6 }, sab: { key: "sabado", label: "Sábado", order: 6 },
+  domingo: { key: "domingo", label: "Domingo", order: 7 }, dom: { key: "domingo", label: "Domingo", order: 7 },
+};
+
+function parseScheduleEntries(course: CourseConfig) {
+  return course.scheduleText.split(/[;\n]+/).map((entry) => entry.trim()).filter(Boolean).map((entry, index) => {
+    const separatorIndex = entry.indexOf(":");
+    const dayPart = separatorIndex >= 0 ? entry.slice(0, separatorIndex) : entry;
+    const detail = separatorIndex >= 0 ? entry.slice(separatorIndex + 1).trim() : "Horario por confirmar";
+    const normalizedDay = dayPart.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const day = scheduleDayAliases[normalizedDay] ?? { key: `other-${index}`, label: dayPart.trim() || "Otro", order: 99 };
+    return { ...day, detail, course };
+  });
+}
+
+function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
+  const scheduleEntries = courses.flatMap(parseScheduleEntries).sort((a, b) => a.order - b.order || a.course.name.localeCompare(b.course.name, "es"));
+  const grouped = new Map<string, { label: string; order: number; entries: typeof scheduleEntries }>();
+  for (const entry of scheduleEntries) {
+    const current = grouped.get(entry.key);
+    if (current) current.entries.push(entry);
+    else grouped.set(entry.key, { label: entry.label, order: entry.order, entries: [entry] });
+  }
+  const days = [...grouped.values()].sort((a, b) => a.order - b.order);
+
+  return (
+    <div className="scheduleScreen">
+      <section className="scheduleHero">
+        <div><span className="scheduleEyebrow">Información académica</span><h2>Horario y profesores</h2><p>Consulta en un mismo lugar quién imparte cada materia y cuándo se reúne el grupo.</p></div>
+        <GraduationCap size={34} aria-hidden="true" />
+      </section>
+      <section className="professorGrid" aria-label="Profesores por materia">
+        {courses.map((course) => (
+          <article className="professorCard" key={course.id}>
+            <span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span>
+            <div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div>
+          </article>
+        ))}
+      </section>
+      <section className="weeklySchedule" aria-label="Horario semanal">
+        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Semana</span><h3>Horario del grupo</h3></div><CalendarDays size={22} aria-hidden="true" /></div>
+        {days.length ? days.map((day) => (
+          <article className="scheduleDay" key={`${day.order}-${day.label}`}>
+            <h4>{day.label}</h4>
+            <div className="scheduleDayEntries">
+              {day.entries.map((entry, index) => (
+                <div className="scheduleEntry" key={`${entry.course.id}-${index}`}>
+                  <span className="courseIcon" style={{ color: entry.course.color }}><UiIcon name={entry.course.icon} size={19} /></span>
+                  <div><strong>{entry.course.name}</strong><span><Clock size={15} aria-hidden="true" />{entry.detail}</span><small><GraduationCap size={14} aria-hidden="true" />{entry.course.professorName || "Profesor por definir"}</small></div>
+                </div>
+              ))}
+            </div>
+          </article>
+        )) : <div className="scheduleEmpty"><MapPin size={24} aria-hidden="true" /><strong>Horario pendiente de captura</strong><p>Un administrador puede registrarlo desde Configuración → Materias.</p></div>}
+      </section>
+    </div>
+  );
+}
+
 function titleFor(tab: Tab) {
-  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
+  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario y profesores" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
 }
 function monthCells(year: number, month: number) { const first = new Date(year, month, 1).getDay(); const total = new Date(year, month + 1, 0).getDate(); const cells: Array<number | null> = Array(first).fill(null).concat(Array.from({ length: total }, (_, index) => index + 1)); while (cells.length % 7 !== 0) cells.push(null); return cells; }
 function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }
@@ -2095,7 +2188,7 @@ function asOne<T>(value: T | T[] | null | undefined): T | null { return Array.is
 function cardSize(value: unknown): CardSize { return value === "compact" || value === "large" ? value : "medium"; }
 function delivery(value: unknown): DeliveryType { const text = String(value ?? "Tarea"); return deliveryTypes.includes(text as DeliveryType) ? text as DeliveryType : "Tarea"; }
 function status(value: unknown): TaskStatus { const text = String(value ?? "Pendiente"); return statuses.includes(text as TaskStatus) ? text as TaskStatus : "Pendiente"; }
-function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true) }; }
+function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true), professorName: String(row.professor_name ?? ""), professorEmail: String(row.professor_email ?? ""), scheduleText: String(row.schedule_text ?? "") }; }
 function toSection(row: Record<string, unknown>): SectionConfig { return { id: String(row.id), name: String(row.name), path: String(row.path), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "folder"), cardSize: cardSize(row.card_size), previewStyle: String(row.preview_style ?? "thumbnail"), active: Boolean(row.active ?? true) }; }
 function toTask(row: Record<string, unknown>): UiTask {
   const course = asOne(row.courses as Record<string, unknown> | Record<string, unknown>[] | null);

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
-const accessibility = readFileSync(new URL("../app/accessibility.css", import.meta.url), "utf8");
+const accessibility = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 
 test("drawer and notification dialogs contain focus and restore it on close", () => {
   assert.match(shell, /function useContainedDialogFocus/);

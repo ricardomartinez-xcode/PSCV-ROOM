@@ -1,10 +1,5 @@
-import { AuthGate } from "@/components/auth-gate";
-import { StudentDirectory } from "@/components/student-directory";
+import { redirect } from "next/navigation";
 
 export default function UsersPage() {
-  return (
-    <AuthGate>
-      <StudentDirectory />
-    </AuthGate>
-  );
+  redirect("/?tab=admin&adminTab=users");
 }

@@ -1,4 +1,4 @@
-export type Role = "reader" | "admin";
+export type ViewRole = "reader" | "admin";
 
 export type TaskStatus =
   | "Pendiente"

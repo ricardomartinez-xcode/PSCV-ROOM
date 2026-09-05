@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronRight, ExternalLink, Eye, FileText, FolderOpen, LayoutGrid, List, Search } from "lucide-react";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
@@ -68,17 +68,7 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
 
   useEffect(() => setQuery(globalQuery), [globalQuery]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    const timeout = window.setTimeout(() => void loadLibrary(controller.signal), 220);
-
-    return () => {
-      window.clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [query]);
-
-  async function loadLibrary(signal: AbortSignal) {
+  const loadLibrary = useCallback(async (signal: AbortSignal) => {
     if (!hasD1Config) {
       setData(buildDemoLibrary(query));
       setError(null);
@@ -110,7 +100,13 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
     } finally {
       setLoading(false);
     }
-  }
+  }, [query]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => void loadLibrary(controller.signal), 220);
+    return () => { window.clearTimeout(timeout); controller.abort(); };
+  }, [loadLibrary]);
 
   const sections = useMemo(() => normalizeSections(data?.sections ?? []), [data]);
   const selectedSection = useMemo(

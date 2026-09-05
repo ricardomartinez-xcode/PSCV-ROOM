@@ -1,10 +1,10 @@
 # Gestión de materias y alumnos
 
-La ruta administrativa es `/gestion-academica`. Solo la puede operar un perfil `owner` o un administrador con los permisos correspondientes.
+La ruta administrativa es `/?tab=admin&adminTab=courses`. Solo la puede operar un perfil `owner` o un administrador con los permisos correspondientes.
 
 ## Crear una materia
 
-1. Abre `https://TU-DOMINIO/gestion-academica` con una cuenta administradora.
+1. Abre `https://TU-DOMINIO/?tab=admin&adminTab=courses` con una cuenta administradora.
 2. Completa nombre, nombre corto opcional, color, icono y tamaño de tarjeta.
 3. Pulsa **Crear materia**.
 4. Para conservar el historial de tareas, una materia se desactiva y reactiva; no se elimina físicamente.

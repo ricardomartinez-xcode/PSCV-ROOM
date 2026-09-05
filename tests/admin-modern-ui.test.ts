@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const hub = readFileSync(new URL("../components/admin-hub.tsx", import.meta.url), "utf8");
-const modernCss = readFileSync(new URL("../app/admin-modern.css", import.meta.url), "utf8");
-const workspacesCss = readFileSync(new URL("../app/admin-workspaces.css", import.meta.url), "utf8");
-const reportsCss = readFileSync(new URL("../app/admin-reports.css", import.meta.url), "utf8");
-const diagnosticsCss = readFileSync(new URL("../app/admin-diagnostics.css", import.meta.url), "utf8");
+const modernCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const workspacesCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const reportsCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const diagnosticsCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
 
 test("loads unified admin modules and their active base styles", () => {
@@ -14,11 +14,8 @@ test("loads unified admin modules and their active base styles", () => {
     assert.match(hub, new RegExp(name));
   }
 
-  assert.ok(layout.indexOf("events-flow.css") < layout.indexOf("admin-modern.css"));
-  assert.ok(layout.indexOf("admin-modern.css") < layout.indexOf("admin-reports.css"));
-  assert.ok(layout.indexOf("admin-reports.css") < layout.indexOf("admin-diagnostics.css"));
-  assert.ok(layout.indexOf("admin-diagnostics.css") < layout.indexOf("admin-workspaces.css"));
-  assert.doesNotMatch(layout, /operational-polish\.css/);
+  assert.match(layout, /import "\.\/pscv\.css"/);
+  assert.doesNotMatch(layout, /admin-modern\.css|admin-reports\.css|admin-diagnostics\.css|admin-workspaces\.css|operational-polish\.css/);
   assert.match(modernCss, /adminCoursesModule/);
   assert.match(workspacesCss, /\.adminTasksModule/);
   assert.match(workspacesCss, /\.adminCalendarModule/);

@@ -39,6 +39,6 @@ test("each linked material has its own preview and download actions", () => {
 
 test("the legacy DOM interception layer is no longer mounted", () => {
   assert.doesNotMatch(layout, /TaskMaterialExperience/);
-  assert.match(layout, /task-materials\.css/);
+  assert.match(layout, /pscv\.css/);
   assert.doesNotMatch(shell, /MutationObserver/);
 });

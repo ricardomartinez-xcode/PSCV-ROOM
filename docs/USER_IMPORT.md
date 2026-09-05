@@ -3,7 +3,7 @@
 La administración de alumnos se realiza en:
 
 ```text
-/admin/users
+/?tab=admin&adminTab=users
 ```
 
 La pantalla requiere el permiso `users:manage` y permite altas, edición, desactivación, eliminación e importación masiva.

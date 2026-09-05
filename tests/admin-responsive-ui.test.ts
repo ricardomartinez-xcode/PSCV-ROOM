@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const reportsCss = readFileSync(new URL("../app/admin-reports.css", import.meta.url), "utf8");
-const diagnosticsCss = readFileSync(new URL("../app/admin-diagnostics.css", import.meta.url), "utf8");
-const workspacesCss = readFileSync(new URL("../app/admin-workspaces.css", import.meta.url), "utf8");
+const reportsCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const diagnosticsCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const workspacesCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 
 test("report tables and admin tabs remain operable at narrow widths", () => {
   assert.match(reportsCss, /\.adminTabs[\s\S]*overflow/);

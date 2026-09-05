@@ -1,25 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
-import "./globals.css";
-import "./responsive.css";
-import "./evolution.css";
-import "./auth.css";
-import "./material-library.css";
-import "./admin-hub.css";
-import "./admin-fixes.css";
-import "./workspace.css";
-import "./notification-center.css";
-import "./events-flow.css";
-import "./admin-modern.css";
-import "./admin-reports.css";
-import "./admin-diagnostics.css";
-import "./admin-notices.css";
-import "./admin-workspaces.css";
-import "./mobile-calendar.css";
-import "./task-materials.css";
-import "./cloudflare-images.css";
-import "./accessibility.css";
+import "./pscv.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",

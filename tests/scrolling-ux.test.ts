@@ -3,10 +3,10 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createBodyScrollLockManager } from "../lib/body-scroll-lock.ts";
 
-const accessibility = readFileSync(new URL("../app/accessibility.css", import.meta.url), "utf8");
-const diagnostics = readFileSync(new URL("../app/admin-diagnostics.css", import.meta.url), "utf8");
-const materials = readFileSync(new URL("../app/task-materials.css", import.meta.url), "utf8");
-const notifications = readFileSync(new URL("../app/notification-center.css", import.meta.url), "utf8");
+const accessibility = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const diagnostics = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const materials = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
+const notifications = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
 
 test("nested overlays keep the body locked until the last overlay closes", () => {

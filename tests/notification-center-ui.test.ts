@@ -6,7 +6,7 @@ const layoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url),
 const pushSource = readFileSync(new URL("../components/push-notifications-bootstrap.tsx", import.meta.url), "utf8");
 const providerSource = readFileSync(new URL("../components/providers.tsx", import.meta.url), "utf8");
 const appShellSource = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
-const notificationCss = readFileSync(new URL("../app/notification-center.css", import.meta.url), "utf8");
+const notificationCss = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 
 test("the header bell is the only notification launcher", () => {
   assert.match(appShellSource, /className={`iconButton notificationButton/);
@@ -15,8 +15,8 @@ test("the header bell is the only notification launcher", () => {
 });
 
 test("notification tray styles are loaded explicitly", () => {
-  assert.match(layoutSource, /notification-center\.css/);
-  assert.doesNotMatch(layoutSource, /push-notifications\.css|operational-polish\.css/);
+  assert.match(layoutSource, /pscv\.css/);
+  assert.doesNotMatch(layoutSource, /notification-center\.css|push-notifications\.css|operational-polish\.css/);
   assert.match(notificationCss, /\.notificationTray\s*\{/);
   assert.match(notificationCss, /\.notificationItem\s*\{/);
 });

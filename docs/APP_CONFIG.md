@@ -9,7 +9,7 @@ Sin binding D1 disponible, la app usa datos semilla y `localStorage`. Sirve para
 La app usa Cloudflare Access para identidad y D1 para datos. El dominio publicado es:
 
 ```txt
-https://pscv-room.rlead.xyz
+https://app.rlead.xyz
 ```
 
 Para probar contra la misma base remota del despliegue:

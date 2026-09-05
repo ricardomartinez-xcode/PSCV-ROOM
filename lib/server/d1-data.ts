@@ -79,7 +79,7 @@ const tableConfigs: Record<string, TableConfig> = {
   },
   courses: {
     id: true,
-    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "created_at", "updated_at"],
+    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "professor_name", "professor_email", "schedule_text", "created_at", "updated_at"],
     json: ["config"],
     bool: ["active"],
   },
@@ -210,6 +210,45 @@ function buildOrder(table: string, order: DataOrder[] = []) {
 
 function buildLimit(limit: number | undefined) {
   return limit ? ` LIMIT ${Math.max(1, Math.min(limit, 1000))}` : "";
+}
+
+function requestedTopLevelColumns(table: string, select: string | undefined) {
+  const source = select?.trim();
+  if (!source || source === "*") return null;
+  const tokens: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of source) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) { if (current.trim()) tokens.push(current.trim()); current = ""; continue; }
+    current += char;
+  }
+  if (current.trim()) tokens.push(current.trim());
+  if (tokens.includes("*")) return null;
+  return tokens.map((token) => token.includes("(") ? token.slice(0, token.indexOf("(")).trim() : token).filter(Boolean).map((column) => { assertColumn(table, column); return column; });
+}
+
+function buildSelectClause(table: string, select: string | undefined) {
+  const columns = requestedTopLevelColumns(table, select);
+  return columns?.length ? columns.map(quoteIdentifier).join(", ") : "*";
+}
+
+function projectRows(rows: Array<Record<string, unknown>>, select: string | undefined) {
+  const source = select?.trim();
+  if (!source || source.includes("*")) return rows;
+  const keys: string[] = [];
+  let depth = 0;
+  let current = "";
+  for (const char of source) {
+    if (char === "(") depth += 1;
+    if (char === ")") depth = Math.max(0, depth - 1);
+    if (char === "," && depth === 0) { if (current.trim()) keys.push(current.trim()); current = ""; continue; }
+    current += char;
+  }
+  if (current.trim()) keys.push(current.trim());
+  const top = keys.map((token) => token.includes("(") ? token.slice(0, token.indexOf("(")).trim() : token).filter(Boolean);
+  return rows.map((row) => Object.fromEntries(top.filter((key) => key in row).map((key) => [key, row[key]])));
 }
 
 export async function d1All<T = Record<string, unknown>>(sql: string, values: unknown[] = []) {
@@ -350,7 +389,7 @@ async function selectMaterials(query: DataQuery) {
 async function selectGeneric(table: string, query: DataQuery) {
   const values: unknown[] = [];
   const rows = await d1All<Record<string, unknown>>(
-    `SELECT * FROM ${quoteIdentifier(table)}${buildWhere(table, query.filters, values)}${buildOrder(table, query.order)}${buildLimit(query.limit)}`,
+    `SELECT ${buildSelectClause(table, query.select)} FROM ${quoteIdentifier(table)}${buildWhere(table, query.filters, values)}${buildOrder(table, query.order)}${buildLimit(query.limit)}`,
     values,
   );
   return rows.map((row) => decodeJsonFields(table, row));
@@ -370,11 +409,38 @@ function hasOwnProfileFilter(query: DataQuery, profile: ServerProfile) {
     (query.filters ?? []).some((filter) => filter.op === "eq" && filter.column === "id" && String(filter.value) === profile.id);
 }
 
+function hasOwnProfileIdFilter(query: DataQuery, profile: ServerProfile) {
+  return (query.filters ?? []).some((filter) => filter.op === "eq" && filter.column === "profile_id" && String(filter.value) === profile.id);
+}
+
+const GROUP_PROFILE_COLUMNS = new Set(["id", "control_number", "email", "full_name", "role", "active"]);
+
 function ensureSelectAllowed(table: string, query: DataQuery, profile: ServerProfile) {
+  if (table === "audit_log") {
+    if (profile.role === "owner" || can(profile, "can_view_reports")) return;
+    throw new HttpError(403, "No autorizado.");
+  }
+  if (table === "notifications") {
+    if (profile.role === "owner" || can(profile, "can_manage_notifications")) return;
+    throw new HttpError(403, "Usa el endpoint personal de notificaciones.");
+  }
+  if (table === "notification_preferences") {
+    if (hasOwnProfileIdFilter(query, profile) || profile.role === "owner" || can(profile, "can_manage_notifications")) return;
+    throw new HttpError(403, "No autorizado.");
+  }
+  if (table === "group_column_values") {
+    if (profile.role === "owner" || can(profile, "can_manage_group")) return;
+    throw new HttpError(403, "No autorizado.");
+  }
   if (table !== "app_profiles") return;
   const ownProfile = hasOwnProfileFilter(query, profile);
   if (ownProfile) return;
-  if (profile.role === "owner" || can(profile, "can_manage_users") || can(profile, "can_manage_group")) return;
+  if (profile.role === "owner" || can(profile, "can_manage_users")) return;
+  if (can(profile, "can_manage_group")) {
+    const requested = requestedTopLevelColumns(table, query.select);
+    if (!requested || requested.some((column) => !GROUP_PROFILE_COLUMNS.has(column))) throw new HttpError(403, "La lista de grupo sólo puede consultar datos básicos del perfil.");
+    return;
+  }
   throw new HttpError(403, "No autorizado.");
 }
 
@@ -523,7 +589,7 @@ export async function executeDataQuery(request: Request, query: DataQuery): Prom
       : table === "materials"
         ? await selectMaterials(scopedQuery)
         : await selectGeneric(table, scopedQuery);
-    return normalizeResult(rows, query, count);
+    return normalizeResult(projectRows(rows, scopedQuery.select), query, count);
   }
 
   ensureMutationAllowed(table, query, profile);

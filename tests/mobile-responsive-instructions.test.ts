@@ -14,7 +14,7 @@ test("task notes are presented as prominent instructions", () => {
 });
 
 test("mobile styles prevent detail overflow", () => {
-  const css = fs.readFileSync(path.join(root, "app/workspace.css"), "utf8");
+  const css = fs.readFileSync(path.join(root, "app/pscv.css"), "utf8");
   assert.match(css, /\.taskInstructions\s*\{/);
   assert.match(css, /overflow-wrap:\s*anywhere/);
   assert.match(css, /@media \(max-width: 620px\)/);

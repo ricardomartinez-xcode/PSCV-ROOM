@@ -1,5 +1,5 @@
-import { AcademicManager } from "@/components/academic-manager";
+import { redirect } from "next/navigation";
 
 export default function AcademicManagementPage() {
-  return <AcademicManager />;
+  redirect("/?tab=admin&adminTab=courses");
 }

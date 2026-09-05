@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import test from "node:test";
+const layout=readFileSync(new URL("../app/layout.tsx",import.meta.url),"utf8");
+const users=readFileSync(new URL("../app/admin/users/page.tsx",import.meta.url),"utf8");
+const academic=readFileSync(new URL("../app/gestion-academica/page.tsx",import.meta.url),"utf8");
+const shell=readFileSync(new URL("../components/app-shell-v5.tsx",import.meta.url),"utf8");
+const hub=readFileSync(new URL("../components/admin-hub.tsx",import.meta.url),"utf8");
+const css=readFileSync(new URL("../app/pscv.css",import.meta.url),"utf8");
+test("legacy admin routes converge on AdminHub",()=>{assert.match(users,/adminTab=users/);assert.match(academic,/adminTab=courses/);assert.match(shell,/initialAdminTab/);assert.match(shell,/searchParams\.get\("adminTab"\)/);assert.match(shell,/initialTab=\{initialAdminTab\}/);assert.match(hub,/initialTab\?: AdminTab/)});
+test("global CSS is consolidated preserving cascade markers",()=>{assert.match(layout,/import "\.\/pscv\.css"/);assert.doesNotMatch(layout,/globals\.css|workspace\.css|admin-hub\.css|notification-center\.css/);assert.match(css,/===== globals\.css =====/);assert.match(css,/===== workspace\.css =====/);assert.match(css,/===== admin-modern\.css =====/);assert.match(css,/===== accessibility\.css =====/)});

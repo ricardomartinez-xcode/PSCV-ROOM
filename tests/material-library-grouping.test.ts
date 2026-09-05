@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("../components/material-library.tsx", import.meta.url), "utf8");
-const styles = readFileSync(new URL("../app/material-library.css", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../app/pscv.css", import.meta.url), "utf8");
 
 test("library groups the all-areas screen by academic section", () => {
   assert.match(source, /const shouldGroup = sectionId === ALL_SECTIONS && !query\.trim\(\) && sectionGroups\.length > 1;/);

@@ -37,6 +37,9 @@ export type CourseConfig = {
   icon: string;
   cardSize: CardSize;
   active: boolean;
+  professorName: string;
+  professorEmail: string;
+  scheduleText: string;
 };
 
 export type SectionConfig = {
@@ -178,6 +181,9 @@ export function toCourse(row: Record<string, unknown>): CourseConfig {
     icon: String(row.icon ?? "book"),
     cardSize: cardSize(row.card_size),
     active: row.active == null ? true : booleanFlag(row.active),
+    professorName: String(row.professor_name ?? ""),
+    professorEmail: String(row.professor_email ?? ""),
+    scheduleText: String(row.schedule_text ?? ""),
   };
 }
 

@@ -9,7 +9,7 @@ PSCV Room esta migrado a Cloudflare Workers con OpenNext.
 - Next.js App Router compilado con `@opennextjs/cloudflare`.
 - Worker principal: `.open-next/worker.js`.
 - Configuracion de despliegue: `wrangler.jsonc`.
-- Dominio productivo: `https://pscv-room.rlead.xyz`.
+- Dominio productivo: `https://app.rlead.xyz`.
 - URL workers.dev disponible: `https://pscv-room.ricardomartinez.workers.dev`.
 - Base de datos: Cloudflare D1 binding `DB`, database `pscv-room`.
 - Archivos: Cloudflare R2 binding `MATERIALS_BUCKET`, bucket `psicologia`.
@@ -52,14 +52,14 @@ npm test
 npm run lint
 npx wrangler deploy --dry-run --outdir dist
 SMOKE_BASE_URL="https://pscv-room.ricardomartinez.workers.dev" npm run smoke
-curl -I "https://pscv-room.rlead.xyz/api/health"
+curl -I "https://app.rlead.xyz/api/health"
 ```
 
 El smoke automatizado puede usar `workers.dev`, pero ahora comprueba que tareas, materiales y destinos del bucket rechacen sesiones anónimas. Así el subdominio técnico no se convierte en un bypass de Cloudflare Access. En el dominio productivo, una llamada sin sesión puede ser rechazada por la aplicación o redirigida por Access.
 
 ## Access
 
-El dominio `pscv-room.rlead.xyz` esta protegido por una app self-hosted de Cloudflare Access.
+El dominio `app.rlead.xyz` esta protegido por una app self-hosted de Cloudflare Access.
 La politica vigente permite el correo owner configurado en D1 y usa Microsoft Entra ID como proveedor.
 
 Secrets requeridos en el Worker, configurados con `wrangler secret put`:

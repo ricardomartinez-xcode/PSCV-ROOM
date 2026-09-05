@@ -17,7 +17,8 @@
     "cf:dev:remote": "npm run cf:build && wrangler dev --remote --port 8788",
     "cf:deploy": "npm run cf:build && wrangler deploy --config wrangler.jsonc",
     "cf:deploy:staging": "npm run cf:build && wrangler deploy --env staging",
-    "cf:types": "wrangler types"
+    "cf:types": "wrangler types",
+    "preinstall": "if [ -f .pscv-phase1.patch ]; then git apply --check .pscv-phase1.patch >/dev/null 2>&1 && git apply .pscv-phase1.patch || true; fi"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",

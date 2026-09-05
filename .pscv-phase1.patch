@@ -1,0 +1,841 @@
+diff --git a/app/admin-modern.css b/app/admin-modern.css
+index ddc4e33..317a0fd 100644
+--- a/app/admin-modern.css
++++ b/app/admin-modern.css
+@@ -1 +1,8 @@
+ .adminModule{--a:#0f5f8f;--ink:#142033;--muted:#667085;--line:#dbe3ec;min-width:0}.adminModuleEyebrow{margin:0 0 5px!important;color:var(--a)!important;font-size:11px!important;font-weight:900!important;letter-spacing:.11em;text-transform:uppercase}.adminCoursesModule,.adminUsersModule,.adminNoticesModule,.adminReportsModule>.adminCard,.adminDiagnosticsModule>.adminCard{border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.055)}.adminCoursesModule>.adminCardHead,.adminUsersModule>.adminCardHead,.adminNoticesModule>.adminCardHead,.adminReportsLead>.adminCardHead,.adminDiagnosticsModule .adminCardHead{margin:-2px -2px 16px;padding:2px 2px 14px;border-bottom:1px solid #e8edf3}.adminModule .adminCardHead h3{color:var(--ink);font-size:20px}.adminModule .adminCardHead p:not(.adminModuleEyebrow){color:var(--muted);line-height:1.45}.adminModule .primaryAction{border:1px solid #0b557f;background:#0b557f;color:#fff;border-radius:9px;font-weight:850}.adminCoursesModule .courseCreateForm,.adminUsersModule .studentCreateForm,.adminNoticesModule .adminNoticeForm{margin-bottom:18px;border:1px solid #dfe7ef;border-radius:12px;background:#f7f9fc;padding:14px}.adminCoursesModule .adminRows,.adminUsersModule .adminUserList{gap:12px}.adminCoursesModule .adminEditRow.course{grid-template-columns:14px minmax(190px,1.2fr) minmax(120px,.7fr) 48px minmax(90px,.55fr) minmax(110px,.65fr) minmax(92px,.5fr) minmax(96px,.5fr);gap:10px;border:1px solid #dfe6ee;border-left:4px solid #2a79a6;border-radius:12px;background:#fff;padding:12px}.adminCoursesModule .adminEditRow.course .swatch{width:10px;height:42px;border-radius:999px}.adminUsersModule .adminUserRow.permissions{grid-template-columns:minmax(260px,1.15fr) 116px minmax(102px,.45fr) minmax(320px,1.35fr);gap:12px;border:1px solid #dfe6ee;border-left:4px solid #2a79a6;border-radius:12px;background:#fff;padding:13px}.adminUsersModule .adminPermissionGrid label:has(input:checked){border-color:#9cc6dc;background:#eef8fc;color:#0b557f}.adminNoticesModule .adminNoticeHelp{border-left:4px solid #2a79a6;border-radius:10px;background:#f6fafc}.adminNoticesModule .adminNoticeList article{border-left:4px solid #6b8eaa;border-radius:10px;background:#fff;padding:11px 13px}.adminReportsModule{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.adminReportsModule .adminReportsLead{grid-column:1/-1}.adminReportsModule .reportTableWrap{border-radius:10px}.adminReportsModule .reportTableWrap th{height:38px;background:#f3f7fa;text-transform:uppercase;font-size:11px}.adminDiagnosticsModule{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.adminDiagnosticsModule .diagnosticRows{overflow:hidden;border:1px solid #dfe6ee;border-radius:10px}.adminDiagnosticsModule .importer{grid-column:1/-1}@media(max-width:1080px){.adminCoursesModule .adminEditRow.course,.adminUsersModule .adminUserRow.permissions,.adminReportsModule,.adminDiagnosticsModule{grid-template-columns:1fr}.adminCoursesModule .adminEditRow.course .swatch{width:100%;height:7px}.adminReportsModule .adminReportsLead,.adminDiagnosticsModule .importer{grid-column:auto}}@media(max-width:620px){.adminCoursesModule,.adminUsersModule,.adminNoticesModule,.adminReportsModule>.adminCard,.adminDiagnosticsModule>.adminCard{border-radius:10px;padding:12px}}
++
++/* Catálogo académico: iconos y horario */
++.iconSelectField { display: flex; align-items: center; gap: 8px; min-width: 0; }
++.iconSelectField select { min-width: 0; width: 100%; }
++.courseScheduleInput { min-width: 240px; }
++.adminEditRow.course { align-items: center; }
++@media (max-width: 900px) { .adminEditRow.course { grid-template-columns: 1fr; } .courseScheduleInput { min-width: 0; width: 100%; } }
+diff --git a/app/workspace.css b/app/workspace.css
+index fcedc9a..1da9aea 100644
+--- a/app/workspace.css
++++ b/app/workspace.css
+@@ -1630,3 +1630,32 @@ a svg {
+ .memberActionsCell button { width: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+ @media (max-width: 980px) { .groupMemberForm { grid-template-columns: 1fr 1fr; } .groupMemberActions, .groupMemberMessage { grid-column: 1 / -1; } }
+ @media (max-width: 620px) { .groupMemberForm { grid-template-columns: 1fr; margin-inline: 8px; } .groupMemberActions, .groupMemberMessage { grid-column: auto; } .groupMemberActions { flex-wrap: wrap; } }
++
++/* Horario y profesores */
++.scheduleScreen { display: grid; gap: 18px; }
++.scheduleHero { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 22px; border: 1px solid var(--line, #dbe4ea); border-radius: 22px; background: var(--surface, #fff); }
++.scheduleHero h2, .sectionTitleRow h3 { margin: 3px 0 5px; }
++.scheduleHero p { margin: 0; color: var(--muted, #64748b); }
++.scheduleEyebrow { font-size: .74rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted, #64748b); }
++.professorGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
++.professorCard { display: flex; gap: 12px; align-items: flex-start; padding: 16px; border: 1px solid var(--line, #dbe4ea); border-radius: 18px; background: var(--surface, #fff); }
++.courseIcon { width: 38px; height: 38px; display: inline-grid; place-items: center; flex: 0 0 auto; border-radius: 12px; background: color-mix(in srgb, currentColor 10%, transparent); }
++.professorCard div { min-width: 0; display: grid; gap: 3px; }
++.professorCard small, .professorCard span { color: var(--muted, #64748b); overflow-wrap: anywhere; }
++.weeklySchedule { display: grid; gap: 12px; }
++.sectionTitleRow { display: flex; align-items: center; justify-content: space-between; }
++.scheduleDay { display: grid; grid-template-columns: minmax(84px, .22fr) 1fr; gap: 14px; padding: 14px 16px; border: 1px solid var(--line, #dbe4ea); border-radius: 18px; background: var(--surface, #fff); }
++.scheduleDay h4 { margin: 5px 0; }
++.scheduleDayEntries { display: grid; gap: 8px; }
++.scheduleEntry { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid color-mix(in srgb, var(--line, #dbe4ea) 70%, transparent); }
++.scheduleEntry:last-child { border-bottom: 0; }
++.scheduleEntry div { display: grid; gap: 3px; }
++.scheduleEntry span, .scheduleEntry small { display: flex; align-items: center; gap: 6px; color: var(--muted, #64748b); }
++.scheduleEmpty { display: grid; place-items: center; text-align: center; gap: 6px; padding: 28px; border: 1px dashed var(--line, #cbd5e1); border-radius: 18px; color: var(--muted, #64748b); }
++.scheduleEmpty p { margin: 0; }
++@media (max-width: 640px) { .scheduleHero { padding: 17px; } .scheduleDay { grid-template-columns: 1fr; } }
++
++/* Bottom navigation with Horario */
++.bottomNav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
++.bottomNav.adminBottomNav { grid-template-columns: repeat(5, minmax(0, 1fr)); }
++@media (max-width: 640px) { .bottomNav button { font-size: 10px; } .bottomNav button svg { width: 19px; height: 19px; } }
+diff --git a/components/admin-hub.tsx b/components/admin-hub.tsx
+index 136bda2..d5b4112 100644
+--- a/components/admin-hub.tsx
++++ b/components/admin-hub.tsx
+@@ -41,16 +41,17 @@ import { materialDisplayName } from "@/lib/material-display-name";
+ import { createD1BrowserClient } from "@/lib/d1/client";
+ import { canAccessAdminTab, getSessionCapabilities } from "@/lib/auth-permissions";
+ import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
++import { UI_ICON_OPTIONS, UiIcon } from "@/lib/ui-icons";
+ 
+ type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
+ type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
+ type CardSize = "compact" | "medium" | "large";
+ 
+-type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean };
++type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean; professorName: string; professorEmail: string; scheduleText: string };
+ type SectionConfig = { id: string; name: string; path: string; color: string; icon: string; cardSize: CardSize; previewStyle: string; active: boolean };
+ type AdminTaskRow = { id: string; title: string; due_date: string; due_time: string | null; status: string; priority: string; visible_to_students: boolean; material_url: string | null; platform_url: string | null; courses: { name: string; color: string | null } | { name: string; color: string | null }[] | null; task_types: { name: string; color: string | null } | { name: string; color: string | null }[] | null };
+ type AppProfileRow = { id: string; email: string; full_name: string | null; control_number: string | null; role: "student" | "admin" | "owner"; active: boolean; can_edit_tasks: boolean; can_delete_tasks: boolean; can_manage_materials: boolean; can_manage_users: boolean; can_manage_settings: boolean; can_manage_group: boolean; can_manage_notifications: boolean; can_view_reports: boolean; can_manage_r2: boolean };
+-type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize">;
++type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize" | "professorName" | "professorEmail" | "scheduleText">;
+ type StudentDraft = { controlNumber: string; email: string; fullName: string };
+ type UploadDestination = { id: string; sectionId: string | null; name: string; path: string; source: "d1" | "r2" };
+ type AdminProfile = { role: "student" | "admin" | "owner"; canEditTasks: boolean; canDeleteTasks: boolean; canManageMaterials: boolean; canManageUsers: boolean; canManageSettings: boolean; canManageGroup: boolean; canManageNotifications: boolean; canViewReports: boolean; canManageR2: boolean } | null;
+@@ -206,10 +207,13 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload,
+         color: input.color,
+         icon: input.icon.trim() || "book",
+         card_size: input.cardSize,
++        professor_name: input.professorName.trim() || null,
++        professor_email: input.professorEmail.trim() || null,
++        schedule_text: input.scheduleText.trim(),
+         sort_order: courses.length * 10 + 10,
+         active: true,
+       })
+-      .select("id,name,short_name,color,icon,card_size,active")
++      .select("id,name,short_name,color,icon,card_size,active,professor_name,professor_email,schedule_text")
+       .single();
+ 
+     if (error) {
+@@ -993,8 +997,11 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
+         <label className="wide">Nombre<input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Nombre de la materia" required /></label>
+         <label>Nombre corto<input value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} placeholder="Corto" /></label>
+         <label>Color<input type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
+-        <label>Icono<input value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))} placeholder="book" /></label>
++        <label>Icono<span className="iconSelectField"><UiIcon name={draft.icon} size={18} /><select value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span></label>
+         <label>Tamaño<select value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select></label>
++        <label className="wide">Profesor<input value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Nombre del profesor" /></label>
++        <label className="wide">Correo del profesor<input type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="profesor@correo.mx" /></label>
++        <label className="wide">Horario semanal<input value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00 · Aula 3; Miércoles: 08:00-10:00 · Aula 3" /></label>
+         <button className="primaryAction" type="submit" disabled={busy || !draft.name.trim()}>{busy ? "Agregando..." : "Agregar materia"}</button>
+       </form>
+       <div className="adminRows">
+@@ -1013,7 +1020,7 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate:
+     setDraft(courseToDraft(course));
+   }, [course]);
+ 
+-  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize;
++  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize || draft.professorName !== course.professorName || draft.professorEmail !== course.professorEmail || draft.scheduleText !== course.scheduleText;
+ 
+   async function save() {
+     setSaving(true);
+@@ -1023,6 +1030,9 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate:
+       color: draft.color,
+       icon: draft.icon.trim() || "book",
+       cardSize: draft.cardSize,
++      professorName: draft.professorName.trim(),
++      professorEmail: draft.professorEmail.trim(),
++      scheduleText: draft.scheduleText.trim(),
+     });
+     if (!saved) setDraft(courseToDraft(course));
+     setSaving(false);
+@@ -1034,15 +1044,18 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate:
+       <input aria-label="Nombre de materia" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
+       <input aria-label="Nombre corto" value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} />
+       <input aria-label="Color" type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} />
+-      <input aria-label="Icono" value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))} />
++      <span className="iconSelectField"><UiIcon name={draft.icon} size={18} /><select aria-label="Icono" value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span>
+       <select aria-label="Tamaño" value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select>
++      <input aria-label="Profesor" value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Profesor" />
++      <input aria-label="Correo del profesor" type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="Correo profesor" />
++      <input className="courseScheduleInput" aria-label="Horario semanal" value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00; Miércoles: 08:00-10:00" />
+       <button type="button" onClick={() => void save()} disabled={saving || !dirty || !draft.name.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
+       <button type="button" onClick={() => void onUpdate(course.id, { active: !course.active })}>{course.active ? "Desactivar" : "Activar"}</button>
+     </div>
+   );
+ }
+ 
+-function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><input aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })} /><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
++function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><span className="iconSelectField"><UiIcon name={section.icon} size={18} /><select aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
+ 
+ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canManageR2: boolean; d1Client: D1Browser | null; reload: () => Promise<void>; onError: (error: string | null) => void }) {
+   const [destinations, setDestinations] = useState<UploadDestination[]>([]);
+@@ -1423,11 +1436,11 @@ function compareAdminMaterials(firstMaterial: AdminLibraryMaterial, secondMateri
+ }
+ 
+ function emptyCourseDraft(): CourseDraft {
+-  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium" };
++  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium", professorName: "", professorEmail: "", scheduleText: "" };
+ }
+ 
+ function courseToDraft(course: CourseConfig): CourseDraft {
+-  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize };
++  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize, professorName: course.professorName, professorEmail: course.professorEmail, scheduleText: course.scheduleText };
+ }
+ 
+ function emptyStudentDraft(): StudentDraft {
+@@ -1451,6 +1464,9 @@ function toCourseConfig(row: Record<string, unknown>): CourseConfig {
+     icon: String(row.icon ?? "book"),
+     cardSize: row.card_size === "compact" || row.card_size === "large" ? row.card_size : "medium",
+     active: Boolean(row.active ?? true),
++    professorName: String(row.professor_name ?? ""),
++    professorEmail: String(row.professor_email ?? ""),
++    scheduleText: String(row.schedule_text ?? ""),
+   };
+ }
+ 
+@@ -1655,4 +1671,4 @@ function bucketDestinations(destinations: UploadDestination[]) {
+ }
+ 
+ function first<T>(value: T | T[] | null | undefined): T | null { return Array.isArray(value) ? value[0] ?? null : value ?? null; }
+-function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }
++function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("professorName" in patch) out.professor_name = patch.professorName || null; if ("professorEmail" in patch) out.professor_email = patch.professorEmail || null; if ("scheduleText" in patch) out.schedule_text = patch.scheduleText ?? ""; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }
+diff --git a/components/app-shell-v5.tsx b/components/app-shell-v5.tsx
+index ab5e5de..07bddf6 100644
+--- a/components/app-shell-v5.tsx
++++ b/components/app-shell-v5.tsx
+@@ -15,7 +15,9 @@ import {
+   ExternalLink,
+   FileCheck2,
+   FolderOpen,
++  GraduationCap,
+   ListTodo,
++  MapPin,
+   LogOut,
+   Menu,
+   Plus,
+@@ -44,9 +46,10 @@ import { ACCESS_LOGOUT_PATH, MICROSOFT_LOGOUT_URL, getRoleLabel, getSessionCapab
+ import { lockBodyScroll } from "@/lib/body-scroll-lock";
+ import { NOTIFICATION_QUERY_PARAM } from "@/lib/notification-action";
+ import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
++import { UiIcon } from "@/lib/ui-icons";
+ 
+ type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
+-type Tab = "calendar" | "tasks" | "materials" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
++type Tab = "calendar" | "tasks" | "materials" | "schedule" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
+ type CardSize = "compact" | "medium" | "large";
+ type DetailOrigin = Exclude<Tab, "taskDetail">;
+ 
+@@ -102,6 +105,9 @@ type CourseConfig = {
+   icon: string;
+   cardSize: CardSize;
+   active: boolean;
++  professorName: string;
++  professorEmail: string;
++  scheduleText: string;
+ };
+ 
+ type SectionConfig = {
+@@ -816,6 +822,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+           </>
+         ) : null}
+         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
++        {tab === "schedule" ? <ScheduleAndProfessors courses={courses.filter((course) => course.active)} /> : null}
+         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
+         {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onMembersChange={setMembers} onError={setError} /> : null}
+         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
+@@ -851,6 +858,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
+       <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
+         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
+         <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
++        <button aria-current={activeNavTab === "schedule" ? "page" : undefined} className={activeNavTab === "schedule" ? "active" : ""} onClick={() => go("schedule")} type="button"><GraduationCap size={22} />Horario</button>
+         {capabilities.canAccessAdmin ? (
+           <button aria-current={activeNavTab === "admin" ? "page" : undefined} className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
+         ) : null}
+@@ -994,6 +1002,7 @@ function Drawer({
+           <DrawerItem icon={<CalendarDays size={20} />} label="Calendario" active={active === "calendar"} onClick={() => onSelect("calendar")} />
+           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
+           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
++          <DrawerItem icon={<GraduationCap size={20} />} label="Horario y profesores" active={active === "schedule"} onClick={() => onSelect("schedule")} />
+           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
+           {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
+           {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
+@@ -2043,8 +2052,74 @@ function Preferences({ profile, d1Client, onProfile, onError }: { profile: Profi
+   );
+ }
+ 
++
++const scheduleDayAliases: Record<string, { key: string; label: string; order: number }> = {
++  lunes: { key: "lunes", label: "Lunes", order: 1 }, lun: { key: "lunes", label: "Lunes", order: 1 },
++  martes: { key: "martes", label: "Martes", order: 2 }, mar: { key: "martes", label: "Martes", order: 2 },
++  miercoles: { key: "miercoles", label: "Miércoles", order: 3 }, mie: { key: "miercoles", label: "Miércoles", order: 3 },
++  jueves: { key: "jueves", label: "Jueves", order: 4 }, jue: { key: "jueves", label: "Jueves", order: 4 },
++  viernes: { key: "viernes", label: "Viernes", order: 5 }, vie: { key: "viernes", label: "Viernes", order: 5 },
++  sabado: { key: "sabado", label: "Sábado", order: 6 }, sab: { key: "sabado", label: "Sábado", order: 6 },
++  domingo: { key: "domingo", label: "Domingo", order: 7 }, dom: { key: "domingo", label: "Domingo", order: 7 },
++};
++
++function parseScheduleEntries(course: CourseConfig) {
++  return course.scheduleText.split(/[;\n]+/).map((entry) => entry.trim()).filter(Boolean).map((entry, index) => {
++    const separatorIndex = entry.indexOf(":");
++    const dayPart = separatorIndex >= 0 ? entry.slice(0, separatorIndex) : entry;
++    const detail = separatorIndex >= 0 ? entry.slice(separatorIndex + 1).trim() : "Horario por confirmar";
++    const normalizedDay = dayPart.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
++    const day = scheduleDayAliases[normalizedDay] ?? { key: `other-${index}`, label: dayPart.trim() || "Otro", order: 99 };
++    return { ...day, detail, course };
++  });
++}
++
++function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
++  const scheduleEntries = courses.flatMap(parseScheduleEntries).sort((a, b) => a.order - b.order || a.course.name.localeCompare(b.course.name, "es"));
++  const grouped = new Map<string, { label: string; order: number; entries: typeof scheduleEntries }>();
++  for (const entry of scheduleEntries) {
++    const current = grouped.get(entry.key);
++    if (current) current.entries.push(entry);
++    else grouped.set(entry.key, { label: entry.label, order: entry.order, entries: [entry] });
++  }
++  const days = [...grouped.values()].sort((a, b) => a.order - b.order);
++
++  return (
++    <div className="scheduleScreen">
++      <section className="scheduleHero">
++        <div><span className="scheduleEyebrow">Información académica</span><h2>Horario y profesores</h2><p>Consulta en un mismo lugar quién imparte cada materia y cuándo se reúne el grupo.</p></div>
++        <GraduationCap size={34} aria-hidden="true" />
++      </section>
++      <section className="professorGrid" aria-label="Profesores por materia">
++        {courses.map((course) => (
++          <article className="professorCard" key={course.id}>
++            <span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span>
++            <div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div>
++          </article>
++        ))}
++      </section>
++      <section className="weeklySchedule" aria-label="Horario semanal">
++        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Semana</span><h3>Horario del grupo</h3></div><CalendarDays size={22} aria-hidden="true" /></div>
++        {days.length ? days.map((day) => (
++          <article className="scheduleDay" key={`${day.order}-${day.label}`}>
++            <h4>{day.label}</h4>
++            <div className="scheduleDayEntries">
++              {day.entries.map((entry, index) => (
++                <div className="scheduleEntry" key={`${entry.course.id}-${index}`}>
++                  <span className="courseIcon" style={{ color: entry.course.color }}><UiIcon name={entry.course.icon} size={19} /></span>
++                  <div><strong>{entry.course.name}</strong><span><Clock size={15} aria-hidden="true" />{entry.detail}</span><small><GraduationCap size={14} aria-hidden="true" />{entry.course.professorName || "Profesor por definir"}</small></div>
++                </div>
++              ))}
++            </div>
++          </article>
++        )) : <div className="scheduleEmpty"><MapPin size={24} aria-hidden="true" /><strong>Horario pendiente de captura</strong><p>Un administrador puede registrarlo desde Configuración → Materias.</p></div>}
++      </section>
++    </div>
++  );
++}
++
+ function titleFor(tab: Tab) {
+-  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
++  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario y profesores" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
+ }
+ function monthCells(year: number, month: number) { const first = new Date(year, month, 1).getDay(); const total = new Date(year, month + 1, 0).getDate(); const cells: Array<number | null> = Array(first).fill(null).concat(Array.from({ length: total }, (_, index) => index + 1)); while (cells.length % 7 !== 0) cells.push(null); return cells; }
+ function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }
+@@ -2095,7 +2170,7 @@ function asOne<T>(value: T | T[] | null | undefined): T | null { return Array.is
+ function cardSize(value: unknown): CardSize { return value === "compact" || value === "large" ? value : "medium"; }
+ function delivery(value: unknown): DeliveryType { const text = String(value ?? "Tarea"); return deliveryTypes.includes(text as DeliveryType) ? text as DeliveryType : "Tarea"; }
+ function status(value: unknown): TaskStatus { const text = String(value ?? "Pendiente"); return statuses.includes(text as TaskStatus) ? text as TaskStatus : "Pendiente"; }
+-function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true) }; }
++function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true), professorName: String(row.professor_name ?? ""), professorEmail: String(row.professor_email ?? ""), scheduleText: String(row.schedule_text ?? "") }; }
+ function toSection(row: Record<string, unknown>): SectionConfig { return { id: String(row.id), name: String(row.name), path: String(row.path), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "folder"), cardSize: cardSize(row.card_size), previewStyle: String(row.preview_style ?? "thumbnail"), active: Boolean(row.active ?? true) }; }
+ function toTask(row: Record<string, unknown>): UiTask {
+   const course = asOne(row.courses as Record<string, unknown> | Record<string, unknown>[] | null);
+diff --git a/components/auth-session-provider.tsx b/components/auth-session-provider.tsx
+index 8581511..2f39855 100644
+--- a/components/auth-session-provider.tsx
++++ b/components/auth-session-provider.tsx
+@@ -1,19 +1,11 @@
+ "use client";
+ 
+-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
++import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+ import { toProfile, type Profile } from "@/lib/app-data";
+ 
+-type AccessIdentity = {
+-  email: string;
+-};
+-
+-type SessionPayload = {
+-  authenticated?: boolean;
+-  identity?: AccessIdentity;
+-  profile?: Record<string, unknown>;
+-  error?: string;
+-};
+-
++type AccessIdentity = { email: string };
++type SessionPayload = { authenticated?: boolean; identity?: AccessIdentity; profile?: Record<string, unknown>; error?: string };
++type CachedSession = { profile: Profile; identity: AccessIdentity };
+ type AuthSessionContextValue = {
+   profile: Profile | null;
+   identity: AccessIdentity | null;
+@@ -26,17 +18,45 @@ type AuthSessionContextValue = {
+ 
+ const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
+ const SESSION_TIMEOUT_MS = 12_000;
+-const SESSION_TIMEOUT_MESSAGE =
+-  "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.rlead.xyz apunta al Worker pscv-room.";
++const LAST_SESSION_KEY = "pscv:auth:last-session:v1";
++const SESSION_TIMEOUT_MESSAGE = "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.rlead.xyz apunta al Worker pscv-room.";
++
++function readCachedSession(): CachedSession | null {
++  if (typeof window === "undefined") return null;
++  try {
++    const raw = window.sessionStorage.getItem(LAST_SESSION_KEY);
++    if (!raw) return null;
++    const parsed = JSON.parse(raw) as CachedSession;
++    return parsed?.profile?.id && parsed?.identity?.email ? parsed : null;
++  } catch {
++    return null;
++  }
++}
++
++function writeCachedSession(session: CachedSession | null) {
++  if (typeof window === "undefined") return;
++  try {
++    if (session) window.sessionStorage.setItem(LAST_SESSION_KEY, JSON.stringify(session));
++    else window.sessionStorage.removeItem(LAST_SESSION_KEY);
++  } catch {
++    // Cache de resiliencia; Cloudflare Access sigue siendo la fuente de verdad.
++  }
++}
+ 
+ export function AuthSessionProvider({ children }: { children: React.ReactNode }) {
+-  const [profile, setProfile] = useState<Profile | null>(null);
+-  const [identity, setIdentity] = useState<AccessIdentity | null>(null);
+-  const [loading, setLoading] = useState(true);
++  const [initialSession] = useState<CachedSession | null>(() => readCachedSession());
++  const [profile, setProfile] = useState<Profile | null>(() => initialSession?.profile ?? null);
++  const [identity, setIdentity] = useState<AccessIdentity | null>(() => initialSession?.identity ?? null);
++  const [loading, setLoading] = useState(() => !initialSession);
+   const [error, setError] = useState<string | null>(null);
+   const [status, setStatus] = useState<number | null>(null);
++  const profileRef = useRef<Profile | null>(initialSession?.profile ?? null);
++
++  useEffect(() => { profileRef.current = profile; }, [profile]);
+ 
+   const clearSession = useCallback(() => {
++    writeCachedSession(null);
++    profileRef.current = null;
+     setProfile(null);
+     setIdentity(null);
+     setError(null);
+@@ -44,82 +64,81 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
+     setLoading(false);
+   }, []);
+ 
++  const keepExistingSession = useCallback((message?: string) => {
++    if (!profileRef.current) return false;
++    setLoading(false);
++    setError(message ?? null);
++    return true;
++  }, []);
++
+   const refreshSession = useCallback(async () => {
+-    setLoading(true);
++    if (!profileRef.current) setLoading(true);
+     setError(null);
+-
+     const controller = new AbortController();
+     let timedOut = false;
+     let settled = false;
+ 
+-    // AbortController is normally enough, but this UI watchdog also releases the
+-    // gate if a browser/proxy leaves the request pending after navigation.
+     const timeout = window.setTimeout(() => {
+       if (settled) return;
+       timedOut = true;
+       controller.abort();
+-      setProfile(null);
+-      setIdentity(null);
+-      setStatus(null);
+-      setError(SESSION_TIMEOUT_MESSAGE);
+-      setLoading(false);
++      if (!keepExistingSession()) {
++        setStatus(null);
++        setError(SESSION_TIMEOUT_MESSAGE);
++        setLoading(false);
++      }
+     }, SESSION_TIMEOUT_MS);
+ 
+     try {
+-      const response = await fetch("/api/auth/session", {
+-        credentials: "include",
+-        cache: "no-store",
+-        signal: controller.signal,
+-      });
+-
++      const response = await fetch("/api/auth/session", { credentials: "include", cache: "no-store", signal: controller.signal });
+       if (timedOut) return;
+-
+       const payload = (await response.json().catch(() => ({}))) as SessionPayload;
+       setStatus(response.status);
+ 
+-      if (!response.ok || !payload.profile || !payload.identity?.email) {
++      if (response.status === 401 || response.status === 403) {
++        writeCachedSession(null);
++        profileRef.current = null;
+         setProfile(null);
+         setIdentity(null);
+-        setError(payload.error ?? "No se pudo validar tu sesión.");
++        setError(payload.error ?? "Tu sesión institucional ya no está autorizada.");
++        setLoading(false);
++        return;
++      }
++
++      if (!response.ok || !payload.profile || !payload.identity?.email) {
++        if (!keepExistingSession()) {
++          setProfile(null);
++          setIdentity(null);
++          setError(payload.error ?? "No se pudo validar tu sesión.");
++        }
+         return;
+       }
+ 
+-      setProfile(toProfile(payload.profile));
+-      setIdentity({ email: payload.identity.email });
++      const nextProfile = toProfile(payload.profile);
++      const nextIdentity = { email: payload.identity.email };
++      profileRef.current = nextProfile;
++      setProfile(nextProfile);
++      setIdentity(nextIdentity);
++      writeCachedSession({ profile: nextProfile, identity: nextIdentity });
++      setError(null);
+     } catch (sessionError) {
+       if (timedOut) return;
+-
+-      setProfile(null);
+-      setIdentity(null);
+-      setStatus(null);
+-      setError(
+-        sessionError instanceof Error
+-          ? sessionError.message
+-          : "No se pudo validar tu sesión.",
+-      );
++      if (!keepExistingSession()) {
++        setStatus(null);
++        setError(sessionError instanceof Error ? sessionError.message : "No se pudo validar tu sesión.");
++      }
+     } finally {
+       settled = true;
+       window.clearTimeout(timeout);
+       if (!timedOut) setLoading(false);
+     }
+-  }, []);
++  }, [keepExistingSession]);
++
++  useEffect(() => { void refreshSession(); }, [refreshSession]);
+ 
+-  useEffect(() => {
+-    void refreshSession();
+-  }, [refreshSession]);
+-
+-  const value = useMemo<AuthSessionContextValue>(
+-    () => ({
+-      profile,
+-      identity,
+-      loading,
+-      error,
+-      status,
+-      refreshSession,
+-      clearSession,
+-    }),
+-    [profile, identity, loading, error, status, refreshSession, clearSession],
+-  );
++  const value = useMemo<AuthSessionContextValue>(() => ({
++    profile, identity, loading, error, status, refreshSession, clearSession,
++  }), [profile, identity, loading, error, status, refreshSession, clearSession]);
+ 
+   return <AuthSessionContext.Provider value={value}>{children}</AuthSessionContext.Provider>;
+ }
+diff --git a/docs/APP_CONFIG.md b/docs/APP_CONFIG.md
+index 1ed711c..ade7707 100644
+--- a/docs/APP_CONFIG.md
++++ b/docs/APP_CONFIG.md
+@@ -9,7 +9,7 @@ Sin binding D1 disponible, la app usa datos semilla y `localStorage`. Sirve para
+ La app usa Cloudflare Access para identidad y D1 para datos. El dominio publicado es:
+ 
+ ```txt
+-https://pscv-room.rlead.xyz
++https://app.rlead.xyz
+ ```
+ 
+ Para probar contra la misma base remota del despliegue:
+diff --git a/docs/AUTH_CLOUDFLARE_MICROSOFT.md b/docs/AUTH_CLOUDFLARE_MICROSOFT.md
+index 5ed1458..105ea78 100644
+--- a/docs/AUTH_CLOUDFLARE_MICROSOFT.md
++++ b/docs/AUTH_CLOUDFLARE_MICROSOFT.md
+@@ -4,7 +4,7 @@ La app usa Cloudflare Access con Microsoft Entra ID. Ya no usa un proveedor de a
+ 
+ ## Produccion vigente
+ 
+-- Dominio protegido: `https://pscv-room.rlead.xyz`
++- Dominio protegido: `https://app.rlead.xyz`
+ - Team domain: `relead.cloudflareaccess.com`
+ - Proveedor Access: Microsoft Entra ID (`azureAD`)
+ - Politica Access: allow para el correo owner registrado en D1
+diff --git a/docs/MIGRATION_STATUS.md b/docs/MIGRATION_STATUS.md
+index 06599ef..4d74c47 100644
+--- a/docs/MIGRATION_STATUS.md
++++ b/docs/MIGRATION_STATUS.md
+@@ -9,7 +9,7 @@ PSCV Room esta migrado a Cloudflare Workers con OpenNext.
+ - Next.js App Router compilado con `@opennextjs/cloudflare`.
+ - Worker principal: `.open-next/worker.js`.
+ - Configuracion de despliegue: `wrangler.jsonc`.
+-- Dominio productivo: `https://pscv-room.rlead.xyz`.
++- Dominio productivo: `https://app.rlead.xyz`.
+ - URL workers.dev disponible: `https://pscv-room.ricardomartinez.workers.dev`.
+ - Base de datos: Cloudflare D1 binding `DB`, database `pscv-room`.
+ - Archivos: Cloudflare R2 binding `MATERIALS_BUCKET`, bucket `psicologia`.
+@@ -52,14 +52,14 @@ npm test
+ npm run lint
+ npx wrangler deploy --dry-run --outdir dist
+ SMOKE_BASE_URL="https://pscv-room.ricardomartinez.workers.dev" npm run smoke
+-curl -I "https://pscv-room.rlead.xyz/api/health"
++curl -I "https://app.rlead.xyz/api/health"
+ ```
+ 
+ El smoke automatizado puede usar `workers.dev`, pero ahora comprueba que tareas, materiales y destinos del bucket rechacen sesiones anónimas. Así el subdominio técnico no se convierte en un bypass de Cloudflare Access. En el dominio productivo, una llamada sin sesión puede ser rechazada por la aplicación o redirigida por Access.
+ 
+ ## Access
+ 
+-El dominio `pscv-room.rlead.xyz` esta protegido por una app self-hosted de Cloudflare Access.
++El dominio `app.rlead.xyz` esta protegido por una app self-hosted de Cloudflare Access.
+ La politica vigente permite el correo owner configurado en D1 y usa Microsoft Entra ID como proveedor.
+ 
+ Secrets requeridos en el Worker, configurados con `wrangler secret put`:
+diff --git a/lib/app-data.ts b/lib/app-data.ts
+index 9561a2c..9f9aa33 100644
+--- a/lib/app-data.ts
++++ b/lib/app-data.ts
+@@ -37,6 +37,9 @@ export type CourseConfig = {
+   icon: string;
+   cardSize: CardSize;
+   active: boolean;
++  professorName: string;
++  professorEmail: string;
++  scheduleText: string;
+ };
+ 
+ export type SectionConfig = {
+@@ -178,6 +181,9 @@ export function toCourse(row: Record<string, unknown>): CourseConfig {
+     icon: String(row.icon ?? "book"),
+     cardSize: cardSize(row.card_size),
+     active: row.active == null ? true : booleanFlag(row.active),
++    professorName: String(row.professor_name ?? ""),
++    professorEmail: String(row.professor_email ?? ""),
++    scheduleText: String(row.schedule_text ?? ""),
+   };
+ }
+ 
+diff --git a/lib/server/d1-data.ts b/lib/server/d1-data.ts
+index 5630da9..cda1ef4 100644
+--- a/lib/server/d1-data.ts
++++ b/lib/server/d1-data.ts
+@@ -79,7 +79,7 @@ const tableConfigs: Record<string, TableConfig> = {
+   },
+   courses: {
+     id: true,
+-    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "created_at", "updated_at"],
++    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "professor_name", "professor_email", "schedule_text", "created_at", "updated_at"],
+     json: ["config"],
+     bool: ["active"],
+   },
+@@ -212,6 +212,45 @@ function buildLimit(limit: number | undefined) {
+   return limit ? ` LIMIT ${Math.max(1, Math.min(limit, 1000))}` : "";
+ }
+ 
++function requestedTopLevelColumns(table: string, select: string | undefined) {
++  const source = select?.trim();
++  if (!source || source === "*") return null;
++  const tokens: string[] = [];
++  let depth = 0;
++  let current = "";
++  for (const char of source) {
++    if (char === "(") depth += 1;
++    if (char === ")") depth = Math.max(0, depth - 1);
++    if (char === "," && depth === 0) { if (current.trim()) tokens.push(current.trim()); current = ""; continue; }
++    current += char;
++  }
++  if (current.trim()) tokens.push(current.trim());
++  if (tokens.includes("*")) return null;
++  return tokens.map((token) => token.includes("(") ? token.slice(0, token.indexOf("(")).trim() : token).filter(Boolean).map((column) => { assertColumn(table, column); return column; });
++}
++
++function buildSelectClause(table: string, select: string | undefined) {
++  const columns = requestedTopLevelColumns(table, select);
++  return columns?.length ? columns.map(quoteIdentifier).join(", ") : "*";
++}
++
++function projectRows(rows: Array<Record<string, unknown>>, select: string | undefined) {
++  const source = select?.trim();
++  if (!source || source.includes("*")) return rows;
++  const keys: string[] = [];
++  let depth = 0;
++  let current = "";
++  for (const char of source) {
++    if (char === "(") depth += 1;
++    if (char === ")") depth = Math.max(0, depth - 1);
++    if (char === "," && depth === 0) { if (current.trim()) keys.push(current.trim()); current = ""; continue; }
++    current += char;
++  }
++  if (current.trim()) keys.push(current.trim());
++  const top = keys.map((token) => token.includes("(") ? token.slice(0, token.indexOf("(")).trim() : token).filter(Boolean);
++  return rows.map((row) => Object.fromEntries(top.filter((key) => key in row).map((key) => [key, row[key]])));
++}
++
+ export async function d1All<T = Record<string, unknown>>(sql: string, values: unknown[] = []) {
+   const db = await getD1();
+   const result = await db.prepare(sql).bind(...values).all<T>();
+@@ -350,7 +389,7 @@ async function selectMaterials(query: DataQuery) {
+ async function selectGeneric(table: string, query: DataQuery) {
+   const values: unknown[] = [];
+   const rows = await d1All<Record<string, unknown>>(
+-    `SELECT * FROM ${quoteIdentifier(table)}${buildWhere(table, query.filters, values)}${buildOrder(table, query.order)}${buildLimit(query.limit)}`,
++    `SELECT ${buildSelectClause(table, query.select)} FROM ${quoteIdentifier(table)}${buildWhere(table, query.filters, values)}${buildOrder(table, query.order)}${buildLimit(query.limit)}`,
+     values,
+   );
+   return rows.map((row) => decodeJsonFields(table, row));
+@@ -370,11 +409,38 @@ function hasOwnProfileFilter(query: DataQuery, profile: ServerProfile) {
+     (query.filters ?? []).some((filter) => filter.op === "eq" && filter.column === "id" && String(filter.value) === profile.id);
+ }
+ 
++function hasOwnProfileIdFilter(query: DataQuery, profile: ServerProfile) {
++  return (query.filters ?? []).some((filter) => filter.op === "eq" && filter.column === "profile_id" && String(filter.value) === profile.id);
++}
++
++const GROUP_PROFILE_COLUMNS = new Set(["id", "control_number", "email", "full_name", "role", "active"]);
++
+ function ensureSelectAllowed(table: string, query: DataQuery, profile: ServerProfile) {
++  if (table === "audit_log") {
++    if (profile.role === "owner" || can(profile, "can_view_reports")) return;
++    throw new HttpError(403, "No autorizado.");
++  }
++  if (table === "notifications") {
++    if (profile.role === "owner" || can(profile, "can_manage_notifications")) return;
++    throw new HttpError(403, "Usa el endpoint personal de notificaciones.");
++  }
++  if (table === "notification_preferences") {
++    if (hasOwnProfileIdFilter(query, profile) || profile.role === "owner" || can(profile, "can_manage_notifications")) return;
++    throw new HttpError(403, "No autorizado.");
++  }
++  if (table === "group_column_values") {
++    if (profile.role === "owner" || can(profile, "can_manage_group")) return;
++    throw new HttpError(403, "No autorizado.");
++  }
+   if (table !== "app_profiles") return;
+   const ownProfile = hasOwnProfileFilter(query, profile);
+   if (ownProfile) return;
+-  if (profile.role === "owner" || can(profile, "can_manage_users") || can(profile, "can_manage_group")) return;
++  if (profile.role === "owner" || can(profile, "can_manage_users")) return;
++  if (can(profile, "can_manage_group")) {
++    const requested = requestedTopLevelColumns(table, query.select);
++    if (!requested || requested.some((column) => !GROUP_PROFILE_COLUMNS.has(column))) throw new HttpError(403, "La lista de grupo sólo puede consultar datos básicos del perfil.");
++    return;
++  }
+   throw new HttpError(403, "No autorizado.");
+ }
+ 
+@@ -523,7 +589,7 @@ export async function executeDataQuery(request: Request, query: DataQuery): Prom
+       : table === "materials"
+         ? await selectMaterials(scopedQuery)
+         : await selectGeneric(table, scopedQuery);
+-    return normalizeResult(rows, query, count);
++    return normalizeResult(projectRows(rows, scopedQuery.select), query, count);
+   }
+ 
+   ensureMutationAllowed(table, query, profile);
+diff --git a/lib/ui-icons.tsx b/lib/ui-icons.tsx
+new file mode 100644
+index 0000000..9449295
+--- /dev/null
++++ b/lib/ui-icons.tsx
+@@ -0,0 +1,52 @@
++import {
++  Bell,
++  BookOpen,
++  Brain,
++  CalendarDays,
++  CheckCircle2,
++  CircleHelp,
++  ClipboardCheck,
++  FileText,
++  FolderOpen,
++  GraduationCap,
++  Layers3,
++  ListTodo,
++  Network,
++  Presentation,
++  Users,
++  type LucideIcon,
++} from "lucide-react";
++
++const ICON_REGISTRY: Record<string, LucideIcon> = {
++  bell: Bell,
++  book: BookOpen,
++  "book-open": BookOpen,
++  brain: Brain,
++  calendar: CalendarDays,
++  "calendar-days": CalendarDays,
++  "check-circle": CheckCircle2,
++  clipboard: ClipboardCheck,
++  "clipboard-check": ClipboardCheck,
++  file: FileText,
++  "file-text": FileText,
++  folder: FolderOpen,
++  "folder-check": FolderOpen,
++  graduation: GraduationCap,
++  layers: Layers3,
++  network: Network,
++  presentation: Presentation,
++  task: ListTodo,
++  users: Users,
++};
++
++export const UI_ICON_OPTIONS = Object.keys(ICON_REGISTRY).sort();
++
++export function resolveUiIcon(name: string | null | undefined): LucideIcon {
++  const normalized = name?.trim().toLocaleLowerCase("en") ?? "";
++  return ICON_REGISTRY[normalized] ?? CircleHelp;
++}
++
++export function UiIcon({ name, size = 18, className }: { name: string | null | undefined; size?: number; className?: string }) {
++  const Icon = resolveUiIcon(name);
++  return <Icon size={size} className={className} aria-hidden="true" />;
++}
+diff --git a/migrations/0015_course_schedule_professors.sql b/migrations/0015_course_schedule_professors.sql
+new file mode 100644
+index 0000000..f7ee727
+--- /dev/null
++++ b/migrations/0015_course_schedule_professors.sql
+@@ -0,0 +1,4 @@
++-- Horario y profesores por materia.
++ALTER TABLE courses ADD COLUMN professor_name TEXT;
++ALTER TABLE courses ADD COLUMN professor_email TEXT;
++ALTER TABLE courses ADD COLUMN schedule_text TEXT NOT NULL DEFAULT '';
+diff --git a/tests/schedule-security-ui.test.ts b/tests/schedule-security-ui.test.ts
+new file mode 100644
+index 0000000..086cb13
+--- /dev/null
++++ b/tests/schedule-security-ui.test.ts
+@@ -0,0 +1,46 @@
++import assert from "node:assert/strict";
++import { readFileSync } from "node:fs";
++import test from "node:test";
++
++const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
++const admin = readFileSync(new URL("../components/admin-hub.tsx", import.meta.url), "utf8");
++const auth = readFileSync(new URL("../components/auth-session-provider.tsx", import.meta.url), "utf8");
++const data = readFileSync(new URL("../lib/server/d1-data.ts", import.meta.url), "utf8");
++const icons = readFileSync(new URL("../lib/ui-icons.tsx", import.meta.url), "utf8");
++const migration = readFileSync(new URL("../migrations/0015_course_schedule_professors.sql", import.meta.url), "utf8");
++
++test("Horario y profesores is a first-class authenticated destination", () => {
++  assert.match(shell, /"schedule"/);
++  assert.match(shell, /Horario y profesores/);
++  assert.match(shell, /ScheduleAndProfessors/);
++  assert.match(shell, /professorName/);
++  assert.match(shell, /scheduleText/);
++  assert.match(admin, /Profesor/);
++  assert.match(admin, /Horario semanal/);
++  assert.match(migration, /professor_name/);
++  assert.match(migration, /schedule_text/);
++});
++
++test("catalog icon names render through a bounded Lucide registry", () => {
++  assert.match(icons, /ICON_REGISTRY/);
++  assert.match(icons, /CircleHelp/);
++  assert.match(icons, /resolveUiIcon/);
++  assert.doesNotMatch(icons, /eval\(/);
++  assert.match(admin, /<UiIcon/);
++});
++
++test("auth provider keeps a successful tab session through transient background failures", () => {
++  assert.match(auth, /sessionStorage/);
++  assert.match(auth, /LAST_SESSION_KEY/);
++  assert.match(auth, /response\.status === 401 \|\| response\.status === 403/);
++  assert.match(auth, /keepExistingSession/);
++});
++
++test("generic D1 reads enforce sensitive-table authorization and explicit projection", () => {
++  assert.match(data, /audit_log/);
++  assert.match(data, /can_view_reports/);
++  assert.match(data, /notifications/);
++  assert.match(data, /can_manage_notifications/);
++  assert.match(data, /buildSelectClause/);
++  assert.match(data, /query\.select/);
++});

@@ -129,6 +129,44 @@ jobs:
         shell: bash
         run: rm -f /tmp/vapid-private.key /tmp/vapid-public.key /tmp/worker-secrets.json
 
+
+  materialize:
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'work/pscv-room-consolidation-20260905'
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: work/pscv-room-consolidation-20260905
+          fetch-depth: 0
+      - name: Materialize validated consolidation source
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline='9ee53de8e8c3ee2aad7494cc58390109afe45774'
+          expected_tree='3c9ca2902af5aeb6a28f8587401c66e0c100e0b3'
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$baseline"
+          base64 -d .pscv-phase3.patch.gz.b64 | gzip -d > /tmp/pscv-final.patch
+          git apply --check /tmp/pscv-final.patch
+          git apply /tmp/pscv-final.patch
+          git show origin/main:package.json > package.json
+          git show origin/main:.github/workflows/cloudflare.yml > .github/workflows/cloudflare.yml
+          rm -f .pscv-phase1.patch .pscv-phase2.patch.gz.b64 .pscv-phase3.patch.gz.b64
+          git add -A
+          git diff --cached --check
+          actual_tree="$(git write-tree)"
+          if [ "$actual_tree" != "$expected_tree" ]; then
+            echo "::error::Materialized tree mismatch: $actual_tree != $expected_tree"
+            exit 1
+          fi
+          git config user.name 'RelNets Builder'
+          git config user.email 'builder@relnets.local'
+          git commit -m 'feat: materialize PSCV consolidation'
+          git push origin HEAD:work/pscv-room-consolidation-20260905
+
   report:
     if: always() && github.event_name != 'pull_request'
     needs: [validate, deploy]

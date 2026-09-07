@@ -2106,7 +2106,7 @@ function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
   const maxMinutes = timedEntries.length ? Math.ceil(Math.max(...timedEntries.map((entry) => entry.endMinutes!)) / 60) * 60 : 18 * 60;
   const hourSlots = Array.from({ length: Math.max(0, (maxMinutes - minMinutes) / 60) }, (_, index) => minMinutes + index * 60);
   const formatMinutes = (value: number) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-  
+
 
   return (
     <div className="scheduleScreen">

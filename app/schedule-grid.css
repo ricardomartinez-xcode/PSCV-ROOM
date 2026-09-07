@@ -1,0 +1,33 @@
+/* Horario semanal por horas — formato de cuadrícula académica */
+.weeklySchedule,
+.classroomSection,
+.scheduleScreen > section[aria-label="Profesores por materia"] { display: grid; gap: 12px; }
+.scheduleTableWrap { width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid var(--line, #dbe4ea); background: var(--surface, #fff); }
+.scheduleTable { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; }
+.scheduleTable th,
+.scheduleTable td { border-right: 1px solid rgba(255,255,255,.92); border-bottom: 1px solid rgba(255,255,255,.92); text-align: center; vertical-align: middle; }
+.scheduleTable thead th { padding: 10px 12px; background: #8eafbe; color: #f8fafc; font-size: .92rem; font-weight: 850; letter-spacing: .02em; text-transform: uppercase; }
+.scheduleTable thead th:first-child { width: 118px; }
+.scheduleTable tbody th { width: 118px; padding: 13px 9px; background: #8eafbe; color: #eef6fa; font-size: .92rem; font-weight: 850; }
+.scheduleTable tbody th span { display: block; line-height: 1.22; }
+.scheduleTable tbody tr:nth-child(odd) td { background: #f8fafb; }
+.scheduleTable tbody tr:nth-child(even) td { background: #dfe8ef; }
+.scheduleTable td { min-width: 155px; min-height: 76px; padding: 8px 10px; }
+.scheduleCellCourse { min-height: 58px; display: grid; place-content: center; gap: 5px; padding: 6px; }
+.scheduleCellCourse + .scheduleCellCourse { border-top: 1px solid color-mix(in srgb, var(--line, #dbe4ea) 72%, transparent); }
+.scheduleCellCourse strong { font-size: .94rem; line-height: 1.18; font-weight: 760; }
+.scheduleCellCourse small { display: flex; justify-content: center; align-items: center; gap: 4px; color: var(--muted, #64748b); font-size: .75rem; }
+.classroomGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.classroomCard { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 14px 16px; border: 1px solid var(--line, #dbe4ea); border-radius: 16px; background: var(--surface, #fff); }
+.classroomCard > div { display: grid; gap: 3px; }
+.classroomCard small { color: var(--muted, #64748b); }
+.classroomCard strong { font-size: 1rem; }
+@media (max-width: 720px) {
+  .scheduleTableWrap { margin-inline: -2px; border-radius: 13px; }
+  .scheduleTable { min-width: 690px; }
+  .scheduleTable thead th:first-child, .scheduleTable tbody th { width: 92px; }
+  .scheduleTable thead th { font-size: .78rem; padding-inline: 8px; }
+  .scheduleTable tbody th { font-size: .82rem; }
+  .scheduleTable td { min-width: 140px; padding: 6px; }
+  .scheduleCellCourse strong { font-size: .84rem; }
+}

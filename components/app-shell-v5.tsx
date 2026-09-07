@@ -2106,7 +2106,7 @@ function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
   const maxMinutes = timedEntries.length ? Math.ceil(Math.max(...timedEntries.map((entry) => entry.endMinutes!)) / 60) * 60 : 18 * 60;
   const hourSlots = Array.from({ length: Math.max(0, (maxMinutes - minMinutes) / 60) }, (_, index) => minMinutes + index * 60);
   const formatMinutes = (value: number) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-  const classrooms = courses.filter((course) => course.classroom.trim()).sort((a, b) => a.name.localeCompare(b.name, "es"));
+  
 
   return (
     <div className="scheduleScreen">
@@ -2127,10 +2127,7 @@ function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
         <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Docentes</span><h3>Profesores</h3></div><GraduationCap size={22} aria-hidden="true" /></div>
         <div className="professorGrid">{courses.map((course) => <article className="professorCard" key={course.id}><span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span><div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div></article>)}</div>
       </section>
-      <section className="classroomSection" aria-label="Salones de clases">
-        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Ubicación</span><h3>Salón de clases</h3></div><MapPin size={22} aria-hidden="true" /></div>
-        {classrooms.length ? <div className="classroomGrid">{classrooms.map((course) => <article className="classroomCard" key={course.id}><span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={20} /></span><div><small>{course.shortName || course.name}</small><strong>Salón {course.classroom}</strong></div></article>)}</div> : <div className="scheduleEmpty"><MapPin size={24} aria-hidden="true" /><strong>Salón pendiente de captura</strong><p>Puede registrarse por materia desde Configuración → Materias.</p></div>}
-      </section>
+      
     </div>
   );
 }

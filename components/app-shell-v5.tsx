@@ -2127,7 +2127,7 @@ function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
         <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Docentes</span><h3>Profesores</h3></div><GraduationCap size={22} aria-hidden="true" /></div>
         <div className="professorGrid">{courses.map((course) => <article className="professorCard" key={course.id}><span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span><div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div></article>)}</div>
       </section>
-      
+
     </div>
   );
 }

@@ -1,6 +1,5 @@
 /* Horario semanal por horas — formato de cuadrícula académica */
 .weeklySchedule,
-.classroomSection,
 .scheduleScreen > section[aria-label="Profesores por materia"] { display: grid; gap: 12px; }
 .scheduleTableWrap { width: 100%; overflow-x: auto; border-radius: 16px; border: 1px solid var(--line, #dbe4ea); background: var(--surface, #fff); }
 .scheduleTable { width: 100%; min-width: 760px; border-collapse: collapse; table-layout: fixed; }
@@ -17,11 +16,6 @@
 .scheduleCellCourse + .scheduleCellCourse { border-top: 1px solid color-mix(in srgb, var(--line, #dbe4ea) 72%, transparent); }
 .scheduleCellCourse strong { font-size: .94rem; line-height: 1.18; font-weight: 760; }
 .scheduleCellCourse small { display: flex; justify-content: center; align-items: center; gap: 4px; color: var(--muted, #64748b); font-size: .75rem; }
-.classroomGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
-.classroomCard { display: flex; align-items: center; gap: 12px; min-height: 76px; padding: 14px 16px; border: 1px solid var(--line, #dbe4ea); border-radius: 16px; background: var(--surface, #fff); }
-.classroomCard > div { display: grid; gap: 3px; }
-.classroomCard small { color: var(--muted, #64748b); }
-.classroomCard strong { font-size: 1rem; }
 @media (max-width: 720px) {
   .scheduleTableWrap { margin-inline: -2px; border-radius: 13px; }
   .scheduleTable { min-width: 690px; }

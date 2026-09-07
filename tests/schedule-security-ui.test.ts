@@ -8,17 +8,23 @@ const auth = readFileSync(new URL("../components/auth-session-provider.tsx", imp
 const data = readFileSync(new URL("../lib/server/d1-data.ts", import.meta.url), "utf8");
 const icons = readFileSync(new URL("../lib/ui-icons.tsx", import.meta.url), "utf8");
 const migration = readFileSync(new URL("../migrations/0015_course_schedule_professors.sql", import.meta.url), "utf8");
+const classroomMigration = readFileSync(new URL("../migrations/0016_course_classroom.sql", import.meta.url), "utf8");
 
-test("Horario y profesores is a first-class authenticated destination", () => {
+test("Horario, profesores y salón are a first-class authenticated destination", () => {
   assert.match(shell, /"schedule"/);
-  assert.match(shell, /Horario y profesores/);
+  assert.match(shell, /Horario de clases/);
   assert.match(shell, /ScheduleAndProfessors/);
   assert.match(shell, /professorName/);
   assert.match(shell, /scheduleText/);
   assert.match(admin, /Profesor/);
   assert.match(admin, /Horario semanal/);
+  assert.match(admin, /Salón de clases/);
+  assert.match(shell, /scheduleTable/);
+  assert.match(shell, /hourSlots/);
+  assert.match(shell, /classroom/);
   assert.match(migration, /professor_name/);
   assert.match(migration, /schedule_text/);
+  assert.match(classroomMigration, /classroom/);
 });
 
 test("catalog icon names render through a bounded Lucide registry", () => {

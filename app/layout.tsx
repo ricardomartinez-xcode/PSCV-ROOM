@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Providers } from "@/components/providers";
 import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
 import "./pscv.css";
+import "./schedule-grid.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",

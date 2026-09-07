@@ -47,11 +47,11 @@ type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
 export type AdminTab = "general" | "tasks" | "calendar" | "courses" | "sections" | "materials" | "users" | "notifications" | "reports" | "diagnostics";
 type CardSize = "compact" | "medium" | "large";
 
-type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean; professorName: string; professorEmail: string; scheduleText: string };
+type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean; professorName: string; professorEmail: string; scheduleText: string; classroom: string };
 type SectionConfig = { id: string; name: string; path: string; color: string; icon: string; cardSize: CardSize; previewStyle: string; active: boolean };
 type AdminTaskRow = { id: string; title: string; due_date: string; due_time: string | null; status: string; priority: string; visible_to_students: boolean; material_url: string | null; platform_url: string | null; courses: { name: string; color: string | null } | { name: string; color: string | null }[] | null; task_types: { name: string; color: string | null } | { name: string; color: string | null }[] | null };
 type AppProfileRow = { id: string; email: string; full_name: string | null; control_number: string | null; role: "student" | "admin" | "owner"; active: boolean; can_edit_tasks: boolean; can_delete_tasks: boolean; can_manage_materials: boolean; can_manage_users: boolean; can_manage_settings: boolean; can_manage_group: boolean; can_manage_notifications: boolean; can_view_reports: boolean; can_manage_r2: boolean };
-type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize" | "professorName" | "professorEmail" | "scheduleText">;
+type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize" | "professorName" | "professorEmail" | "scheduleText" | "classroom">;
 type StudentDraft = { controlNumber: string; email: string; fullName: string };
 type UploadDestination = { id: string; sectionId: string | null; name: string; path: string; source: "d1" | "r2" };
 type AdminProfile = { role: "student" | "admin" | "owner"; canEditTasks: boolean; canDeleteTasks: boolean; canManageMaterials: boolean; canManageUsers: boolean; canManageSettings: boolean; canManageGroup: boolean; canManageNotifications: boolean; canViewReports: boolean; canManageR2: boolean } | null;
@@ -214,10 +214,11 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
         professor_name: input.professorName.trim() || null,
         professor_email: input.professorEmail.trim() || null,
         schedule_text: input.scheduleText.trim(),
+        classroom: input.classroom.trim() || null,
         sort_order: courses.length * 10 + 10,
         active: true,
       })
-      .select("id,name,short_name,color,icon,card_size,active,professor_name,professor_email,schedule_text")
+      .select("id,name,short_name,color,icon,card_size,active,professor_name,professor_email,schedule_text,classroom")
       .single();
 
     if (error) {
@@ -1005,7 +1006,8 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
         <label>Tamaño<select value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select></label>
         <label className="wide">Profesor<input value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Nombre del profesor" /></label>
         <label className="wide">Correo del profesor<input type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="profesor@correo.mx" /></label>
-        <label className="wide">Horario semanal<input value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00 · Aula 3; Miércoles: 08:00-10:00 · Aula 3" /></label>
+        <label className="wide">Horario semanal<input value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 15:00-18:00; Miércoles: 16:00-18:00" /></label>
+        <label className="wide">Salón de clases<input value={draft.classroom} onChange={(event) => setDraft((current) => ({ ...current, classroom: event.target.value }))} placeholder="Ej. 19" /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.name.trim()}>{busy ? "Agregando..." : "Agregar materia"}</button>
       </form>
       <div className="adminRows">
@@ -1024,7 +1026,7 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
     setDraft(courseToDraft(course));
   }, [course]);
 
-  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize || draft.professorName !== course.professorName || draft.professorEmail !== course.professorEmail || draft.scheduleText !== course.scheduleText;
+  const dirty = draft.name !== course.name || draft.shortName !== course.shortName || draft.color !== course.color || draft.icon !== course.icon || draft.cardSize !== course.cardSize || draft.professorName !== course.professorName || draft.professorEmail !== course.professorEmail || draft.scheduleText !== course.scheduleText || draft.classroom !== course.classroom;
 
   async function save() {
     setSaving(true);
@@ -1037,6 +1039,7 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
       professorName: draft.professorName.trim(),
       professorEmail: draft.professorEmail.trim(),
       scheduleText: draft.scheduleText.trim(),
+      classroom: draft.classroom.trim(),
     });
     if (!saved) setDraft(courseToDraft(course));
     setSaving(false);
@@ -1052,7 +1055,8 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
       <select aria-label="Tamaño" value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select>
       <input aria-label="Profesor" value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Profesor" />
       <input aria-label="Correo del profesor" type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="Correo profesor" />
-      <input className="courseScheduleInput" aria-label="Horario semanal" value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 08:00-10:00; Miércoles: 08:00-10:00" />
+      <input className="courseScheduleInput" aria-label="Horario semanal" value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 15:00-18:00; Miércoles: 16:00-18:00" />
+      <input aria-label="Salón de clases" value={draft.classroom} onChange={(event) => setDraft((current) => ({ ...current, classroom: event.target.value }))} placeholder="Salón" />
       <button type="button" onClick={() => void save()} disabled={saving || !dirty || !draft.name.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
       <button type="button" onClick={() => void onUpdate(course.id, { active: !course.active })}>{course.active ? "Desactivar" : "Activar"}</button>
     </div>
@@ -1440,11 +1444,11 @@ function compareAdminMaterials(firstMaterial: AdminLibraryMaterial, secondMateri
 }
 
 function emptyCourseDraft(): CourseDraft {
-  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium", professorName: "", professorEmail: "", scheduleText: "" };
+  return { name: "", shortName: "", color: "#2f77d0", icon: "book", cardSize: "medium", professorName: "", professorEmail: "", scheduleText: "", classroom: "" };
 }
 
 function courseToDraft(course: CourseConfig): CourseDraft {
-  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize, professorName: course.professorName, professorEmail: course.professorEmail, scheduleText: course.scheduleText };
+  return { name: course.name, shortName: course.shortName, color: course.color, icon: course.icon, cardSize: course.cardSize, professorName: course.professorName, professorEmail: course.professorEmail, scheduleText: course.scheduleText, classroom: course.classroom };
 }
 
 function emptyStudentDraft(): StudentDraft {
@@ -1468,6 +1472,7 @@ function toCourseConfig(row: Record<string, unknown>): CourseConfig {
     professorName: String(row.professor_name ?? ""),
     professorEmail: String(row.professor_email ?? ""),
     scheduleText: String(row.schedule_text ?? ""),
+    classroom: String(row.classroom ?? ""),
   };
 }
 
@@ -1672,4 +1677,4 @@ function bucketDestinations(destinations: UploadDestination[]) {
 }
 
 function first<T>(value: T | T[] | null | undefined): T | null { return Array.isArray(value) ? value[0] ?? null : value ?? null; }
-function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("professorName" in patch) out.professor_name = patch.professorName || null; if ("professorEmail" in patch) out.professor_email = patch.professorEmail || null; if ("scheduleText" in patch) out.schedule_text = patch.scheduleText ?? ""; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }
+function toDbPatch(patch: Partial<CourseConfig> | Partial<SectionConfig>) { const out: Record<string, unknown> = { updated_at: new Date().toISOString() }; if ("name" in patch) out.name = patch.name; if ("shortName" in patch) out.short_name = patch.shortName; if ("color" in patch) out.color = patch.color; if ("icon" in patch) out.icon = patch.icon; if ("cardSize" in patch) out.card_size = patch.cardSize; if ("professorName" in patch) out.professor_name = patch.professorName || null; if ("professorEmail" in patch) out.professor_email = patch.professorEmail || null; if ("scheduleText" in patch) out.schedule_text = patch.scheduleText ?? ""; if ("classroom" in patch) out.classroom = patch.classroom || null; if ("previewStyle" in patch) out.preview_style = patch.previewStyle; if ("active" in patch) out.active = patch.active; return out; }

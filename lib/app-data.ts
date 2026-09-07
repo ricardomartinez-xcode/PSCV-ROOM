@@ -40,6 +40,7 @@ export type CourseConfig = {
   professorName: string;
   professorEmail: string;
   scheduleText: string;
+  classroom: string;
 };
 
 export type SectionConfig = {
@@ -184,6 +185,7 @@ export function toCourse(row: Record<string, unknown>): CourseConfig {
     professorName: String(row.professor_name ?? ""),
     professorEmail: String(row.professor_email ?? ""),
     scheduleText: String(row.schedule_text ?? ""),
+    classroom: String(row.classroom ?? ""),
   };
 }
 

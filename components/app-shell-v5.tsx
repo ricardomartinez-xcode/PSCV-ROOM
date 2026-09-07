@@ -114,6 +114,7 @@ type CourseConfig = {
   professorName: string;
   professorEmail: string;
   scheduleText: string;
+  classroom: string;
 };
 
 type SectionConfig = {
@@ -1020,7 +1021,7 @@ function Drawer({
           <DrawerItem icon={<CalendarDays size={20} />} label="Calendario" active={active === "calendar"} onClick={() => onSelect("calendar")} />
           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
-          <DrawerItem icon={<GraduationCap size={20} />} label="Horario y profesores" active={active === "schedule"} onClick={() => onSelect("schedule")} />
+          <DrawerItem icon={<GraduationCap size={20} />} label="Horario" active={active === "schedule"} onClick={() => onSelect("schedule")} />
           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
           {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
           {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
@@ -2088,56 +2089,51 @@ function parseScheduleEntries(course: CourseConfig) {
     const detail = separatorIndex >= 0 ? entry.slice(separatorIndex + 1).trim() : "Horario por confirmar";
     const normalizedDay = dayPart.trim().toLocaleLowerCase("es").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const day = scheduleDayAliases[normalizedDay] ?? { key: `other-${index}`, label: dayPart.trim() || "Otro", order: 99 };
-    return { ...day, detail, course };
+    const range = detail.match(/(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/);
+    const startMinutes = range ? Number(range[1]) * 60 + Number(range[2]) : null;
+    const endMinutes = range ? Number(range[3]) * 60 + Number(range[4]) : null;
+    return { ...day, detail, course, startMinutes, endMinutes };
   });
 }
 
 function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
-  const scheduleEntries = courses.flatMap(parseScheduleEntries).sort((a, b) => a.order - b.order || a.course.name.localeCompare(b.course.name, "es"));
-  const grouped = new Map<string, { label: string; order: number; entries: typeof scheduleEntries }>();
-  for (const entry of scheduleEntries) {
-    const current = grouped.get(entry.key);
-    if (current) current.entries.push(entry);
-    else grouped.set(entry.key, { label: entry.label, order: entry.order, entries: [entry] });
-  }
-  const days = [...grouped.values()].sort((a, b) => a.order - b.order);
+  const scheduleEntries = courses.flatMap(parseScheduleEntries).sort((a, b) => a.order - b.order || (a.startMinutes ?? 9999) - (b.startMinutes ?? 9999) || a.course.name.localeCompare(b.course.name, "es"));
+  const scheduledDays = [...new Map(scheduleEntries.filter((entry) => entry.order < 99).map((entry) => [entry.key, { key: entry.key, label: entry.label, order: entry.order }])).values()].sort((a, b) => a.order - b.order);
+  const weekdays = Object.values(scheduleDayAliases).filter((day, index, all) => day.order <= 5 && all.findIndex((item) => item.key === day.key) === index).sort((a, b) => a.order - b.order);
+  const days = scheduledDays.length ? scheduledDays : weekdays;
+  const timedEntries = scheduleEntries.filter((entry) => entry.startMinutes !== null && entry.endMinutes !== null && entry.endMinutes > entry.startMinutes);
+  const minMinutes = timedEntries.length ? Math.floor(Math.min(...timedEntries.map((entry) => entry.startMinutes!)) / 60) * 60 : 8 * 60;
+  const maxMinutes = timedEntries.length ? Math.ceil(Math.max(...timedEntries.map((entry) => entry.endMinutes!)) / 60) * 60 : 18 * 60;
+  const hourSlots = Array.from({ length: Math.max(0, (maxMinutes - minMinutes) / 60) }, (_, index) => minMinutes + index * 60);
+  const formatMinutes = (value: number) => `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+
 
   return (
     <div className="scheduleScreen">
       <section className="scheduleHero">
-        <div><span className="scheduleEyebrow">Información académica</span><h2>Horario y profesores</h2><p>Consulta en un mismo lugar quién imparte cada materia y cuándo se reúne el grupo.</p></div>
-        <GraduationCap size={34} aria-hidden="true" />
-      </section>
-      <section className="professorGrid" aria-label="Profesores por materia">
-        {courses.map((course) => (
-          <article className="professorCard" key={course.id}>
-            <span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span>
-            <div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div>
-          </article>
-        ))}
+        <div><span className="scheduleEyebrow">Información académica</span><h2>Horario de clases</h2><p>Consulta la semana organizada por horas, profesores y salón de cada materia.</p></div>
+        <CalendarDays size={34} aria-hidden="true" />
       </section>
       <section className="weeklySchedule" aria-label="Horario semanal">
-        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Semana</span><h3>Horario del grupo</h3></div><CalendarDays size={22} aria-hidden="true" /></div>
-        {days.length ? days.map((day) => (
-          <article className="scheduleDay" key={`${day.order}-${day.label}`}>
-            <h4>{day.label}</h4>
-            <div className="scheduleDayEntries">
-              {day.entries.map((entry, index) => (
-                <div className="scheduleEntry" key={`${entry.course.id}-${index}`}>
-                  <span className="courseIcon" style={{ color: entry.course.color }}><UiIcon name={entry.course.icon} size={19} /></span>
-                  <div><strong>{entry.course.name}</strong><span><Clock size={15} aria-hidden="true" />{entry.detail}</span><small><GraduationCap size={14} aria-hidden="true" />{entry.course.professorName || "Profesor por definir"}</small></div>
-                </div>
-              ))}
-            </div>
-          </article>
-        )) : <div className="scheduleEmpty"><MapPin size={24} aria-hidden="true" /><strong>Horario pendiente de captura</strong><p>Un administrador puede registrarlo desde Configuración → Materias.</p></div>}
+        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Semana</span><h3>Horario</h3></div><Clock size={22} aria-hidden="true" /></div>
+        {timedEntries.length ? <div className="scheduleTableWrap"><table className="scheduleTable"><thead><tr><th>Horario</th>{days.map((day) => <th key={day.key}>{day.label}</th>)}</tr></thead><tbody>
+          {hourSlots.map((slot) => <tr key={slot}><th scope="row"><span>{formatMinutes(slot)}</span><span>–</span><span>{formatMinutes(slot + 60)}</span></th>{days.map((day) => {
+            const entries = timedEntries.filter((entry) => entry.key === day.key && entry.startMinutes! < slot + 60 && entry.endMinutes! > slot);
+            return <td key={day.key}>{entries.map((entry) => <div className="scheduleCellCourse" key={`${entry.course.id}-${entry.startMinutes}-${entry.endMinutes}`}><strong>{entry.course.name}</strong>{entry.course.classroom ? <small><MapPin size={13} aria-hidden="true" />Salón {entry.course.classroom}</small> : null}</div>)}</td>;
+          })}</tr>)}
+        </tbody></table></div> : <div className="scheduleEmpty"><MapPin size={24} aria-hidden="true" /><strong>Horario pendiente de captura</strong><p>Un administrador puede registrarlo desde Configuración → Materias.</p></div>}
       </section>
+      <section aria-label="Profesores por materia">
+        <div className="sectionTitleRow"><div><span className="scheduleEyebrow">Docentes</span><h3>Profesores</h3></div><GraduationCap size={22} aria-hidden="true" /></div>
+        <div className="professorGrid">{courses.map((course) => <article className="professorCard" key={course.id}><span className="courseIcon" style={{ color: course.color }}><UiIcon name={course.icon} size={22} /></span><div><small>{course.shortName || course.name}</small><strong>{course.professorName || "Profesor por definir"}</strong><span>{course.professorEmail || "Correo no registrado"}</span></div></article>)}</div>
+      </section>
+
     </div>
   );
 }
 
 function titleFor(tab: Tab) {
-  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario y profesores" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
+  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario de clases" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
 }
 function monthCells(year: number, month: number) { const first = new Date(year, month, 1).getDay(); const total = new Date(year, month + 1, 0).getDate(); const cells: Array<number | null> = Array(first).fill(null).concat(Array.from({ length: total }, (_, index) => index + 1)); while (cells.length % 7 !== 0) cells.push(null); return cells; }
 function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }
@@ -2188,7 +2184,7 @@ function asOne<T>(value: T | T[] | null | undefined): T | null { return Array.is
 function cardSize(value: unknown): CardSize { return value === "compact" || value === "large" ? value : "medium"; }
 function delivery(value: unknown): DeliveryType { const text = String(value ?? "Tarea"); return deliveryTypes.includes(text as DeliveryType) ? text as DeliveryType : "Tarea"; }
 function status(value: unknown): TaskStatus { const text = String(value ?? "Pendiente"); return statuses.includes(text as TaskStatus) ? text as TaskStatus : "Pendiente"; }
-function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true), professorName: String(row.professor_name ?? ""), professorEmail: String(row.professor_email ?? ""), scheduleText: String(row.schedule_text ?? "") }; }
+function toCourse(row: Record<string, unknown>): CourseConfig { return { id: String(row.id), name: String(row.name), shortName: String(row.short_name ?? row.name), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "book"), cardSize: cardSize(row.card_size), active: Boolean(row.active ?? true), professorName: String(row.professor_name ?? ""), professorEmail: String(row.professor_email ?? ""), scheduleText: String(row.schedule_text ?? ""), classroom: String(row.classroom ?? "") }; }
 function toSection(row: Record<string, unknown>): SectionConfig { return { id: String(row.id), name: String(row.name), path: String(row.path), color: String(row.color ?? "#4285dc"), icon: String(row.icon ?? "folder"), cardSize: cardSize(row.card_size), previewStyle: String(row.preview_style ?? "thumbnail"), active: Boolean(row.active ?? true) }; }
 function toTask(row: Record<string, unknown>): UiTask {
   const course = asOne(row.courses as Record<string, unknown> | Record<string, unknown>[] | null);

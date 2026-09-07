@@ -79,7 +79,7 @@ const tableConfigs: Record<string, TableConfig> = {
   },
   courses: {
     id: true,
-    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "professor_name", "professor_email", "schedule_text", "created_at", "updated_at"],
+    columns: ["id", "legacy_name", "name", "short_name", "color", "icon", "card_size", "calendar_lane", "sort_order", "active", "config", "professor_name", "professor_email", "schedule_text", "classroom", "created_at", "updated_at"],
     json: ["config"],
     bool: ["active"],
   },

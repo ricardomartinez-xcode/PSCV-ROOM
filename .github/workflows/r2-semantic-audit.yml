@@ -1,8 +1,6 @@
 name: R2 semantic content audit
 on:
   workflow_dispatch:
-  push:
-    branches: [fix/material-bucket-organization-20260907-v2]
 permissions:
   contents: write
 jobs:
@@ -19,7 +17,7 @@ jobs:
         with:
           node-version: 22
       - name: Install audit extractors
-        run: python3 -m pip install --disable-pip-version-check pypdf python-docx python-pptx openpyxl
+        run: python3 -m pip install --disable-pip-version-check pypdf python-docx python-pptx openpyxl fonttools
       - name: Verify Cloudflare access and inventory D1
         run: |
           npx wrangler whoami >/dev/null

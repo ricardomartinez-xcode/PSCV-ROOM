@@ -253,7 +253,8 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
         <nav className="sectionRail" aria-label="Colecciones principales">
           {categories.map((category) => (
             <button key={category.id} type="button" className="sectionCard"
-              onClick={() => { setCategoryId(category.id); setSectionId(ALL_SECTIONS); }}>
+              onClick={() => { setCategoryId(category.id); setSectionId(ALL_SECTIONS); }}
+              style={{ "--section-color": categoryColor(category.name) } as React.CSSProperties}>
               <span className="sectionIcon"><FolderOpen size={16} /></span>
               <span><strong>{category.name}</strong><small>{category.material_count} recursos</small></span>
               <ChevronRight size={16} aria-hidden="true" />
@@ -435,6 +436,13 @@ function sectionKey(section: Pick<LibrarySection, "name" | "path"> | null) {
   return `section:${slug(parts.join("/") || section.name)}`;
 }
 
+
+function categoryColor(name: string) {
+  if (name === "Materias") return "#2563eb";
+  if (name === "Biblioteca") return "#0f766e";
+  if (name === "Instrumentos psicológicos") return "#7c3aed";
+  return "#64748b";
+}
 
 function categoryKey(section: Pick<LibrarySection, "name" | "path"> | null) {
   if (!section) return "category:otros";

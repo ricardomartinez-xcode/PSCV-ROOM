@@ -34,11 +34,11 @@ jobs:
           expected_tree="a000d74c3003a1be5aa9eacfc9277022f7a2e4e8"
           git fetch origin main
           test "$(git rev-parse origin/main)" = "$baseline"
+          git show origin/main:.github/workflows/r2-approved-migration.yml > .github/workflows/r2-approved-migration.yml
           base64 -d .pscv-material-bucket.patch.gz.b64 | gzip -d > /tmp/pscv-material-bucket.patch
           git apply --check /tmp/pscv-material-bucket.patch
           git apply /tmp/pscv-material-bucket.patch
           rm -f .pscv-material-bucket.patch.gz.b64
-          git show origin/main:.github/workflows/r2-approved-migration.yml > .github/workflows/r2-approved-migration.yml
           git add -A
           git diff --cached --check
           actual_tree="$(git write-tree)"

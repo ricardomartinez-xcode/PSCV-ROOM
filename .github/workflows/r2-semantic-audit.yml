@@ -1,0 +1,56 @@
+name: R2 semantic content audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/material-bucket-organization-20260907-v2]
+permissions:
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install audit extractors
+        run: python3 -m pip install --disable-pip-version-check pypdf python-docx python-pptx openpyxl
+      - name: Verify Cloudflare access and inventory D1
+        run: |
+          npx wrangler whoami >/dev/null
+          npx wrangler d1 execute pscv-room --remote --json --command "SELECT id,title,r2_key FROM materials WHERE provider='r2' AND r2_key IS NOT NULL ORDER BY r2_key" > r2-audit-materials.json
+      - name: Start private read-only R2 audit worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(openssl rand -hex 32)"
+          echo "::add-mask::$token"
+          cat > wrangler.r2-audit.jsonc <<EOF2
+          {"name":"pscv-r2-semantic-audit","main":"scripts/r2-content-audit-worker.mjs","compatibility_date":"2026-07-30","r2_buckets":[{"binding":"R2","bucket_name":"psicologia","remote":true}],"vars":{"AUDIT_TOKEN":"${token}"}}
+          EOF2
+          echo "AUDIT_WORKER_TOKEN=$token" >> "$GITHUB_ENV"
+          echo "AUDIT_WORKER_URL=http://127.0.0.1:8787" >> "$GITHUB_ENV"
+          nohup npx wrangler dev --remote --config wrangler.r2-audit.jsonc --port 8787 --local-protocol http > /tmp/r2-audit-worker.log 2>&1 &
+          echo $! > /tmp/r2-audit-worker.pid
+          for i in $(seq 1 60); do
+            if curl -fsS -H "Authorization: Bearer $token" http://127.0.0.1:8787/health >/dev/null; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/r2-audit-worker.log; exit 1
+      - name: Analyze document contents
+        run: python3 scripts/r2-semantic-audit.py
+      - name: Stop audit worker
+        if: always()
+        run: kill "$(cat /tmp/r2-audit-worker.pid)" 2>/dev/null || true
+      - name: Upload private audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-semantic-audit-${{ github.run_id }}
+          path: outputs/r2-semantic-*.json
+          retention-days: 30

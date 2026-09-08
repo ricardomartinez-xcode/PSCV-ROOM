@@ -113,6 +113,30 @@ def instrument_domain(text):
     ranked=sorted(((score(nt,v),k) for k,v in INSTRUMENT_DOMAINS.items()),reverse=True)
     return ranked[0][1] if ranked and ranked[0][0]>0 else 'Otros instrumentos'
 
+RESEARCH_TITLE_SIGNALS=['metodologia','metodología','investigacion','investigación','apa 7','estadistica','estadística','metodo cientifico','método científico']
+INSTRUMENT_TITLE_SIGNALS=['test ','test-','escala','cuestionario','inventario','protocolo','wais','wisc','stai','hamilton','rosenberg','cap ado','nacad','herrmann','persona bajo la lluvia','cuadernillo','hoja de respuesta','plantilla']
+ARTICLE_CUES=['doi','abstract','resumen','palabras clave','keywords','resultados','results','discusion','discusión','references','referencias']
+
+def choose_area(body,title,key):
+    t=norm(title+' '+key)
+    if any(x in t for x in RESEARCH_TITLE_SIGNALS): return 'Investigación y Metodología', max(8,score(t,AREAS['Investigación y Metodología'])),0
+    reduced={k:v for k,v in AREAS.items() if k!='Investigación y Metodología'}
+    return choose(body if len(body)>=120 else t,reduced,'Psicología General')
+
+def choose_document_type(title,text,kind):
+    tn=norm(title); sample=norm(text[:250000])
+    if kind=='Presentación': return 'Presentaciones'
+    if any(x in tn for x in INSTRUMENT_TITLE_SIGNALS): return 'Instrumentos'
+    if 'manual' in tn or 'guia de aplicacion' in tn or 'guía de aplicación' in tn: return 'Manuales'
+    if len(text)>=1500 and sum(1 for x in ARTICLE_CUES if x in sample)>=4: return 'Artículos científicos'
+    if any(x in tn for x in ['caso','actividad','ejercicio','practica','práctica','tarea','proyecto final']): return 'Casos y prácticas'
+    if any(x in sample for x in ['caso clinico','caso clínico','caso practico','caso práctico']) and len(text)<120000: return 'Casos y prácticas'
+    return 'Lecturas'
+
+def is_instrument_resource(title,dtype):
+    tn=norm(title)
+    return dtype=='Instrumentos' or (dtype=='Manuales' and any(x in tn for x in INSTRUMENT_TITLE_SIGNALS))
+
 out=[]
 for i,row in enumerate(rows,1):
     key=row['r2_key']; title=row.get('title') or clean_name(key)
@@ -121,18 +145,16 @@ for i,row in enumerate(rows,1):
     except Exception as e:
         data=b''; sha256=None; byte_size=0; text=''; kind='Archivo'; err=f'{type(e).__name__}: {e}'
     body=norm(text[:800000]); basis=body if len(body)>=120 else norm(title+' '+key)
-    area,ascore,a2=choose(basis,AREAS,'Psicología General')
+    area,ascore,a2=choose_area(body,title,key)
     inferred_course,cscore,c2=choose(basis,COURSES,'')
     course=source_course(key)
-    dtype,dscore,_=choose(basis,TYPES,'Lecturas')
-    if Path(key).suffix.lower()=='.pptx': dtype='Presentaciones'
+    dtype=choose_document_type(title,text,kind); dscore=0
     title_norm=norm(title)
-    if any(x in title_norm for x in ['test','escala','cuestionario','inventario','wais','wisc','protocolo']): dtype='Instrumentos'
-    psychometric_signal=(dtype=='Instrumentos' or (area=='Psicometría' and any(x in basis for x in ['test','escala','cuestionario','inventario','wais','wisc','protocolo','hoja de respuesta','cuadernillo'])))
+    psychometric_signal=is_instrument_resource(title,dtype)
     if course:
         target=f'Materias/Sexto cuatrimestre/{course}/{dtype}/{clean_name(key)}'; section=f'Materias / Sexto cuatrimestre / {course} / {dtype}'
     elif psychometric_signal:
-        domain=instrument_domain(title+' '+body[:150000])
+        domain=instrument_domain((title+' ')*8+body[:60000])
         sub='Manuales' if ('manual' in title_norm or dtype=='Manuales') else 'Instrumentos'
         target=f'Instrumentos psicológicos/{domain}/{sub}/{clean_name(key)}'; section=f'Instrumentos psicológicos / {domain} / {sub}'
     else:
@@ -149,5 +171,13 @@ for x in out:
     if x.get('sha256'): hash_groups.setdefault(x['sha256'],[]).append(x)
 duplicate_groups=[g for g in hash_groups.values() if len(g)>1]
 summary={'total':len(out),'unique_hashes':len(hash_groups),'exact_duplicate_groups':len(duplicate_groups),'exact_duplicate_records':sum(len(g) for g in duplicate_groups),'readable_content':sum(x['text_chars']>=120 for x in out),'needs_review':sum(x['needs_review'] for x in out),'confidence':dict(Counter(x['confidence'] for x in out)),'areas':dict(Counter(x['area'] for x in out)),'document_types':dict(Counter(x['document_type'] for x in out)),'courses':dict(Counter(x['course'] for x in out if x['course'])),'sections':dict(Counter(x['section'] for x in out)),'extraction_errors':sum('extraction_error' in x for x in out),'duplicate_groups':[{'sha256':g[0]['sha256'],'count':len(g),'title':g[0]['title'],'sources':[x['source'] for x in g]} for g in duplicate_groups],'review_items':[{'title':x['title'],'source':x['source'],'area':x['area'],'course':x['course'],'text_chars':x['text_chars'],'extraction_error':x.get('extraction_error')} for x in out if x['needs_review']]}
+plan=[]
+for g in duplicate_groups:
+    targets=sorted(set(x['target'] for x in g))
+    preferred=sorted(g,key=lambda x:(not bool(x.get('course')),x.get('needs_review',True),0 if x['source'].startswith('Materiales de clase/') else 1,x['source']))[0]
+    safe=(len(targets)==1 and (bool(preferred.get('course')) or not preferred.get('needs_review')))
+    plan.append({'sha256':preferred['sha256'],'canonical_source':preferred['source'],'target':preferred['target'],'duplicate_sources':[x['source'] for x in g if x['source']!=preferred['source']],'safe_to_migrate':safe,'needs_review':not safe,'target_conflicts':targets if len(targets)>1 else []})
+summary['migration_plan']={'groups':len(plan),'safe_groups':sum(x['safe_to_migrate'] for x in plan),'review_groups':sum(x['needs_review'] for x in plan)}
+json.dump(plan,open('outputs/r2-semantic-migration-plan.json','w',encoding='utf-8'),ensure_ascii=False,indent=2)
 json.dump(summary,open('outputs/r2-semantic-summary.json','w',encoding='utf-8'),ensure_ascii=False,indent=2)
 print(json.dumps(summary,ensure_ascii=False,indent=2))

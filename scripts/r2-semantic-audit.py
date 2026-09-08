@@ -113,29 +113,51 @@ def instrument_domain(text):
     ranked=sorted(((score(nt,v),k) for k,v in INSTRUMENT_DOMAINS.items()),reverse=True)
     return ranked[0][1] if ranked and ranked[0][0]>0 else 'Otros instrumentos'
 
-RESEARCH_TITLE_SIGNALS=['metodologia','metodología','investigacion','investigación','apa 7','estadistica','estadística','metodo cientifico','método científico']
+RESEARCH_TITLE_SIGNALS=['metodologia','metodología','investigacion','investigación','estadistica','estadística','metodo cientifico','método científico']
+REFERENCE_TITLE_SIGNALS=['apa 7','codigo etico','código ético','normatividad','lineamientos','guia clinica','guía clínica']
+BOOK_TITLE_SIGNALS=['libro','edicion','edición','enciclopedia','tratado','fundamentos de','teorias de la','teorías de la']
 INSTRUMENT_TITLE_SIGNALS=['test ','test-','escala','cuestionario','inventario','protocolo','wais','wisc','stai','hamilton','rosenberg','cap ado','nacad','herrmann','persona bajo la lluvia','cuadernillo','hoja de respuesta','plantilla']
 ARTICLE_CUES=['doi','abstract','resumen','palabras clave','keywords','resultados','results','discusion','discusión','references','referencias']
+STRONG_AREA_TITLE_SIGNALS={
+ 'Psicología Jurídica y Forense':['criminolog','criminal','forense','juridic','asesino','delito','victima','víctima','perfilacion','perfilación'],
+ 'Psicopatología':['psicopatolog','trastorno','narcisismo','psicopata','psicópata','psicosis'],
+ 'Psicología Organizacional':['organizacional','capital humano','recursos humanos','clima laboral','talento humano'],
+ 'Psicología Educativa':['psicologia educativa','psicología educativa','docente','ensenanza','enseñanza','aprendizaje escolar'],
+ 'Psicología Clínica':['psicoterapia','intervencion clinica','intervención clínica','duelo','casos clinicos','casos clínicos'],
+}
 
 def choose_area(body,title,key):
     t=norm(title+' '+key)
-    if any(x in t for x in RESEARCH_TITLE_SIGNALS): return 'Investigación y Metodología', max(8,score(t,AREAS['Investigación y Metodología'])),0
+    for area,signals in STRONG_AREA_TITLE_SIGNALS.items():
+        if any(norm(x) in t for x in signals):
+            return area,12,0
+    if any(norm(x) in t for x in RESEARCH_TITLE_SIGNALS):
+        return 'Investigación y Metodología', max(8,score(t,AREAS['Investigación y Metodología'])),0
     reduced={k:v for k,v in AREAS.items() if k!='Investigación y Metodología'}
     return choose(body if len(body)>=120 else t,reduced,'Psicología General')
 
 def choose_document_type(title,text,kind):
     tn=norm(title); sample=norm(text[:250000])
     if kind=='Presentación': return 'Presentaciones'
-    if any(x in tn for x in INSTRUMENT_TITLE_SIGNALS): return 'Instrumentos'
+    if any(norm(x) in tn for x in REFERENCE_TITLE_SIGNALS): return 'Guías y normatividad'
     if 'manual' in tn or 'guia de aplicacion' in tn or 'guía de aplicación' in tn: return 'Manuales'
-    if len(text)>=1500 and sum(1 for x in ARTICLE_CUES if x in sample)>=4: return 'Artículos científicos'
+    if any(norm(x) in tn for x in BOOK_TITLE_SIGNALS) or len(text)>180000: return 'Libros y capítulos'
+    if any(norm(x) in tn for x in INSTRUMENT_TITLE_SIGNALS): return 'Instrumentos'
+    if len(text)>=1500 and len(text)<=180000 and sum(1 for x in ARTICLE_CUES if norm(x) in sample)>=4: return 'Artículos científicos'
+    if any(x in tn for x in ['articulo','artículo','boletin','boletín']) and len(text)<=220000: return 'Artículos científicos'
     if any(x in tn for x in ['caso','actividad','ejercicio','practica','práctica','tarea','proyecto final']): return 'Casos y prácticas'
     if any(x in sample for x in ['caso clinico','caso clínico','caso practico','caso práctico']) and len(text)<120000: return 'Casos y prácticas'
     return 'Lecturas'
 
-def is_instrument_resource(title,dtype):
-    tn=norm(title)
-    return dtype=='Instrumentos' or (dtype=='Manuales' and any(x in tn for x in INSTRUMENT_TITLE_SIGNALS))
+def is_instrument_resource(title,dtype,key):
+    tn=norm(title); kn=norm(key)
+    return dtype=='Instrumentos' or (
+        dtype=='Manuales' and (
+            any(norm(x) in tn for x in INSTRUMENT_TITLE_SIGNALS)
+            or 'test cuestionarios' in kn
+            or 'cuestionario de adaptacion' in kn
+        )
+    )
 
 out=[]
 for i,row in enumerate(rows,1):
@@ -150,11 +172,11 @@ for i,row in enumerate(rows,1):
     course=source_course(key)
     dtype=choose_document_type(title,text,kind); dscore=0
     title_norm=norm(title)
-    psychometric_signal=is_instrument_resource(title,dtype)
+    psychometric_signal=is_instrument_resource(title,dtype,key)
     if course:
         target=f'Materias/Sexto cuatrimestre/{course}/{dtype}/{clean_name(key)}'; section=f'Materias / Sexto cuatrimestre / {course} / {dtype}'
     elif psychometric_signal:
-        domain=instrument_domain((title+' ')*8+body[:60000])
+        domain=instrument_domain((title+' ')*8+(key+' ')*3+body[:60000])
         sub='Manuales' if ('manual' in title_norm or dtype=='Manuales') else 'Instrumentos'
         target=f'Instrumentos psicológicos/{domain}/{sub}/{clean_name(key)}'; section=f'Instrumentos psicológicos / {domain} / {sub}'
     else:

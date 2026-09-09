@@ -1,0 +1,37 @@
+name: R2 semantic migration one-shot
+
+on:
+  push:
+    branches: [fix/material-bucket-organization-20260907-v2]
+    paths:
+      - '.github/workflows/r2-semantic-migrate-oneshot.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download validated semantic audit plan
+        run: |
+          mkdir -p outputs
+          gh run download 34267957256 -n r2-semantic-audit-34267957256 -D outputs
+          test -s outputs/r2-semantic-migration-plan.json
+      - name: Validate migration runner
+        run: node --check scripts/r2-semantic-migrate-safe.mjs
+      - name: Migration dry-run
+        env:
+          MIGRATION_CONFIRM: DRY_RUN
+        run: node scripts/r2-semantic-migrate-safe.mjs

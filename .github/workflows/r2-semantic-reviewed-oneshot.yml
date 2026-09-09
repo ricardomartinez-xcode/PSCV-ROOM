@@ -1,0 +1,84 @@
+name: R2 semantic reviewed migration one-shot
+
+on:
+  push:
+    branches: [fix/material-bucket-organization-20260907-v2]
+    paths:
+      - '.github/workflows/r2-semantic-reviewed-oneshot.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download validated semantic audit plan
+        run: |
+          mkdir -p outputs
+          gh run download 34267957256 -n r2-semantic-audit-34267957256 -D outputs
+          test -s outputs/r2-semantic-migration-plan.json
+      - name: Build manually reviewed plan
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const plan = JSON.parse(fs.readFileSync('outputs/r2-semantic-migration-plan.json', 'utf8'));
+          const reviewed = new Set([
+            'b8f2c39be2698bd0830a07de879c20f397a65a78b5c7b8e59d02f08ad2eb1723',
+            '31bcc89719e5a2e708e57f46885fd42edd4e0f24d9f10fcc94875be4816f33c9',
+            'ba948f55b5ba2b1eeb1f092ce9e6b551829ec4886c91913bdaeacc18d5eb2ef4',
+            '3300bc3086970444c2fe59a216cbfcd03ee12d84287a7ae0c84d286189604682',
+            '6af38f66055d8dac702221c6f386a8cd1481a7773d08a7e7155a18f1298d1d49',
+            'd69784a055fdab88226668927ba73e872696a48d81b8a354179fce50819ae26c',
+            '45ef5857c033ef7e559b3f37629602ece7aa68d89bfceb1e1fb8a3d3e72b4edd',
+            '98028a6ed283601ec45401acc1975ad663e491a3945d34f63189510c2eae3a34',
+            'bc40ea6bd8a58bb0ba903a491658df8a7bb528e62f8fd3c6552492ad5733008c',
+            '3daa3ac6cc5626b8751fcd0a323aafa1076c281835397009f7f95e1f9dae52d5',
+            'b7e21261f791dc4c0ab89f28ddc6b53927c70fbe1644fa70d2f8f93c8e7856bb',
+            '9319015fddaaeec944c615e77ab8b36b25a0c45f02a4974fc57eef175af507c2'
+          ]);
+          const overrides = new Map([
+            ['ba948f55b5ba2b1eeb1f092ce9e6b551829ec4886c91913bdaeacc18d5eb2ef4',
+             'Biblioteca/Investigación y Metodología/Guías y normatividad/APA 7_0-.pdf']
+          ]);
+          const selected = plan
+            .filter((item) => reviewed.has(item.sha256))
+            .map((item) => ({
+              ...item,
+              target: overrides.get(item.sha256) || item.target,
+              safe_to_migrate: true,
+              needs_review: false,
+              target_conflicts: []
+            }));
+          if (selected.length !== reviewed.size) {
+            throw new Error(`Expected ${reviewed.size} reviewed groups, found ${selected.length}`);
+          }
+          fs.writeFileSync('outputs/r2-semantic-reviewed-plan.json', JSON.stringify(selected, null, 2));
+          console.log(JSON.stringify({ reviewed_groups: selected.length, targets: selected.map(x => x.target) }, null, 2));
+          NODE
+      - name: Validate migration runner
+        run: node --check scripts/r2-semantic-migrate-safe.mjs
+      - name: Apply manually reviewed semantic migration
+        env:
+          MIGRATION_CONFIRM: MIGRATE_SAFE
+          SEMANTIC_PLAN: outputs/r2-semantic-reviewed-plan.json
+        run: node scripts/r2-semantic-migrate-safe.mjs
+      - name: Upload reviewed migration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-semantic-reviewed-migration-${{ github.run_id }}
+          path: outputs/r2-semantic-migration-applied.json
+          if-no-files-found: error
+          retention-days: 30

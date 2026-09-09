@@ -1,0 +1,278 @@
+name: R2 semantic finalization one-shot
+
+on:
+  push:
+    branches: [fix/material-bucket-organization-20260907-v2]
+    paths:
+      - '.github/workflows/r2-semantic-finalize-oneshot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Deploy temporary private R2 finalizer
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="pscv-r2-semantic-finalize-${GITHUB_RUN_ID}"
+          token="$(openssl rand -hex 32)"
+          echo "::add-mask::$token"
+
+          cat > .tmp-r2-finalize-worker.mjs <<'WORKER'
+          function hex(buffer) {
+            return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+          }
+
+          async function digestObject(obj) {
+            const data = await obj.arrayBuffer();
+            const digest = await crypto.subtle.digest('SHA-256', data);
+            return { data, sha256: hex(digest), size: data.byteLength };
+          }
+
+          export default {
+            async fetch(request, env) {
+              if (!env.RECOVERY_TOKEN || request.headers.get('authorization') !== `Bearer ${env.RECOVERY_TOKEN}`) {
+                return new Response('unauthorized', { status: 401 });
+              }
+
+              const url = new URL(request.url);
+
+              if (url.pathname === '/health') return Response.json({ ok: true });
+
+              if (url.pathname === '/hash' && request.method === 'GET') {
+                const key = url.searchParams.get('key');
+                if (!key) return new Response('missing key', { status: 400 });
+                const obj = await env.R2.get(key);
+                if (!obj) return new Response('not found', { status: 404 });
+                const { sha256, size } = await digestObject(obj);
+                return Response.json({ key, sha256, size });
+              }
+
+              if (url.pathname === '/copy' && request.method === 'POST') {
+                const body = await request.json();
+                const source = body?.source;
+                const target = body?.target;
+                if (!source || !target) return new Response('missing source/target', { status: 400 });
+
+                const src = await env.R2.get(source);
+                if (!src) return new Response('source not found', { status: 404 });
+                const sourceDigest = await digestObject(src);
+
+                await env.R2.put(target, sourceDigest.data, {
+                  httpMetadata: src.httpMetadata,
+                  customMetadata: src.customMetadata,
+                });
+
+                const dst = await env.R2.get(target);
+                if (!dst) return new Response('target not found after copy', { status: 500 });
+                const targetDigest = await digestObject(dst);
+                if (targetDigest.sha256 !== sourceDigest.sha256 || targetDigest.size !== sourceDigest.size) {
+                  return Response.json({ ok: false, source_sha256: sourceDigest.sha256, target_sha256: targetDigest.sha256 }, { status: 500 });
+                }
+
+                return Response.json({
+                  ok: true,
+                  source,
+                  target,
+                  sha256: sourceDigest.sha256,
+                  size: sourceDigest.size,
+                });
+              }
+
+              return new Response('not found', { status: 404 });
+            },
+          };
+          WORKER
+
+          cat > wrangler.r2-finalize.jsonc <<EOF2
+          {
+            "name": "$name",
+            "main": ".tmp-r2-finalize-worker.mjs",
+            "compatibility_date": "2026-07-30",
+            "workers_dev": true,
+            "r2_buckets": [
+              { "binding": "R2", "bucket_name": "psicologia" }
+            ],
+            "vars": {
+              "RECOVERY_TOKEN": "$token"
+            }
+          }
+          EOF2
+
+          npx wrangler deploy --config wrangler.r2-finalize.jsonc 2>&1 | tee /tmp/r2-finalize-deploy.log
+          url="$(python3 - <<'PY'
+          import re
+          text=open('/tmp/r2-finalize-deploy.log',encoding='utf-8',errors='ignore').read()
+          text=re.sub(r'\x1b\[[0-9;]*[A-Za-z]','',text)
+          urls=re.findall(r'https://[^\s]+\.workers\.dev',text)
+          print(urls[-1] if urls else '')
+          PY
+          )"
+          test -n "$url"
+          curl -fsS -H "Authorization: Bearer $token" "$url/health" >/dev/null
+
+          echo "FINALIZER_NAME=$name" >> "$GITHUB_ENV"
+          echo "FINALIZER_URL=$url" >> "$GITHUB_ENV"
+          echo "FINALIZER_TOKEN=$token" >> "$GITHUB_ENV"
+
+      - name: Verify and copy Hamilton scale through R2 binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_a='Compendio de Psicología/Test, cuestionarios, etc/Hamilton Rating Scale for Depression (Hamilton, 1960_ Escala de Hamilton para la Depresión)..PDF'
+          key_b='Recursos Generales/Psicometría/Hamilton Rating Scale for Depression (Hamilton, 1960_ Escala de Hamilton para la Depresión)..PDF'
+          target='Instrumentos psicológicos/Depresión y estado de ánimo/Instrumentos/Escala de Hamilton para la Depresión.pdf'
+
+          curl -fsS -H "Authorization: Bearer $FINALIZER_TOKEN" --get "$FINALIZER_URL/hash" --data-urlencode "key=$key_a" > /tmp/hamilton-a.json
+          curl -fsS -H "Authorization: Bearer $FINALIZER_TOKEN" --get "$FINALIZER_URL/hash" --data-urlencode "key=$key_b" > /tmp/hamilton-b.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const a = JSON.parse(fs.readFileSync('/tmp/hamilton-a.json', 'utf8'));
+          const b = JSON.parse(fs.readFileSync('/tmp/hamilton-b.json', 'utf8'));
+          if (!a.sha256 || !b.sha256 || a.sha256 !== b.sha256 || a.size !== b.size) {
+            throw new Error(`Hamilton sources differ: ${JSON.stringify({a,b})}`);
+          }
+          fs.writeFileSync('/tmp/hamilton-sha256.txt', a.sha256);
+          fs.writeFileSync('/tmp/hamilton-size.txt', String(a.size));
+          console.log(JSON.stringify({ verified_identical: true, sha256: a.sha256, size: a.size }, null, 2));
+          NODE
+
+          payload="$(jq -n --arg source "$key_a" --arg target "$target" '{source:$source,target:$target}')"
+          curl -fsS -H "Authorization: Bearer $FINALIZER_TOKEN" -H 'content-type: application/json' -X POST "$FINALIZER_URL/copy" -d "$payload" > /tmp/hamilton-copy.json
+
+          node <<'NODE'
+          const fs = require('fs');
+          const copied = JSON.parse(fs.readFileSync('/tmp/hamilton-copy.json', 'utf8'));
+          const expected = fs.readFileSync('/tmp/hamilton-sha256.txt', 'utf8').trim();
+          if (!copied.ok || copied.sha256 !== expected) throw new Error(`Hamilton copy verification failed: ${JSON.stringify(copied)}`);
+          console.log(JSON.stringify(copied, null, 2));
+          NODE
+
+      - name: Finalize D1 taxonomy and hide dead duplicate rows
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outputs
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const { spawnSync } = require('child_process');
+
+          const DB = 'pscv-room';
+          const hamiltonSha = fs.readFileSync('/tmp/hamilton-sha256.txt', 'utf8').trim();
+          const hamiltonSize = Number(fs.readFileSync('/tmp/hamilton-size.txt', 'utf8').trim());
+          const hamiltonTarget = 'Instrumentos psicológicos/Depresión y estado de ánimo/Instrumentos/Escala de Hamilton para la Depresión.pdf';
+          const hamiltonCanonicalId = '151daf59-6cb4-493a-9dd2-aba3e088530f';
+          const hamiltonDuplicateId = 'eba90251-77de-4603-9e40-7a23897517cd';
+
+          function q(value) { return "'" + String(value).replaceAll("'", "''") + "'"; }
+          function slug(value) {
+            return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'seccion';
+          }
+          function d1(sql) {
+            const r = spawnSync('npx', ['wrangler','d1','execute',DB,'--remote','--json','--command',sql], { encoding:'utf8' });
+            if (r.status !== 0) throw new Error((r.stderr || r.stdout || 'D1 failed').trim());
+            return JSON.parse(r.stdout || '[]');
+          }
+          function rows(result) {
+            return Array.isArray(result) ? (result[0]?.results || []) : (result?.result?.[0]?.results || []);
+          }
+          function ensureSection(sectionPath) {
+            const parts = sectionPath.split('/').filter(Boolean);
+            let parent = null;
+            let current = '';
+            for (const [index, part] of parts.entries()) {
+              current = current ? `${current}/${part}` : part;
+              const hit = rows(d1(`SELECT id FROM material_sections WHERE path=${q(current)} LIMIT 1`))[0];
+              if (hit) { parent = hit.id; continue; }
+              const id = crypto.randomUUID();
+              d1(`INSERT INTO material_sections (id,parent_id,name,slug,path,active,sort_order) VALUES (${q(id)},${parent ? q(parent) : 'NULL'},${q(part)},${q(slug(part))},${q(current)},1,${index * 100})`);
+              parent = id;
+            }
+            return parent;
+          }
+
+          const sectionId = ensureSection('Instrumentos psicológicos/Depresión y estado de ánimo/Instrumentos');
+          const hamiltonRows = rows(d1(`SELECT id,r2_key,visibility FROM materials WHERE id IN (${q(hamiltonCanonicalId)},${q(hamiltonDuplicateId)}) ORDER BY id`));
+          if (hamiltonRows.length !== 2) throw new Error(`Expected two Hamilton D1 rows, found ${hamiltonRows.length}`);
+
+          d1(`UPDATE materials SET r2_key=${q(hamiltonTarget)}, file_name='Escala de Hamilton para la Depresión.pdf', section_id=${q(sectionId)}, visibility='visible', updated_at=CURRENT_TIMESTAMP WHERE id=${q(hamiltonCanonicalId)}`);
+          d1(`INSERT OR IGNORE INTO task_materials (task_id,material_id) SELECT task_id,${q(hamiltonCanonicalId)} FROM task_materials WHERE material_id=${q(hamiltonDuplicateId)}`);
+          d1(`UPDATE materials SET visibility='hidden', updated_at=CURRENT_TIMESTAMP WHERE id=${q(hamiltonDuplicateId)}`);
+
+          const deadDuplicates = [
+            ['18fefc7c-52a6-4338-9902-c2344a8faffa', 'Biblioteca/Psicología Educativa/Manuales/Manual para psicólogos educativos - Candido J. Inglés Saura.pdf'],
+            ['e6af0ea1-cff5-4b15-aea6-877409a2deaa', 'Biblioteca/Psicología Jurídica y Forense/Manuales/Manual de Psicologia Juridica - Emilio Mira y Lopez.pdf'],
+            ['7b761b0f-852e-4478-82c7-3c4b01e10e54', 'Biblioteca/Psicología Jurídica y Forense/Manuales/Perfilacion Criminal_ Manual Fo - Instituto Europeo de Ciencias F.pdf'],
+            ['d7fa2aa4-cee5-4f5b-abef-da23671e715a', 'Biblioteca/Psicología Jurídica y Forense/Manuales/Psicología forense. Manual de técnicas y aplicaciones.pdf'],
+            ['b5bb26b5-1af9-4314-8df6-23ef551c6f8e', 'Biblioteca/Psicología Jurídica y Forense/Manuales/manual_practico_del_perfil_criminologico_-_jimenez_serrano__1_.pdf']
+          ];
+
+          const hiddenDead = [];
+          for (const [deadId, target] of deadDuplicates) {
+            const canonical = rows(d1(`SELECT id FROM materials WHERE provider='r2' AND r2_key=${q(target)} AND visibility='visible' LIMIT 1`))[0];
+            if (!canonical) throw new Error(`Missing visible canonical row for ${target}`);
+            d1(`INSERT OR IGNORE INTO task_materials (task_id,material_id) SELECT task_id,${q(canonical.id)} FROM task_materials WHERE material_id=${q(deadId)}`);
+            d1(`UPDATE materials SET visibility='hidden', updated_at=CURRENT_TIMESTAMP WHERE id=${q(deadId)}`);
+            hiddenDead.push({ dead_id: deadId, canonical_id: canonical.id, target });
+          }
+
+          const visible = rows(d1("SELECT COUNT(*) AS n FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='visible'"))[0]?.n ?? -1;
+          const legacyVisible = rows(d1("SELECT COUNT(*) AS n FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='visible' AND r2_key NOT LIKE 'Materias/%' AND r2_key NOT LIKE 'Biblioteca/%' AND r2_key NOT LIKE 'Instrumentos psicológicos/%'"))[0]?.n ?? -1;
+          const hidden = rows(d1("SELECT COUNT(*) AS n FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='hidden'"))[0]?.n ?? -1;
+
+          if (Number(visible) !== 153) throw new Error(`Expected 153 visible canonical R2 materials, found ${visible}`);
+          if (Number(legacyVisible) !== 0) throw new Error(`Expected no visible legacy R2 paths, found ${legacyVisible}`);
+
+          const report = {
+            finalized_at: new Date().toISOString(),
+            visible_canonical_materials: Number(visible),
+            hidden_duplicate_rows: Number(hidden),
+            visible_legacy_paths: Number(legacyVisible),
+            hamilton: {
+              sha256: hamiltonSha,
+              size_bytes: hamiltonSize,
+              canonical_id: hamiltonCanonicalId,
+              hidden_duplicate_id: hamiltonDuplicateId,
+              target: hamiltonTarget,
+              source_objects_deleted: false
+            },
+            hidden_dead_duplicate_rows: hiddenDead,
+            source_objects_deleted: false
+          };
+          fs.writeFileSync('outputs/r2-semantic-finalization.json', JSON.stringify(report, null, 2));
+          console.log(JSON.stringify(report, null, 2));
+          NODE
+
+      - name: Remove temporary R2 finalizer
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${FINALIZER_NAME:-}" ]; then
+            npx wrangler delete "$FINALIZER_NAME" --force || true
+          fi
+          rm -f .tmp-r2-finalize-worker.mjs wrangler.r2-finalize.jsonc
+
+      - name: Upload finalization report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-semantic-finalization-${{ github.run_id }}
+          path: outputs/r2-semantic-finalization.json
+          if-no-files-found: error
+          retention-days: 30

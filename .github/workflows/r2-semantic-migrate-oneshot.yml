@@ -31,7 +31,15 @@ jobs:
           test -s outputs/r2-semantic-migration-plan.json
       - name: Validate migration runner
         run: node --check scripts/r2-semantic-migrate-safe.mjs
-      - name: Migration dry-run
+      - name: Apply verified semantic migration
         env:
-          MIGRATION_CONFIRM: DRY_RUN
+          MIGRATION_CONFIRM: MIGRATE_SAFE
         run: node scripts/r2-semantic-migrate-safe.mjs
+      - name: Upload migration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-semantic-migration-applied-${{ github.run_id }}
+          path: outputs/r2-semantic-migration-applied.json
+          if-no-files-found: error
+          retention-days: 30

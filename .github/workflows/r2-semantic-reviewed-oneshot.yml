@@ -73,7 +73,7 @@ jobs:
         env:
           MIGRATION_CONFIRM: MIGRATE_SAFE
           SEMANTIC_PLAN: outputs/r2-semantic-reviewed-plan.json
-        run: node scripts/r2-semantic-migrate-safe.mjs
+        run: DELETE_SOURCE_DUPLICATES=DELETE_EXACT_DUPLICATES node scripts/r2-semantic-migrate-safe.mjs
       - name: Upload reviewed migration report
         if: always()
         uses: actions/upload-artifact@v4

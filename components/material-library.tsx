@@ -54,6 +54,12 @@ type SectionGroup = {
   materials: LibraryMaterial[];
 };
 
+type LibraryCategory = {
+  id: string;
+  name: string;
+  material_count: number;
+};
+
 const ALL_SECTIONS = "all";
 const SECTION_PREVIEW_LIMIT = 4;
 const hasD1Config = hasD1BrowserConfig();
@@ -61,6 +67,7 @@ const hasD1Config = hasD1BrowserConfig();
 export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibraryProps) {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [query, setQuery] = useState(globalQuery);
+  const [categoryId, setCategoryId] = useState(ALL_SECTIONS);
   const [sectionId, setSectionId] = useState(ALL_SECTIONS);
   const [view, setView] = useState<"grid" | "list">("grid");
   const [loading, setLoading] = useState(true);
@@ -109,17 +116,26 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
   }, [loadLibrary]);
 
   const sections = useMemo(() => normalizeSections(data?.sections ?? []), [data]);
+  const categories = useMemo(() => buildCategories(data?.materials ?? []), [data]);
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.id === categoryId) ?? null,
+    [categoryId, categories],
+  );
+  const categorySections = useMemo(
+    () => categoryId === ALL_SECTIONS ? sections : sections.filter((section) => categoryKey(section) === categoryId),
+    [categoryId, sections],
+  );
   const selectedSection = useMemo(
     () => sections.find((section) => section.id === sectionId) ?? null,
     [sectionId, sections],
   );
 
   const materials = useMemo(() => {
-    const rows = data?.materials ?? [];
-    if (sectionId === ALL_SECTIONS) return rows;
-
-    return rows.filter((material) => sectionKey(material.section) === sectionId);
-  }, [data, sectionId]);
+    let rows = data?.materials ?? [];
+    if (categoryId !== ALL_SECTIONS) rows = rows.filter((material) => categoryKey(material.section) === categoryId);
+    if (sectionId !== ALL_SECTIONS) rows = rows.filter((material) => sectionKey(material.section) === sectionId);
+    return rows;
+  }, [categoryId, data, sectionId]);
 
   const sectionGroups = useMemo(() => {
     const byKey = new Map<string, SectionGroup>();
@@ -148,7 +164,8 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
     );
   }, [materials]);
 
-  const shouldGroup = sectionId === ALL_SECTIONS && !query.trim() && sectionGroups.length > 1;
+  const browsingRoot = categoryId === ALL_SECTIONS && sectionId === ALL_SECTIONS && !query.trim();
+  const shouldGroup = !browsingRoot && sectionId === ALL_SECTIONS && !query.trim() && sectionGroups.length > 1;
 
   function openSection(id: string) {
     setSectionId(id);
@@ -162,11 +179,13 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
       <section className="libraryHero">
         <div>
           <p className="eyebrow">Biblioteca de recursos</p>
-          <h2>{selectedSection ? selectedSection.name : "Materiales de clase"}</h2>
+          <h2>{selectedSection?.name ?? selectedCategory?.name ?? "Biblioteca académica"}</h2>
           <p>
             {selectedSection
               ? selectedSection.path
-              : "Explora por área académica. Cada bloque reúne recursos relacionados para encontrar información con menos ruido."}
+              : selectedCategory
+                ? `Explora las áreas y tipos de recurso dentro de ${selectedCategory.name}.`
+                : "Explora por Materias, Biblioteca e Instrumentos psicológicos según el contenido real de cada documento."}
           </p>
         </div>
         <div className="libraryStats" aria-label={`${materials.length} recursos disponibles`}>
@@ -186,17 +205,35 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
           />
         </label>
 
-        <label className="libraryFilter">
-          <span>Área</span>
-          <select value={sectionId} onChange={(event) => setSectionId(event.target.value)}>
-            <option value={ALL_SECTIONS}>Todas las áreas</option>
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.name} ({section.material_count})
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="libraryFilterGroup">
+          <label className="libraryFilter">
+            <span>Colección</span>
+            <select
+              value={categoryId}
+              onChange={(event) => { setCategoryId(event.target.value); setSectionId(ALL_SECTIONS); }}
+            >
+              <option value={ALL_SECTIONS}>Todas las colecciones</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name} ({category.material_count})</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="libraryFilter">
+            <span>Área</span>
+            <select
+              value={sectionId}
+              onChange={(event) => setSectionId(event.target.value)}
+            >
+              <option value={ALL_SECTIONS}>Todas las áreas</option>
+              {categorySections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.name} ({section.material_count})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <div className="libraryViewToggle" aria-label="Vista">
           <button
@@ -220,21 +257,27 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
         </div>
       </section>
 
-      {sectionId === ALL_SECTIONS && !query.trim() ? (
-        <nav className="sectionRail" aria-label="Áreas disponibles">
-          {sections.map((section) => (
-            <button
-              key={section.id}
-              type="button"
-              className="sectionCard"
-              onClick={() => openSection(section.id)}
-              style={{ "--section-color": section.color ?? "#2563eb" } as React.CSSProperties}
-            >
+      {!query.trim() ? (
+        <nav className="sectionRail" aria-label="Colecciones principales">
+          {categories.map((category) => (
+            <button key={category.id} type="button" className="sectionCard"
+              onClick={() => { setCategoryId(category.id); setSectionId(ALL_SECTIONS); }}
+              style={{ "--section-color": categoryColor(category.name) } as React.CSSProperties}>
               <span className="sectionIcon"><FolderOpen size={16} /></span>
-              <span>
-                <strong>{section.name}</strong>
-                <small>{section.material_count} recursos</small>
-              </span>
+              <span><strong>{category.name}</strong><small>{category.material_count} recursos</small></span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </button>
+          ))}
+        </nav>
+      ) : null}
+
+      {categoryId !== ALL_SECTIONS && sectionId === ALL_SECTIONS && !query.trim() ? (
+        <nav className="sectionRail" aria-label="Áreas disponibles">
+          {categorySections.map((section) => (
+            <button key={section.id} type="button" className="sectionCard" onClick={() => openSection(section.id)}
+              style={{ "--section-color": section.color ?? "#2563eb" } as React.CSSProperties}>
+              <span className="sectionIcon"><FolderOpen size={16} /></span>
+              <span><strong>{section.name}</strong><small>{section.material_count} recursos</small></span>
               <ChevronRight size={16} aria-hidden="true" />
             </button>
           ))}
@@ -245,7 +288,14 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
         {loading ? <LibrarySkeleton /> : null}
         {error ? <div className="systemBanner">{error}</div> : null}
 
-        {!loading && !error && materials.length === 0 ? (
+        {!loading && !error && browsingRoot ? (
+          <section className="emptyLibrary">
+            <strong>Elige una colección para comenzar</strong>
+            <p>Los materiales están organizados por materia, área académica e instrumentos psicológicos.</p>
+          </section>
+        ) : null}
+
+        {!loading && !error && !browsingRoot && materials.length === 0 ? (
           <section className="emptyLibrary">
             <strong>No encontramos recursos</strong>
             <p>Prueba con otra palabra o vuelve a todas las áreas.</p>
@@ -255,7 +305,7 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
           </section>
         ) : null}
 
-        {!loading && !error && materials.length > 0 && shouldGroup ? (
+        {!loading && !error && !browsingRoot && materials.length > 0 && shouldGroup ? (
           <div className="librarySectionStack">
             {sectionGroups.map((group) => (
               <section className="librarySectionGroup" key={group.section.id}>
@@ -281,7 +331,7 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
           </div>
         ) : null}
 
-        {!loading && !error && materials.length > 0 && !shouldGroup ? (
+        {!loading && !error && !browsingRoot && materials.length > 0 && !shouldGroup ? (
           <div className={view === "grid" ? "materialGrid" : "materialListV2"}>
             {materials.map((material) => <MaterialCard key={material.id} material={material} view={view} />)}
           </div>
@@ -391,7 +441,36 @@ function normalizeSection(section: LibrarySection): LibrarySection {
 function sectionKey(section: Pick<LibrarySection, "name" | "path"> | null) {
   if (!section) return "section:otros";
   const parts = section.path.split("/").map((part) => part.trim()).filter(Boolean);
-  return `section:${slug(parts.at(-1) ?? section.name)}`;
+  return `section:${slug(parts.join("/") || section.name)}`;
+}
+
+
+function categoryColor(name: string) {
+  if (name === "Materias") return "#2563eb";
+  if (name === "Biblioteca") return "#0f766e";
+  if (name === "Instrumentos psicológicos") return "#7c3aed";
+  return "#64748b";
+}
+
+function categoryKey(section: Pick<LibrarySection, "name" | "path"> | null) {
+  if (!section) return "category:otros";
+  const root = section.path.split("/").map((part) => part.trim()).filter(Boolean)[0] ?? "Otros";
+  return `category:${slug(root)}`;
+}
+
+function buildCategories(materials: LibraryMaterial[]): LibraryCategory[] {
+  const grouped = new Map<string, LibraryCategory>();
+  for (const material of materials) {
+    const name = material.section?.path.split("/").map((part) => part.trim()).filter(Boolean)[0] ?? "Otros";
+    const id = `category:${slug(name)}`;
+    const current = grouped.get(id) ?? { id, name, material_count: 0 };
+    current.material_count += 1;
+    grouped.set(id, current);
+  }
+  const preferred = new Map([["Materias", 0], ["Biblioteca", 1], ["Instrumentos psicológicos", 2]]);
+  return Array.from(grouped.values()).sort((a, b) =>
+    (preferred.get(a.name) ?? 50) - (preferred.get(b.name) ?? 50) || a.name.localeCompare(b.name, "es"),
+  );
 }
 
 function buildDemoLibrary(query: string): LibraryResponse {

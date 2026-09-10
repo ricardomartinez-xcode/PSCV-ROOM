@@ -34,6 +34,7 @@ jobs:
       - name: Apply verified semantic migration
         env:
           MIGRATION_CONFIRM: MIGRATE_SAFE
+          DELETE_SOURCE_DUPLICATES: DELETE_EXACT_DUPLICATES
         run: node scripts/r2-semantic-migrate-safe.mjs
       - name: Upload migration report
         if: always()

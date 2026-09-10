@@ -205,16 +205,12 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
           />
         </label>
 
-        <div
-          className="libraryFilterGroup"
-          style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10, minWidth: 0 }}
-        >
+        <div className="libraryFilterGroup">
           <label className="libraryFilter">
             <span>Colección</span>
             <select
               value={categoryId}
               onChange={(event) => { setCategoryId(event.target.value); setSectionId(ALL_SECTIONS); }}
-              style={{ width: "100%", minWidth: 0 }}
             >
               <option value={ALL_SECTIONS}>Todas las colecciones</option>
               {categories.map((category) => (
@@ -228,7 +224,6 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
             <select
               value={sectionId}
               onChange={(event) => setSectionId(event.target.value)}
-              style={{ width: "100%", minWidth: 0 }}
             >
               <option value={ALL_SECTIONS}>Todas las áreas</option>
               {categorySections.map((section) => (

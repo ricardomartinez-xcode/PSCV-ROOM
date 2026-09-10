@@ -42,6 +42,38 @@ jobs:
             return { data, sha256: hex(digest), size: data.byteLength };
           }
 
+          function normalizeObjectKey(value) {
+            return String(value ?? '')
+              .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+              .replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+          }
+
+          async function resolveObject(bucket, requestedKey) {
+            const exact = await bucket.get(requestedKey);
+            if (exact) return { key: requestedKey, object: exact, exact: true };
+            const requestedParts = requestedKey.split('/');
+            const requestedGroup = normalizeObjectKey(requestedParts[0]);
+            const requestedBase = normalizeObjectKey(requestedParts.at(-1));
+            const requestedFull = normalizeObjectKey(requestedKey);
+            const candidates = [];
+            let cursor;
+            do {
+              const listed = await bucket.list({ limit: 1000, cursor });
+              for (const item of listed.objects) {
+                const parts = item.key.split('/');
+                const full = normalizeObjectKey(item.key);
+                const group = normalizeObjectKey(parts[0]);
+                const base = normalizeObjectKey(parts.at(-1));
+                if (full === requestedFull || (group === requestedGroup && base === requestedBase)) candidates.push(item.key);
+              }
+              cursor = listed.truncated ? listed.cursor : undefined;
+            } while (cursor);
+            const unique = [...new Set(candidates)];
+            if (unique.length !== 1) return { key: requestedKey, object: null, exact: false, candidates: unique };
+            const object = await bucket.get(unique[0]);
+            return { key: unique[0], object, exact: false, candidates: unique };
+          }
+
           export default {
             async fetch(request, env) {
               if (!env.RECOVERY_TOKEN || request.headers.get('authorization') !== `Bearer ${env.RECOVERY_TOKEN}`) {
@@ -55,10 +87,10 @@ jobs:
               if (url.pathname === '/hash' && request.method === 'GET') {
                 const key = url.searchParams.get('key');
                 if (!key) return new Response('missing key', { status: 400 });
-                const obj = await env.R2.get(key);
-                if (!obj) return new Response('not found', { status: 404 });
-                const { sha256, size } = await digestObject(obj);
-                return Response.json({ key, sha256, size });
+                const resolved = await resolveObject(env.R2, key);
+                if (!resolved.object) return Response.json({ error: 'not_found_or_ambiguous', requested: key, candidates: resolved.candidates ?? [] }, { status: 404 });
+                const { sha256, size } = await digestObject(resolved.object);
+                return Response.json({ key: resolved.key, requested_key: key, exact_key_match: resolved.exact, sha256, size });
               }
 
               if (url.pathname === '/copy' && request.method === 'POST') {
@@ -67,8 +99,9 @@ jobs:
                 const target = body?.target;
                 if (!source || !target) return new Response('missing source/target', { status: 400 });
 
-                const src = await env.R2.get(source);
-                if (!src) return new Response('source not found', { status: 404 });
+                const resolvedSource = await resolveObject(env.R2, source);
+                if (!resolvedSource.object) return Response.json({ error: 'source_not_found_or_ambiguous', requested: source, candidates: resolvedSource.candidates ?? [] }, { status: 404 });
+                const src = resolvedSource.object;
                 const sourceDigest = await digestObject(src);
 
                 await env.R2.put(target, sourceDigest.data, {
@@ -85,7 +118,8 @@ jobs:
 
                 return Response.json({
                   ok: true,
-                  source,
+                  source: resolvedSource.key,
+                  requested_source: source,
                   target,
                   sha256: sourceDigest.sha256,
                   size: sourceDigest.size,

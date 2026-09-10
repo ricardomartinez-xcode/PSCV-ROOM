@@ -30,6 +30,8 @@ test("library UI has responsive grouped-section styling", () => {
   assert.match(styles, /\.librarySectionGroup/);
   assert.match(styles, /\.librarySectionHeading/);
   assert.match(styles, /\.materialGrid\.compact/);
+  assert.match(styles, /\.libraryFilterGroup[\s\S]*grid-template-columns:\s*repeat\(auto-fit/);
+  assert.match(styles, /\.libraryFilter select[\s\S]*width:\s*100%/);
   assert.match(styles, /overflow-x:\s*clip/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
 });

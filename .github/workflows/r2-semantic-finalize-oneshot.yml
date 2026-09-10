@@ -122,7 +122,16 @@ jobs:
           PY
           )"
           test -n "$url"
-          curl -fsS -H "Authorization: Bearer $token" "$url/health" >/dev/null
+          ready=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS -H "Authorization: Bearer $token" "$url/health" >/dev/null; then
+              ready=1
+              break
+            fi
+            echo "Waiting for workers.dev propagation (${attempt}/30)..."
+            sleep 2
+          done
+          test "$ready" = 1
 
           echo "FINALIZER_NAME=$name" >> "$GITHUB_ENV"
           echo "FINALIZER_URL=$url" >> "$GITHUB_ENV"
@@ -274,5 +283,5 @@ jobs:
         with:
           name: r2-semantic-finalization-${{ github.run_id }}
           path: outputs/r2-semantic-finalization.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30

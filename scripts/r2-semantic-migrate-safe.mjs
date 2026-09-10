@@ -59,4 +59,38 @@ for(const [i,item] of safe.entries()){
     for(const f of [tmp,check,...deleteChecks])try{fs.unlinkSync(f)}catch{}
   }
 }
-const deletedCount=report.reduce((n,item)=>n+(item.source_objects_deleted?.length||0),0); fs.mkdirSync('outputs',{recursive:true});fs.writeFileSync('outputs/r2-semantic-migration-applied.json',JSON.stringify({applied_at:new Date().toISOString(),deleted_source_objects:deletedCount,items:report,review_groups_skipped:review.length},null,2)); console.log(JSON.stringify({migrated:report.length,review_groups_skipped:review.length,source_objects_deleted:deletedCount},null,2));
+const residual={deleted:[],missing:[],unmatched:[],shared_with_visible:[]};
+if(DELETE_SOURCES){
+  const visibleRows=rows(d1("SELECT id,r2_key FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='visible' ORDER BY id"));
+  const hiddenRows=rows(d1("SELECT id,r2_key FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='hidden' ORDER BY id"));
+  const legacyVisible=Number(rows(d1("SELECT COUNT(*) AS n FROM materials WHERE provider='r2' AND r2_key IS NOT NULL AND visibility='visible' AND r2_key NOT LIKE 'Materias/%' AND r2_key NOT LIKE 'Biblioteca/%' AND r2_key NOT LIKE 'Instrumentos psicológicos/%'"))[0]?.n??-1);
+  if(visibleRows.length!==153) throw new Error(`Residual cleanup expected 153 visible canonical materials, found ${visibleRows.length}`);
+  if(legacyVisible!==0) throw new Error(`Residual cleanup found ${legacyVisible} visible legacy paths`);
+  const visibleKeys=[...new Set(visibleRows.map(x=>x.r2_key))], visibleSet=new Set(visibleKeys), hiddenKeys=[...new Set(hiddenRows.map(x=>x.r2_key))];
+  const visibleBySig=new Map();
+  for(const [idx,key] of visibleKeys.entries()){
+    const file=path.join(os.tmpdir(),`pscv-semantic-visible-${process.pid}-${idx}`);
+    try{
+      const r=get(key,file,true); if(r.status!==0) throw new Error(`Visible canonical object missing during residual cleanup: ${key}`);
+      const sig=`${sha(file)}:${fs.statSync(file).size}`; if(!visibleBySig.has(sig)) visibleBySig.set(sig,[]); visibleBySig.get(sig).push(key);
+    } finally { try{fs.unlinkSync(file)}catch{} }
+  }
+  for(const [idx,key] of hiddenKeys.entries()){
+    if(visibleSet.has(key)){residual.shared_with_visible.push(key);continue}
+    const file=path.join(os.tmpdir(),`pscv-semantic-hidden-${process.pid}-${idx}`), gone=`${file}.gone`;
+    try{
+      const r=get(key,file,true); if(r.status!==0){residual.missing.push(key);continue}
+      const sig=`${sha(file)}:${fs.statSync(file).size}`, matches=visibleBySig.get(sig)||[];
+      if(!matches.length){residual.unmatched.push({key,sha256:sig.split(':')[0],size:Number(sig.split(':')[1])});continue}
+      const visibleRefs=Number(rows(d1(`SELECT COUNT(*) AS n FROM materials WHERE provider='r2' AND r2_key=${q(key)} AND visibility='visible'`))[0]?.n??0);
+      if(visibleRefs!==0) throw new Error(`Refusing residual delete for visible-referenced key: ${key}`);
+      del(key); const verify=get(key,gone,true); if(verify.status===0) throw new Error(`Residual duplicate still exists after delete: ${key}`);
+      residual.deleted.push({key,canonical_matches:matches,sha256:sig.split(':')[0],size:Number(sig.split(':')[1])});
+    } finally { for(const f of [file,gone])try{fs.unlinkSync(f)}catch{} }
+  }
+}
+const plannedDeletedCount=report.reduce((n,item)=>n+(item.source_objects_deleted?.length||0),0), residualDeletedCount=residual.deleted.length, deletedCount=plannedDeletedCount+residualDeletedCount;
+fs.mkdirSync('outputs',{recursive:true});
+fs.writeFileSync('outputs/r2-semantic-migration-applied.json',JSON.stringify({applied_at:new Date().toISOString(),deleted_source_objects:deletedCount,planned_source_objects_deleted:plannedDeletedCount,residual_exact_duplicates_deleted:residualDeletedCount,items:report,residual_cleanup:residual,review_groups_skipped:review.length},null,2));
+console.log(JSON.stringify({migrated:report.length,review_groups_skipped:review.length,planned_source_objects_deleted:plannedDeletedCount,residual_exact_duplicates_deleted:residualDeletedCount,source_objects_deleted:deletedCount,residual_missing:residual.missing.length,residual_unmatched:residual.unmatched.length,residual_shared_with_visible:residual.shared_with_visible.length},null,2));
+

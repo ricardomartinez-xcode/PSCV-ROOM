@@ -31,7 +31,7 @@ jobs:
           test -s outputs/r2-semantic-migration-plan.json
       - name: Validate migration runner
         run: node --check scripts/r2-semantic-migrate-safe.mjs
-      - name: Apply verified semantic migration
+      - name: Apply verified migration and residual duplicate cleanup
         env:
           MIGRATION_CONFIRM: MIGRATE_SAFE
           DELETE_SOURCE_DUPLICATES: DELETE_EXACT_DUPLICATES

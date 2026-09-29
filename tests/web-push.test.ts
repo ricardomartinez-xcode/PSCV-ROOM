@@ -155,7 +155,7 @@ test("notification permission never gates application rendering", () => {
 
 
 test("mobile notification prompt is optional and never blocks authenticated content", () => {
-  const source = readSource("../components/providers.tsx");
+  const source = readFileSync(new URL("../components/providers.tsx", import.meta.url), "utf8");
   assert.match(source, /function MobileNotificationPrompt\(\)/);
   assert.match(source, /Ahora no/);
   assert.match(source, /push\.activate\(\)/);

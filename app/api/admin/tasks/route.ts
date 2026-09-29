@@ -62,27 +62,58 @@ export async function POST(request: Request) {
     if (result.error) throw new Error(result.error.message);
 
     const task = result.data as CreatedTaskRow | null;
+    let sideEffectWarning: string | null = null;
     if (task?.id) {
-      await syncEventReminders({
-        taskId: task.id,
-        title: task.title ?? input.title,
-        dueDate: task.due_date ?? input.due_date,
-        dueTime: task.due_time ?? input.due_time,
-        taskTypeId: task.task_type_id ?? input.task_type_id,
-        itemKind: task.item_kind ?? input.item_kind,
-        startsAt: task.starts_at ?? input.starts_at,
-        endsAt: task.ends_at ?? input.ends_at,
-        status: task.status ?? input.status,
-        visibleToStudents: enabled(
-          task.visible_to_students,
-          input.visible_to_students,
-        ),
-        actorId: profile.id,
-      });
-      await dispatchTaskPushNotificationsInBackground([task.id]);
+      try {
+        await syncEventReminders({
+          taskId: task.id,
+          title: task.title ?? input.title,
+          dueDate: task.due_date ?? input.due_date,
+          dueTime: task.due_time ?? input.due_time,
+          taskTypeId: task.task_type_id ?? input.task_type_id,
+          itemKind: task.item_kind ?? input.item_kind,
+          startsAt: task.starts_at ?? input.starts_at,
+          endsAt: task.ends_at ?? input.ends_at,
+          status: task.status ?? input.status,
+          visibleToStudents: enabled(
+            task.visible_to_students,
+            input.visible_to_students,
+          ),
+          actorId: profile.id,
+        });
+      } catch (reminderError) {
+        sideEffectWarning = reminderError instanceof Error
+          ? reminderError.message
+          : "No se pudieron sincronizar los recordatorios.";
+        console.error(JSON.stringify({
+          message: "task reminder synchronization failed after creation",
+          taskId: task.id,
+          error: sideEffectWarning,
+        }));
+      }
+
+      try {
+        await dispatchTaskPushNotificationsInBackground([task.id]);
+      } catch (pushError) {
+        const pushWarning = pushError instanceof Error
+          ? pushError.message
+          : "No se pudo programar la entrega Push.";
+        sideEffectWarning = sideEffectWarning
+          ? `${sideEffectWarning} Push: ${pushWarning}`
+          : pushWarning;
+        console.error(JSON.stringify({
+          message: "task push dispatch failed after creation",
+          taskId: task.id,
+          error: pushWarning,
+        }));
+      }
     }
 
-    return NextResponse.json({ ok: true, task: result.data });
+    return NextResponse.json({
+      ok: true,
+      task: result.data,
+      warning: sideEffectWarning,
+    });
   } catch (error) {
     return errorResponse(error);
   }

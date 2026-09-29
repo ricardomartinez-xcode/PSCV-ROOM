@@ -92,3 +92,9 @@ test("migration cleans legacy kinds and enforces one active logical reminder", (
   assert.match(migration, /task_reminder_2_days/);
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS idx_notifications_active_activity_reminder/);
 });
+
+
+test("task persistence allows Cloudflare image fields sent by the create form", () => {
+  const dataLayer = source("../lib/server/d1-data.ts");
+  assert.match(dataLayer, /"image_id", "image_url", "created_by"/);
+});

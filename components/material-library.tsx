@@ -205,27 +205,35 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
           />
         </label>
 
-        <label className="libraryFilter">
-          <span>Colección</span>
-          <select value={categoryId} onChange={(event) => { setCategoryId(event.target.value); setSectionId(ALL_SECTIONS); }}>
-            <option value={ALL_SECTIONS}>Todas las colecciones</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>{category.name} ({category.material_count})</option>
-            ))}
-          </select>
-        </label>
+        <div className="libraryFilterGroup">
+          <label className="libraryFilter">
+            <span>Colección</span>
+            <select
+              value={categoryId}
+              onChange={(event) => { setCategoryId(event.target.value); setSectionId(ALL_SECTIONS); }}
+            >
+              <option value={ALL_SECTIONS}>Todas las colecciones</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>{category.name} ({category.material_count})</option>
+              ))}
+            </select>
+          </label>
 
-        <label className="libraryFilter">
-          <span>Área</span>
-          <select value={sectionId} onChange={(event) => setSectionId(event.target.value)}>
-            <option value={ALL_SECTIONS}>Todas las áreas</option>
-            {categorySections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.name} ({section.material_count})
-              </option>
-            ))}
-          </select>
-        </label>
+          <label className="libraryFilter">
+            <span>Área</span>
+            <select
+              value={sectionId}
+              onChange={(event) => setSectionId(event.target.value)}
+            >
+              <option value={ALL_SECTIONS}>Todas las áreas</option>
+              {categorySections.map((section) => (
+                <option key={section.id} value={section.id}>
+                  {section.name} ({section.material_count})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
 
         <div className="libraryViewToggle" aria-label="Vista">
           <button

@@ -633,9 +633,10 @@ body {
 .libraryStats strong { font-size: 31px; line-height: 1; }
 .libraryStats span { margin-top: 5px; font-size: 11px; opacity: .82; }
 
-.libraryToolbar { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(170px, .55fr) minmax(190px, .65fr) auto; gap: 10px; align-items: end; }
+.libraryToolbar { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(320px, .9fr) auto; gap: 10px; align-items: end; }
 .libraryToolbar label { display: grid; gap: 5px; color: #42526a; font-size: 12px; font-weight: 800; }
 .librarySearch { position: relative; }
+.libraryFilterGroup { min-width: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr)); gap: 10px; }
 .librarySearch > svg { position: absolute; left: 13px; bottom: 12px; color: #718096; pointer-events: none; }
 .librarySearch input, .libraryFilter select { height: 42px; border: 1px solid #d7e0ec; border-radius: 12px; background: #fff; color: #172033; font: inherit; outline: none; }
 .librarySearch input { width: 100%; padding: 0 12px 0 38px; }
@@ -703,9 +704,9 @@ body {
   .libraryStats { min-height: 52px; width: 100%; grid-auto-flow: column; gap: 7px; }
   .libraryStats strong { font-size: 23px; }
   .libraryStats span { margin: 0; }
-  .libraryToolbar { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .librarySearch { grid-column: 1 / -1; }
-  .libraryViewToggle { grid-column: 1 / -1; justify-self: end; }
+  .libraryToolbar { grid-template-columns: minmax(0, 1fr) auto; }
+  .librarySearch, .libraryFilterGroup { grid-column: 1 / -1; }
+  .libraryViewToggle { justify-self: end; }
   .sectionRail { display: flex; overflow-x: auto; padding-bottom: 3px; scroll-snap-type: x proximity; }
   .sectionCard { min-width: 215px; scroll-snap-align: start; }
   .librarySectionGroup { padding: 13px; border-radius: 17px; }

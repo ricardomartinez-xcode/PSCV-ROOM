@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run cf:dev:remote",
     "next:dev": "next dev",
-    "build": "opennextjs-cloudflare build",
+    "build": "next build",
     "smoke": "node scripts/smoke.mjs",
     "start": "wrangler dev --port 8788",
     "test": "node --experimental-strip-types --test tests/*.test.ts",

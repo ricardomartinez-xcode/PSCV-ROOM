@@ -152,3 +152,14 @@ test("notification permission never gates application rendering", () => {
   assert.doesNotMatch(source, /if \(state !== "active"\)/);
   assert.match(source, /<PushNotificationsContext\.Provider value=\{value\}>/);
 });
+
+
+test("mobile notification prompt is optional and never blocks authenticated content", () => {
+  const source = readSource("../components/providers.tsx");
+  assert.match(source, /function MobileNotificationPrompt\(\)/);
+  assert.match(source, /Ahora no/);
+  assert.match(source, /push\.activate\(\)/);
+  assert.match(source, /pscv:push-prompt-dismissed/);
+  assert.match(source, /isMobile/);
+  assert.doesNotMatch(source, /return null;[\s\S]*AuthSessionProvider/);
+});

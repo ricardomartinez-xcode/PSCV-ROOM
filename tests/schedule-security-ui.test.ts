@@ -54,9 +54,11 @@ test("generic D1 reads enforce sensitive-table authorization and explicit projec
 
 test("app shell persists navigation and draft state across tab suspension", () => {
   const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
-  assert.match(shell, /pscv:shell-state:v1/);
-  assert.match(shell, /window\.localStorage\.getItem\(shellStateKey\)/);
-  assert.match(shell, /window\.localStorage\.setItem\(shellStateKey/);
+  assert.match(shell, /url\.searchParams\.get\("task"\)/);
+  assert.match(shell, /window\.history\.replaceState/);
+  assert.match(shell, /setTab\("taskDetail"\)/);
+  assert.match(shell, /Reset the edit draft only when the selected task changes/);
+  assert.match(shell, /\[task\?\.id\]/);
   assert.match(shell, /taskFormOpen/);
   assert.match(shell, /taskForm/);
 });

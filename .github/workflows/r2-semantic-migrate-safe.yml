@@ -1,0 +1,60 @@
+name: R2 semantic safe migration
+on:
+  workflow_dispatch:
+    inputs:
+      audit_run_id:
+        description: Successful R2 semantic content audit run ID
+        required: true
+        type: string
+      confirm:
+        description: Use MIGRATE_SAFE to apply; any other value is dry-run only
+        required: true
+        default: DRY_RUN
+        type: string
+permissions:
+  actions: read
+  contents: read
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    env:
+      CLOUDFLARE_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/material-bucket-organization-20260907-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify audit run succeeded
+        env:
+          AUDIT_RUN_ID: ${{ inputs.audit_run_id }}
+        run: |
+          set -euo pipefail
+          conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${AUDIT_RUN_ID}" --jq .conclusion)"
+          test "$conclusion" = success
+      - name: Download semantic audit artifact
+        env:
+          AUDIT_RUN_ID: ${{ inputs.audit_run_id }}
+        run: |
+          mkdir -p outputs
+          gh run download "$AUDIT_RUN_ID" -n "r2-semantic-audit-${AUDIT_RUN_ID}" -D outputs
+          test -s outputs/r2-semantic-migration-plan.json
+      - name: Validate migration runner
+        run: node --check scripts/r2-semantic-migrate-safe.mjs
+      - name: Semantic migration dry-run or apply
+        env:
+          MIGRATION_CONFIRM: ${{ inputs.confirm }}
+        run: node scripts/r2-semantic-migrate-safe.mjs
+      - name: Upload migration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-semantic-migration-${{ github.run_id }}
+          path: outputs/r2-semantic-migration-applied.json
+          if-no-files-found: ignore
+          retention-days: 30

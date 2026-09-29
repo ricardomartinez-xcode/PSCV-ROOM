@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { AuthSessionProvider } from "@/components/auth-session-provider";
+import { AuthSessionProvider, useAuthSession } from "@/components/auth-session-provider";
 import { usePushNotifications, type PushState } from "@/components/push-notifications-bootstrap";
 import { notificationActionUrl } from "@/lib/notification-action";
 import styles from "./notification-delivery.module.css";
@@ -315,8 +315,77 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <AuthSessionProvider>
       <NotificationDeliveryContext.Provider value={delivery}>
         {children}
+        <MobileNotificationPrompt />
       </NotificationDeliveryContext.Provider>
     </AuthSessionProvider>
+  );
+}
+
+function MobileNotificationPrompt() {
+  const { profile, loading } = useAuthSession();
+  const push = usePushNotifications();
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    try {
+      setDismissed(window.localStorage.getItem(`pscv:push-prompt-dismissed:${profile.id}`) === "1");
+    } catch {
+      setDismissed(false);
+    }
+  }, [profile?.id]);
+
+  const isMobile = typeof navigator !== "undefined"
+    && /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (loading || !profile || !isMobile || !push || dismissed) return null;
+  if (push.state === "active" || push.state === "unsupported" || push.state === "server-unavailable" || push.state === "subscribing" || push.state === "loading") return null;
+
+  const dismiss = () => {
+    setDismissed(true);
+    try {
+      window.localStorage.setItem(`pscv:push-prompt-dismissed:${profile.id}`, "1");
+    } catch {
+      // La preferencia de UI es opcional.
+    }
+  };
+
+  const installRequired = push.state === "install-required";
+  const denied = push.state === "denied";
+
+  return (
+    <aside className={styles.mobilePushPrompt} aria-label="Configuración de notificaciones">
+      <div>
+        <strong>{installRequired ? "Activa avisos en la PWA" : "¿Quieres recibir avisos?"}</strong>
+        <p>
+          {installRequired
+            ? "En iPhone/iPad, instala PSCV Room desde Safari para poder activar avisos con la app cerrada."
+            : denied
+              ? "Los avisos están bloqueados. Puedes habilitarlos después desde los ajustes del navegador o del dispositivo."
+              : "Puedes activar las notificaciones ahora o hacerlo más tarde desde Configuración."}
+        </p>
+        {installRequired ? (
+          <details className={styles.mobilePushDetails}>
+            <summary>Cómo hacerlo</summary>
+            <ol>
+              <li>Abre PSCV Room en Safari.</li>
+              <li>Toca Compartir → Agregar a pantalla de inicio.</li>
+              <li>Abre la aplicación desde el nuevo icono y vuelve a activar avisos.</li>
+            </ol>
+          </details>
+        ) : null}
+      </div>
+      <div className={styles.mobilePushActions}>
+        {!denied && !installRequired ? (
+          <button type="button" className={styles.enableButton} onClick={() => void push.activate()}>
+            Activar
+          </button>
+        ) : null}
+        <button type="button" className={styles.secondaryButton} onClick={dismiss}>
+          Ahora no
+        </button>
+      </div>
+    </aside>
   );
 }
 

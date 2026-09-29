@@ -17,6 +17,18 @@ const emailDelivery = source("../lib/server/reminder-email-delivery.ts");
 const migration = source("../migrations/0011_idempotent_activity_reminders.sql");
 const deliveryMigration = source("../migrations/0012_email_delivery_claims.sql");
 
+test("task and event creation keeps persistence independent from reminder side effects", () => {
+  assert.match(createRoute, /item_kind: z\.enum\(\["task", "event"\]\)/);
+  assert.match(createRoute, /starts_at: z\.string\(\)\.nullable\(\)\.optional\(\)/);
+  assert.match(createRoute, /ends_at: z\.string\(\)\.nullable\(\)\.optional\(\)/);
+  assert.match(createRoute, /input\.item_kind === "event"/);
+  assert.match(createRoute, /await executeDataQuery\(request, \{[\s\S]*?action: "insert"/);
+  assert.match(createRoute, /let sideEffectWarning: string \| null = null/);
+  assert.match(createRoute, /task reminder synchronization failed after creation/);
+  assert.match(createRoute, /task push dispatch failed after creation/);
+  assert.match(createRoute, /return NextResponse\.json\(\{[\s\S]*?ok: true,[\s\S]*?task: result\.data/);
+});
+
 test("task mutations pass status and student visibility to reminder sync", () => {
   for (const route of [createRoute, patchRoute]) {
     assert.match(route, /status:/);

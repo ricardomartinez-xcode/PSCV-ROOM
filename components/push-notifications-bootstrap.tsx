@@ -382,78 +382,9 @@ export function PushNotificationsBootstrap({ children }: { children: ReactNode }
     deactivate,
   }), [state, message, activate, sendTest, deactivate]);
 
-  if (state !== "active") {
-    const isFailure = state === "error" || state === "server-unavailable";
-    const statusTitle = isFailure ? "La aplicación no puede iniciar" : "Preparando notificaciones";
-    const statusMessage = message || (state === "prompt"
-      ? "Activa las notificaciones para recibir avisos importantes y continuar."
-      : "Estamos preparando los avisos de este dispositivo. Esto tomará solo un momento.");
-
-    return (
-      <main
-        className="loginScreen authPage"
-        aria-busy={!isFailure}
-        aria-live={isFailure ? "assertive" : "polite"}
-      >
-        <section className="loginCard authCard authCardSimple authStatusCard" style={{ width: "min(100%, 760px)" }}>
-          <img src="/icon.svg" className="authLogoMain" alt="PSCV Room" />
-          <div>
-            <h1 className="authTitle">Verificando tu acceso institucional</h1>
-            <p style={{ margin: "12px 0 0" }}>
-              Estamos comprobando tu sesión segura antes de abrir PSCV Room.
-            </p>
-          </div>
-
-          <div
-            role={isFailure ? "alert" : "status"}
-            style={{
-              width: "100%",
-              padding: 18,
-              border: `1px solid ${isFailure ? "#f1aeb5" : "#cbd5e1"}`,
-              borderRadius: 14,
-              background: isFailure ? "#fff5f5" : "#f8fafc",
-              textAlign: "left",
-            }}
-          >
-            <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase" }}>
-              Estado de notificaciones
-            </p>
-            <h2 style={{ margin: "0 0 8px", fontSize: 20, lineHeight: 1.2 }}>{statusTitle}</h2>
-            <p style={{ margin: 0, lineHeight: 1.5 }}>{statusMessage}</p>
-
-            {state === "prompt" && (
-              <button className="microsoftButton" type="button" onClick={() => void activate()} style={{ marginTop: 16 }}>
-                Activar notificaciones y continuar
-              </button>
-            )}
-
-            {(state === "install-required" || state === "denied" || state === "unsupported") && (
-              <p style={{ margin: "14px 0 0", fontWeight: 700 }}>Acción requerida para continuar.</p>
-            )}
-
-            {diagnostic && (
-              <details open style={{ marginTop: 18 }}>
-                <summary style={{ cursor: "pointer", fontWeight: 700 }}>Diagnóstico técnico</summary>
-                <dl style={{ display: "grid", gridTemplateColumns: "minmax(110px, 160px) 1fr", gap: "8px 16px", marginTop: 14, overflowWrap: "anywhere" }}>
-                  <dt>Etapa</dt><dd style={{ margin: 0 }}><code>{diagnostic.stage}</code></dd>
-                  <dt>Error</dt><dd style={{ margin: 0 }}><code>{diagnostic.name}</code></dd>
-                  <dt>Mensaje</dt><dd style={{ margin: 0 }}>{diagnostic.message}</dd>
-                  <dt>Worker</dt><dd style={{ margin: 0 }}><code>{diagnostic.workerVersion ?? "desconocida"}</code></dd>
-                  <dt>Navegador</dt><dd style={{ margin: 0 }}><code>{diagnostic.browser}</code></dd>
-                </dl>
-                {diagnostic.stack && <pre style={{ marginTop: 16, padding: 16, overflow: "auto", whiteSpace: "pre-wrap", background: "#111", color: "#fff", borderRadius: 12, fontSize: 12 }}>{diagnostic.stack}</pre>}
-                <button className="authSecondaryButton" type="button" onClick={() => { setDiagnostic(null); setMessage(""); setState("loading"); setRetryToken((value) => value + 1); }} style={{ marginTop: 16, paddingInline: 16 }}>
-                  Reintentar inicialización
-                </button>
-              </details>
-            )}
-          </div>
-
-          {!isFailure && state !== "prompt" && <div className="loader" aria-hidden="true" />}
-        </section>
-      </main>
-    );
-  }
+  // Las notificaciones son una capacidad opcional. Nunca deben bloquear el
+  // acceso autenticado ni desmontar la aplicación cuando el permiso está
+  // pendiente, denegado o el navegador no soporta Web Push.
 
   return (
     <PushNotificationsContext.Provider value={value}>

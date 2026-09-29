@@ -180,3 +180,78 @@
     flex-basis: min(170px, 48%);
   }
 }
+
+
+.mobilePushPrompt {
+  align-items: flex-start;
+  background: #ffffff;
+  border: 1px solid #d0d5dd;
+  border-radius: 14px;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  box-shadow: 0 10px 30px rgba(16, 24, 40, .16);
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+  left: 14px;
+  max-width: 520px;
+  padding: 14px;
+  position: fixed;
+  right: 14px;
+  z-index: 1000;
+}
+
+.mobilePushPrompt strong {
+  color: #182230;
+  display: block;
+  font-size: .9rem;
+}
+
+.mobilePushPrompt p {
+  color: #667085;
+  font-size: .78rem;
+  line-height: 1.4;
+  margin: 4px 0 0;
+}
+
+.mobilePushActions {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.mobilePushActions .secondaryButton {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  min-height: 44px;
+  padding: 7px 10px;
+}
+
+.mobilePushDetails {
+  color: #344054;
+  font-size: .76rem;
+  margin-top: 7px;
+}
+
+.mobilePushDetails summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.mobilePushDetails ol {
+  line-height: 1.45;
+  margin: 5px 0 0;
+  padding-left: 18px;
+}
+
+@media (max-width: 560px) {
+  .mobilePushPrompt {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .mobilePushActions {
+    justify-content: flex-end;
+  }
+}

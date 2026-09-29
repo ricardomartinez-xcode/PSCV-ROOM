@@ -144,3 +144,11 @@ test("push subscriptions cannot be reassigned across profiles and outbound fetch
   assert.match(subscriptionRoute, /throw new HttpError\(409/);
   assert.match(wranglerConfig, /"global_fetch_strictly_public"/);
 });
+
+
+test("notification permission never gates application rendering", () => {
+  const source = readSource("../components/push-notifications-bootstrap.tsx");
+  assert.match(source, /Las notificaciones son una capacidad opcional/);
+  assert.doesNotMatch(source, /if \(state !== "active"\)/);
+  assert.match(source, /<PushNotificationsContext\.Provider value=\{value\}>/);
+});

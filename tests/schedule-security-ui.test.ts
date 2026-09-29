@@ -50,3 +50,13 @@ test("generic D1 reads enforce sensitive-table authorization and explicit projec
   assert.match(data, /buildSelectClause/);
   assert.match(data, /query\.select/);
 });
+
+
+test("app shell persists navigation and draft state across tab suspension", () => {
+  const shell = source("../components/app-shell-v5.tsx");
+  assert.match(shell, /pscv:shell-state:v1/);
+  assert.match(shell, /window\.localStorage\.getItem\(shellStateKey\)/);
+  assert.match(shell, /window\.localStorage\.setItem\(shellStateKey/);
+  assert.match(shell, /taskFormOpen/);
+  assert.match(shell, /taskForm/);
+});

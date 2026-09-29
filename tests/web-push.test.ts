@@ -147,7 +147,7 @@ test("push subscriptions cannot be reassigned across profiles and outbound fetch
 
 
 test("notification permission never gates application rendering", () => {
-  const source = readSource("../components/push-notifications-bootstrap.tsx");
+  const source = readFileSync(new URL("../components/push-notifications-bootstrap.tsx", import.meta.url), "utf8");
   assert.match(source, /Las notificaciones son una capacidad opcional/);
   assert.doesNotMatch(source, /if \(state !== "active"\)/);
   assert.match(source, /<PushNotificationsContext\.Provider value=\{value\}>/);

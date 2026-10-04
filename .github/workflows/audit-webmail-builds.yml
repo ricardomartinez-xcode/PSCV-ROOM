@@ -1,0 +1,29 @@
+name: Audit Webmail Workers Builds
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-webmail-builds.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Audit Worker and GitHub Builds integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          api="https://api.cloudflare.com/client/v4"
+          auth=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
+          echo "=== WORKER ENV ==="
+          curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/services/webmail-relnets/environments/production"             | jq '{success,errors,result:(.result|{script,environment,dispatch_namespace,outbound,script_tag,etag})}'
+          echo "=== REPO AUTOFILL ==="
+          curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/builds/repos/github/257445968/1296352696/config_autofill"             | jq '{success,errors,result}'

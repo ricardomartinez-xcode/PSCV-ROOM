@@ -4,7 +4,7 @@ La app usa Cloudflare Access con Microsoft Entra ID. Ya no usa un proveedor de a
 
 ## Produccion vigente
 
-- Dominio protegido: `https://app.rlead.xyz`
+- Dominio protegido: `https://app.relnets.com`
 - Team domain: `relead.cloudflareaccess.com`
 - Proveedor Access: Microsoft Entra ID (`azureAD`)
 - Politica Access: allow para el correo owner registrado en D1

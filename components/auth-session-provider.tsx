@@ -19,7 +19,7 @@ type AuthSessionContextValue = {
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 const SESSION_TIMEOUT_MS = 12_000;
 const LAST_SESSION_KEY = "pscv:auth:last-session:v1";
-const SESSION_TIMEOUT_MESSAGE = "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.rlead.xyz apunta al Worker pscv-room.";
+const SESSION_TIMEOUT_MESSAGE = "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.relnets.com apunta al Worker pscv-room.";
 
 function readCachedSession(): CachedSession | null {
   if (typeof window === "undefined") return null;

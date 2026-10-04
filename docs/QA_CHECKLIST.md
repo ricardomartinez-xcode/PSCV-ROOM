@@ -18,7 +18,7 @@ Si se usa `next start`, define `SMOKE_BASE_URL` contra el puerto temporal.
 ## Smoke Remoto
 
 ```bash
-$env:SMOKE_BASE_URL="https://app.rlead.xyz"; npm run smoke
+$env:SMOKE_BASE_URL="https://app.relnets.com"; npm run smoke
 ```
 
 Si se prueba contra Cloudflare Access, una respuesta `401` sin sesión es esperada. Para validar datos con la misma D1 remota, usar:

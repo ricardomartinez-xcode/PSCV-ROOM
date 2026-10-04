@@ -23,7 +23,7 @@ El bucket se llama `psicologia`, pero ese nombre no forma parte de las keys. Los
 Primero valida qué leerá el importador sin modificar la base de datos:
 
 ```bash
-curl -X GET "https://app.rlead.xyz/api/admin/r2/import-materials?maxItems=10000" \
+curl -X GET "https://app.relnets.com/api/admin/r2/import-materials?maxItems=10000" \
   -H "Cookie: <cookie-de-sesion-admin>"
 ```
 
@@ -32,8 +32,8 @@ También se puede abrir la URL desde el navegador con una sesión admin activa.
 ## Importación sin borrar registros existentes
 
 ```bash
-curl -X POST "https://app.rlead.xyz/api/admin/r2/import-materials" \
-  -H "Origin: https://app.rlead.xyz" \
+curl -X POST "https://app.relnets.com/api/admin/r2/import-materials" \
+  -H "Origin: https://app.relnets.com" \
   -H "Content-Type: application/json" \
   -H "Cookie: <cookie-de-sesion-admin>" \
   -d '{"dryRun":false,"maxItems":10000}'

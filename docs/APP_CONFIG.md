@@ -9,7 +9,7 @@ Sin binding D1 disponible, la app usa datos semilla y `localStorage`. Sirve para
 La app usa Cloudflare Access para identidad y D1 para datos. El dominio publicado es:
 
 ```txt
-https://app.rlead.xyz
+https://app.relnets.com
 ```
 
 Para probar contra la misma base remota del despliegue:

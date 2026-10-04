@@ -2,7 +2,7 @@
 
 ## Topología de producción
 
-La URL canónica es `https://app.rlead.xyz` y debe ejecutarse en el Worker `pscv-room`.
+La URL canónica es `https://app.relnets.com` y debe ejecutarse en el Worker `pscv-room`.
 
 ```text
 Navegador
@@ -19,8 +19,8 @@ Vercel puede usarse sólo para previews o pruebas visuales. No es un origen de p
 
 ## Requisitos antes de publicar
 
-1. El Worker debe estar asociado a `app.rlead.xyz` mediante el bloque `routes` de `wrangler.jsonc`.
-2. Cloudflare Access debe tener una aplicación Self-hosted para `https://app.rlead.xyz`.
+1. El Worker debe estar asociado a `app.relnets.com` mediante el bloque `routes` de `wrangler.jsonc`.
+2. Cloudflare Access debe tener una aplicación Self-hosted para `https://app.relnets.com`.
 3. Configura los valores del Worker fuera de Git:
 
    ```bash
@@ -94,7 +94,7 @@ Email claim name: email
 PKCE: enabled cuando Keycloak lo requiera
 ```
 
-Después habilita este método de login en la aplicación Access de `app.rlead.xyz`. Prueba el proveedor desde Zero Trust antes de añadirlo a una política de producción.
+Después habilita este método de login en la aplicación Access de `app.relnets.com`. Prueba el proveedor desde Zero Trust antes de añadirlo a una política de producción.
 
 ### 4. Políticas Access y autorización interna
 
@@ -115,4 +115,4 @@ No copies roles de Keycloak a PSCV Room hasta que exista una estrategia explíci
 
 ## Regla de operación
 
-No mezcles el host de producción entre Vercel y Cloudflare Workers. Si se conserva el proyecto Vercel, retira `app.rlead.xyz` de sus aliases de producción y usa sus dominios `*.vercel.app` exclusivamente para previews no protegidos.
+No mezcles el host de producción entre Vercel y Cloudflare Workers. Si se conserva el proyecto Vercel, retira `app.relnets.com` de sus aliases de producción y usa sus dominios `*.vercel.app` exclusivamente para previews no protegidos.

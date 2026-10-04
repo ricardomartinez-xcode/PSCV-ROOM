@@ -10,7 +10,7 @@ test("uses the canonical Worker host and renders a recoverable Access state", as
     readFile(new URL("../docs/CLOUDFLARE_ACCESS_DEPLOYMENT.md", import.meta.url), "utf8"),
   ]);
 
-  assert.match(wrangler, /"pattern": "app\.rlead\.xyz"/);
+  assert.match(wrangler, /"pattern": "app\.relnets\.com"/);
   assert.doesNotMatch(wrangler, /app\.relead\.xyz/);
   assert.match(authGate, /useAuthSession/);
   assert.match(authSessionProvider, /AbortController/);

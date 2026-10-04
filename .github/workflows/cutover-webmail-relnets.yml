@@ -27,19 +27,32 @@ jobs:
           api="https://api.cloudflare.com/client/v4"
           auth=(-H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" -H "Content-Type: application/json")
 
-          echo "=== ATTACH CUSTOM DOMAIN ==="
+          echo "=== REPLACE LEGACY DNS WITH WORKER CUSTOM DOMAIN ==="
+          existing="$(curl -fsS "${auth[@]}"             "${api}/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=${HOSTNAME}&per_page=100")"
+          echo "$existing" | jq '{records:[(.result // [])[] | {id,type,name,content,proxied,ttl}]}'
+          echo "$existing" > /tmp/mail-relnets-dns-backup.json
+
+          while IFS= read -r id; do
+            [ -n "$id" ] || continue
+            delete="$(curl -fsS "${auth[@]}" -X DELETE               "${api}/zones/${CLOUDFLARE_ZONE_ID}/dns_records/${id}")"
+            echo "$delete" | jq '{success,errors}'
+            echo "$delete" | jq -e '.success == true' >/dev/null
+          done < <(echo "$existing" | jq -r '.result[]? | select(.type=="A" or .type=="AAAA" or .type=="CNAME") | .id')
+
           payload="$(jq -n             --arg hostname "$HOSTNAME"             --arg service "$WORKER"             --arg zone_id "$CLOUDFLARE_ZONE_ID"             '{hostname:$hostname,service:$service,zone_id:$zone_id,zone_name:"relnets.com"}')"
           domain="$(curl -sS "${auth[@]}" -X PUT             "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"             --data "$payload")"
-          echo "$domain" | jq '{success,errors,result:(.result // null)}'
+          echo "$domain" | jq '{success,errors,result:(.result|if . then {id,hostname,service,environment,zone_id,zone_name} else null end)}'
+
           if ! echo "$domain" | jq -e '.success == true' >/dev/null; then
-            echo "=== EXISTING WORKER DOMAINS ==="
-            curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"               | jq '{success,errors,domains:[(.result // [])[] | select(.hostname=="mail.relnets.com") | {id,hostname,service,environment,zone_id,zone_name}]}'
-            echo "=== EXISTING DNS RECORDS ==="
-            curl -sS "${auth[@]}" "${api}/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=mail.relnets.com&per_page=100"               | jq '{success,errors,records:[(.result // [])[] | {id,type,name,content,proxied,comment}]}'
-            exit 42
+            echo "Custom domain attach failed; restoring previous DNS records."
+            while IFS= read -r row; do
+              body="$(echo "$row" | jq '{type,name,content,ttl,proxied}')"
+              curl -sS "${auth[@]}" -X POST                 "${api}/zones/${CLOUDFLARE_ZONE_ID}/dns_records"                 --data "$body"                 | jq '{success,errors,result:(.result|if . then {id,type,name,content,proxied} else null end)}'
+            done < <(jq -c '.result[]? | select(.type=="A" or .type=="AAAA" or .type=="CNAME")' /tmp/mail-relnets-dns-backup.json)
+            exit 43
           fi
 
-          echo "=== UPDATE LITERAL RULES ==="
+          echo "=== UPDATE RELNETS LITERAL RULES ==="
           rules="$(curl -fsS "${auth[@]}"             "${api}/zones/${CLOUDFLARE_ZONE_ID}/email/routing/rules?per_page=100")"
           echo "$rules" | jq -e '.success == true' >/dev/null
 
@@ -59,7 +72,11 @@ jobs:
           echo "$catch_response" | jq '{success,errors,result:(.result|{id,name,enabled,actions,matchers,source})}'
           echo "$catch_response" | jq -e '.success == true' >/dev/null
 
-          echo "=== VERIFY ==="
-          curl -fsS "${auth[@]}"             "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"             | jq '{domains:[(.result // [])[] | select(.hostname=="mail.relnets.com") | {id,hostname,service,zone_id,zone_name}]}'
+          echo "=== VERIFY DOMAIN AND ROUTING ==="
+          domains="$(curl -fsS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains")"
+          echo "$domains" | jq '{domains:[(.result // [])[] | select(.hostname=="mail.relnets.com") | {id,hostname,service,zone_id,zone_name}]}'
+          echo "$domains" | jq -e --arg worker "$WORKER"             'any(.result[]?; .hostname=="mail.relnets.com" and .service==$worker)' >/dev/null
 
-          curl -fsS "${auth[@]}"             "${api}/zones/${CLOUDFLARE_ZONE_ID}/email/routing/rules?per_page=100"             | jq '{rules:[(.result // [])[] | {id,name,enabled,actions,matchers,source}]}'
+          final_rules="$(curl -fsS "${auth[@]}"             "${api}/zones/${CLOUDFLARE_ZONE_ID}/email/routing/rules?per_page=100")"
+          echo "$final_rules" | jq '{rules:[(.result // [])[] | {id,name,enabled,actions,matchers,source}]}'
+          echo "$final_rules" | jq -e --arg worker "$WORKER"             'any(.result[]?; (.matchers|any(.type=="all")) and .enabled==true and (.actions|any(.type=="worker" and .value[0]==$worker)))' >/dev/null

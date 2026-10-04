@@ -35,7 +35,7 @@ jobs:
           curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/builds/workers/d24c0733ae2f4defb79a882dc7354072/builds?per_page=10" \
             | jq '{success,errors,builds:[(.result // [])[] | {build_uuid,build_outcome,created_on,modified_on,build_trigger_metadata}]}'
           echo "=== LATEST BUILD LOGS ==="
-          curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/builds/builds/dc70b4f5-270c-4f0f-8ffd-87e0b7adc946/logs" \
+          curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/builds/builds/13f86343-3f0e-4ed3-9f4c-2a7bda3e60fc/logs" \
             | jq '{success,errors,result}'
           echo "=== REPO AUTOFILL ==="
           curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/builds/repos/github/257445968/1296352696/config_autofill"             | jq '{success,errors,result}'

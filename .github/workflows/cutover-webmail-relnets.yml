@@ -29,9 +29,15 @@ jobs:
 
           echo "=== ATTACH CUSTOM DOMAIN ==="
           payload="$(jq -n             --arg hostname "$HOSTNAME"             --arg service "$WORKER"             --arg zone_id "$CLOUDFLARE_ZONE_ID"             '{hostname:$hostname,service:$service,zone_id:$zone_id,zone_name:"relnets.com"}')"
-          domain="$(curl -fsS "${auth[@]}" -X PUT             "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"             --data "$payload")"
-          echo "$domain" | jq '{success,errors,result:(.result|{id,hostname,service,environment,zone_id,zone_name})}'
-          echo "$domain" | jq -e '.success == true' >/dev/null
+          domain="$(curl -sS "${auth[@]}" -X PUT             "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"             --data "$payload")"
+          echo "$domain" | jq '{success,errors,result:(.result // null)}'
+          if ! echo "$domain" | jq -e '.success == true' >/dev/null; then
+            echo "=== EXISTING WORKER DOMAINS ==="
+            curl -sS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"               | jq '{success,errors,domains:[(.result // [])[] | select(.hostname=="mail.relnets.com") | {id,hostname,service,environment,zone_id,zone_name}]}'
+            echo "=== EXISTING DNS RECORDS ==="
+            curl -sS "${auth[@]}" "${api}/zones/${CLOUDFLARE_ZONE_ID}/dns_records?name=mail.relnets.com&per_page=100"               | jq '{success,errors,records:[(.result // [])[] | {id,type,name,content,proxied,comment}]}'
+            exit 42
+          fi
 
           echo "=== UPDATE LITERAL RULES ==="
           rules="$(curl -fsS "${auth[@]}"             "${api}/zones/${CLOUDFLARE_ZONE_ID}/email/routing/rules?per_page=100")"

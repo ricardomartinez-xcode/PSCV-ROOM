@@ -1,0 +1,85 @@
+name: PSCV D1 migration audit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/pscv-d1-migration-audit.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      OLD_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
+      OLD_DB_ID: 49c23a1e-de2c-473b-a627-d6efe862b4b3
+      NEW_ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
+      NEW_DB_ID: 14ed5055-3366-4883-a6df-0349874337f0
+      ACCESS_APP_ID: 5ea707e5-bd98-4ccd-b514-938c14c76ecc
+      ACCESS_IDP_ID: 89bb4c2b-c2f0-4f59-964a-78242c89c174
+    steps:
+      - name: Compare D1 schemas and row counts
+        shell: python
+        run: |
+          import json, os, urllib.request
+
+          token=os.environ["CLOUDFLARE_API_TOKEN"]
+          def api(method,url,payload=None):
+              data=None if payload is None else json.dumps(payload).encode()
+              req=urllib.request.Request(url,data=data,method=method,headers={
+                  "Authorization":f"Bearer {token}","Content-Type":"application/json"})
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return json.load(r)
+
+          def query(account,db,sql,params=None):
+              x=api("POST",f"https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{db}/query",
+                    {"sql":sql,"params":params or []})
+              if not x.get("success"): raise RuntimeError(x.get("errors"))
+              return x["result"][0].get("results",[])
+
+          tables=["app_profiles","group_columns","group_column_values","courses"]
+          out={}
+          for label,account,db in [
+              ("old",os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"]),
+              ("new",os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"])
+          ]:
+              out[label]={}
+              for table in tables:
+                  try:
+                      count=query(account,db,f"SELECT COUNT(*) AS n FROM {table}")[0]["n"]
+                      cols=[r["name"] for r in query(account,db,f"PRAGMA table_info({table})")]
+                      if table=="app_profiles":
+                          roles=query(account,db,"SELECT role, COUNT(*) AS n FROM app_profiles GROUP BY role ORDER BY role")
+                          out[label][table]={"count":count,"columns":cols,"roles":roles}
+                      else:
+                          out[label][table]={"count":count,"columns":cols}
+                  except Exception as e:
+                      out[label][table]={"error":str(e)}
+          print(json.dumps(out,indent=2))
+
+      - name: Verify Microsoft Access provider
+        shell: python
+        run: |
+          import json, os, urllib.request
+          token=os.environ["CLOUDFLARE_API_TOKEN"]
+          account=os.environ["NEW_ACCOUNT_ID"]
+          app_id=os.environ["ACCESS_APP_ID"]
+          idp_id=os.environ["ACCESS_IDP_ID"]
+          def get(path):
+              req=urllib.request.Request(
+                  f"https://api.cloudflare.com/client/v4/accounts/{account}{path}",
+                  headers={"Authorization":f"Bearer {token}"})
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+          app=get(f"/access/apps/{app_id}")["result"]
+          idp=get(f"/access/identity_providers/{idp_id}")["result"]
+          safe={
+              "app":{"id":app.get("id"),"name":app.get("name"),"domain":app.get("domain"),
+                     "aud":app.get("aud"),"allowed_idps":app.get("allowed_idps"),
+                     "auto_redirect_to_identity":app.get("auto_redirect_to_identity")},
+              "idp":{"id":idp.get("id"),"name":idp.get("name"),"type":idp.get("type")}
+          }
+          print(json.dumps(safe,indent=2))
+          if app.get("domain")!="app.relnets.com": raise SystemExit("Access domain mismatch")
+          if idp_id not in (app.get("allowed_idps") or []): raise SystemExit("Microsoft IdP not allowed by app")
+          if idp.get("type") not in ("azureAD","azure_ad","entra","azure"): raise SystemExit("Unexpected IdP type")

@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pscv-room",
+  "account_id": "e8cee5957315e28c1b4e4b2410c5fbcc",
   "main": "custom-worker.ts",
   "compatibility_date": "2026-06-27",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -31,7 +32,7 @@
     {
       "binding": "DB",
       "database_name": "pscv-room",
-      "database_id": "49c23a1e-de2c-473b-a627-d6efe862b4b3",
+      "database_id": "14ed5055-3366-4883-a6df-0349874337f0",
       "migrations_dir": "migrations"
     }
   ],

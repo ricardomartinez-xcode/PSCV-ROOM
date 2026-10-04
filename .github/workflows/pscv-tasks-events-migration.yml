@@ -1,61 +1,22 @@
-name: PSCV tasks events audit
+name: PSCV tasks events migration
 
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/pscv-tasks-events-migration.yml"
+      - "scripts/migrate-tasks-events.mjs"
 
 jobs:
-  audit:
+  migrate:
     runs-on: ubuntu-latest
     environment: production
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      OLD_ACCOUNT_ID: 41ffa6a1a7c184fd4308f87780a62cc4
-      OLD_DB_ID: 49c23a1e-de2c-473b-a627-d6efe862b4b3
-      NEW_ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
-      NEW_DB_ID: 14ed5055-3366-4883-a6df-0349874337f0
     steps:
-      - name: Compare task and event data
-        shell: python
-        run: |
-          import json, os, urllib.request
-          token=os.environ["CLOUDFLARE_API_TOKEN"]
-          def api(method,url,payload=None):
-              data=None if payload is None else json.dumps(payload).encode()
-              req=urllib.request.Request(url,data=data,method=method,headers={
-                  "Authorization":f"Bearer {token}","Content-Type":"application/json"})
-              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
-          def q(account,db,sql,params=None):
-              x=api("POST",f"https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{db}/query",
-                    {"sql":sql,"params":params or []})
-              if not x.get("success"): raise RuntimeError(x.get("errors"))
-              return x["result"][0].get("results",[])
-          out={}
-          for label,a,d in [
-              ("old",os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"]),
-              ("new",os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"])
-          ]:
-              out[label]={
-                  "tasks_total":q(a,d,"SELECT COUNT(*) n FROM tasks")[0]["n"],
-                  "by_kind":q(a,d,"SELECT item_kind, COUNT(*) n FROM tasks GROUP BY item_kind ORDER BY item_kind"),
-                  "active_vs_archived":q(a,d,"SELECT CASE WHEN archived_at IS NULL THEN 'active' ELSE 'archived' END bucket, COUNT(*) n FROM tasks GROUP BY bucket ORDER BY bucket"),
-                  "task_types":q(a,d,"SELECT id,name,active FROM task_types ORDER BY name"),
-                  "task_material_links":q(a,d,"SELECT COUNT(*) n FROM task_materials")[0]["n"],
-                  "materials_total":q(a,d,"SELECT COUNT(*) n FROM materials")[0]["n"],
-                  "task_columns":[r["name"] for r in q(a,d,"PRAGMA table_info(tasks)")],
-              }
-          overlap=q(os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"],
-                    "SELECT COUNT(*) n FROM tasks WHERE id IN ("+
-                    ",".join("?" for _ in [])+")") if False else []
-          # Compute overlap without leaking titles.
-          old_ids=[r["id"] for r in q(os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"],"SELECT id FROM tasks")]
-          new_ids={r["id"] for r in q(os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"],"SELECT id FROM tasks")}
-          old_material_ids=[r["id"] for r in q(os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"],"SELECT id FROM materials")]
-          new_material_ids={r["id"] for r in q(os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"],"SELECT id FROM materials")}
-          out["overlap"]={
-              "task_ids":sum(1 for x in old_ids if x in new_ids),
-              "old_material_ids_present_new":sum(1 for x in old_material_ids if x in new_material_ids)
-          }
-          print(json.dumps(out,indent=2))
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Migrate and verify tasks/events
+        run: node scripts/migrate-tasks-events.mjs

@@ -20,6 +20,8 @@ jobs:
         run: |
           set -euo pipefail
           payload='{
+            "type":"self_hosted",
+            "name":"pscv-room - Cloudflare Workers",
             "domain":"app.relnets.com",
             "destinations":[
               {"type":"public","uri":"app.relnets.com"},

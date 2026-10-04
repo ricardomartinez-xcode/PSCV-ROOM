@@ -1,4 +1,4 @@
-name: PSCV D1 migration audit
+name: PSCV academic data migration
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - ".github/workflows/pscv-d1-migration-audit.yml"
 
 jobs:
-  audit:
+  migrate:
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -19,46 +19,7 @@ jobs:
       ACCESS_APP_ID: 5ea707e5-bd98-4ccd-b514-938c14c76ecc
       ACCESS_IDP_ID: 89bb4c2b-c2f0-4f59-964a-78242c89c174
     steps:
-      - name: Compare D1 schemas and row counts
-        shell: python
-        run: |
-          import json, os, urllib.request
-
-          token=os.environ["CLOUDFLARE_API_TOKEN"]
-          def api(method,url,payload=None):
-              data=None if payload is None else json.dumps(payload).encode()
-              req=urllib.request.Request(url,data=data,method=method,headers={
-                  "Authorization":f"Bearer {token}","Content-Type":"application/json"})
-              with urllib.request.urlopen(req,timeout=30) as r:
-                  return json.load(r)
-
-          def query(account,db,sql,params=None):
-              x=api("POST",f"https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{db}/query",
-                    {"sql":sql,"params":params or []})
-              if not x.get("success"): raise RuntimeError(x.get("errors"))
-              return x["result"][0].get("results",[])
-
-          tables=["app_profiles","group_columns","group_column_values","courses"]
-          out={}
-          for label,account,db in [
-              ("old",os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"]),
-              ("new",os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"])
-          ]:
-              out[label]={}
-              for table in tables:
-                  try:
-                      count=query(account,db,f"SELECT COUNT(*) AS n FROM {table}")[0]["n"]
-                      cols=[r["name"] for r in query(account,db,f"PRAGMA table_info({table})")]
-                      if table=="app_profiles":
-                          roles=query(account,db,"SELECT role, COUNT(*) AS n FROM app_profiles GROUP BY role ORDER BY role")
-                          out[label][table]={"count":count,"columns":cols,"roles":roles}
-                      else:
-                          out[label][table]={"count":count,"columns":cols}
-                  except Exception as e:
-                      out[label][table]={"error":str(e)}
-          print(json.dumps(out,indent=2))
-
-      - name: Verify Microsoft Access provider
+      - name: Restore Microsoft Entra ID on Access application
         shell: python
         run: |
           import json, os, urllib.request
@@ -66,20 +27,263 @@ jobs:
           account=os.environ["NEW_ACCOUNT_ID"]
           app_id=os.environ["ACCESS_APP_ID"]
           idp_id=os.environ["ACCESS_IDP_ID"]
-          def get(path):
+
+          def api(method,path,payload=None):
+              data=None if payload is None else json.dumps(payload).encode()
               req=urllib.request.Request(
                   f"https://api.cloudflare.com/client/v4/accounts/{account}{path}",
-                  headers={"Authorization":f"Bearer {token}"})
+                  data=data, method=method,
+                  headers={"Authorization":f"Bearer {token}","Content-Type":"application/json"})
               with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
-          app=get(f"/access/apps/{app_id}")["result"]
-          idp=get(f"/access/identity_providers/{idp_id}")["result"]
-          safe={
-              "app":{"id":app.get("id"),"name":app.get("name"),"domain":app.get("domain"),
-                     "aud":app.get("aud"),"allowed_idps":app.get("allowed_idps"),
-                     "auto_redirect_to_identity":app.get("auto_redirect_to_identity")},
-              "idp":{"id":idp.get("id"),"name":idp.get("name"),"type":idp.get("type")}
+
+          current=api("GET",f"/access/apps/{app_id}")["result"]
+          idp=api("GET",f"/access/identity_providers/{idp_id}")["result"]
+          if idp.get("type") != "azureAD":
+              raise SystemExit(f"Expected azureAD IdP, got {idp.get('type')!r}")
+
+          destinations=current.get("destinations") or [
+              {"type":"public","uri":"app.relnets.com"},
+              {"type":"worker","worker_id":"f0678989c6234c7f8d17ac1a92a26109"},
+          ]
+          for d in destinations:
+              if d.get("type")=="public":
+                  d["uri"]="app.relnets.com"
+
+          payload={
+              "type":"self_hosted",
+              "name":current.get("name") or "pscv-room - Cloudflare Workers",
+              "domain":"app.relnets.com",
+              "destinations":destinations,
+              "allowed_idps":[idp_id],
+              "auto_redirect_to_identity":True,
+              "app_launcher_visible":current.get("app_launcher_visible",True),
+              "session_duration":current.get("session_duration") or "24h",
+              "enable_binding_cookie":current.get("enable_binding_cookie",False),
+              "http_only_cookie_attribute":current.get("http_only_cookie_attribute",True),
+              "options_preflight_bypass":current.get("options_preflight_bypass",False),
           }
-          print(json.dumps(safe,indent=2))
-          if app.get("domain")!="app.relnets.com": raise SystemExit("Access domain mismatch")
-          if idp_id not in (app.get("allowed_idps") or []): raise SystemExit("Microsoft IdP not allowed by app")
-          if idp.get("type") not in ("azureAD","azure_ad","entra","azure"): raise SystemExit("Unexpected IdP type")
+          result=api("PUT",f"/access/apps/{app_id}",payload)
+          if not result.get("success"):
+              raise SystemExit(result.get("errors"))
+          app=api("GET",f"/access/apps/{app_id}")["result"]
+          checks={
+              "domain":app.get("domain")=="app.relnets.com",
+              "microsoft_idp":idp_id in (app.get("allowed_idps") or []),
+              "auto_redirect":app.get("auto_redirect_to_identity") is True,
+              "idp_type":idp.get("type")=="azureAD",
+              "allow_policy":any(p.get("decision")=="allow" for p in (app.get("policies") or [])),
+          }
+          print(json.dumps({"access_checks":checks,"idp_name":idp.get("name"),"idp_type":idp.get("type")},indent=2))
+          if not all(checks.values()): raise SystemExit("Access verification failed")
+
+      - name: Migrate group list, courses, professors and schedule
+        shell: python
+        run: |
+          import json, os, urllib.request
+
+          token=os.environ["CLOUDFLARE_API_TOKEN"]
+          old_account,old_db=os.environ["OLD_ACCOUNT_ID"],os.environ["OLD_DB_ID"]
+          new_account,new_db=os.environ["NEW_ACCOUNT_ID"],os.environ["NEW_DB_ID"]
+
+          def api(method,url,payload=None):
+              data=None if payload is None else json.dumps(payload).encode()
+              req=urllib.request.Request(url,data=data,method=method,headers={
+                  "Authorization":f"Bearer {token}","Content-Type":"application/json"})
+              with urllib.request.urlopen(req,timeout=30) as r: return json.load(r)
+
+          def query(account,db,sql,params=None):
+              x=api("POST",f"https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{db}/query",
+                    {"sql":sql,"params":params or []})
+              if not x.get("success"): raise RuntimeError(x.get("errors"))
+              result=x["result"][0]
+              if not result.get("success",True): raise RuntimeError(result.get("error"))
+              return result.get("results",[])
+
+          # Source records stay in memory only; no names/emails/control numbers are printed.
+          old_students=query(old_account,old_db,
+            """SELECT id, control_number, email, full_name, role, active,
+                      can_edit_tasks, can_delete_tasks, can_manage_materials, can_manage_users,
+                      can_manage_settings, can_manage_group, can_manage_notifications,
+                      can_view_reports, can_manage_r2, preferences, legacy_notes, created_at, updated_at
+                 FROM app_profiles WHERE role='student' ORDER BY id""")
+          old_owners=query(old_account,old_db,"SELECT id,email FROM app_profiles WHERE role='owner'")
+          new_profiles=query(new_account,new_db,"SELECT id,email,control_number,role FROM app_profiles")
+          old_columns=query(old_account,old_db,"SELECT * FROM group_columns ORDER BY sort_order,id")
+          new_columns=query(new_account,new_db,"SELECT * FROM group_columns ORDER BY sort_order,id")
+          old_values=query(old_account,old_db,"SELECT * FROM group_column_values ORDER BY profile_id,column_id")
+          old_courses=query(old_account,old_db,"SELECT * FROM courses ORDER BY sort_order,id")
+          new_courses=query(new_account,new_db,"SELECT id,name FROM courses")
+
+          new_by_id={r["id"]:r for r in new_profiles}
+          new_by_email={str(r.get("email") or "").strip().lower():r for r in new_profiles if r.get("email")}
+          new_by_control={str(r.get("control_number") or "").strip():r for r in new_profiles if r.get("control_number")}
+          profile_map={}
+
+          # Map old owner -> current new owner by normalized email, so FK audit fields remain valid.
+          for owner in old_owners:
+              target=new_by_email.get(str(owner.get("email") or "").strip().lower())
+              if target: profile_map[owner["id"]]=target["id"]
+
+          student_fields=[
+              "control_number","email","full_name","role","active",
+              "can_edit_tasks","can_delete_tasks","can_manage_materials","can_manage_users",
+              "can_manage_settings","can_manage_group","can_manage_notifications",
+              "can_view_reports","can_manage_r2","preferences","legacy_notes","created_at","updated_at"
+          ]
+
+          for s in old_students:
+              candidates=[]
+              if s["id"] in new_by_id: candidates.append(new_by_id[s["id"]])
+              em=str(s.get("email") or "").strip().lower()
+              if em and em in new_by_email: candidates.append(new_by_email[em])
+              cn=str(s.get("control_number") or "").strip()
+              if cn and cn in new_by_control: candidates.append(new_by_control[cn])
+              ids={c["id"] for c in candidates}
+              if len(ids)>1: raise RuntimeError("Conflicting target profiles detected during preflight")
+              target_id=next(iter(ids)) if ids else s["id"]
+              profile_map[s["id"]]=target_id
+              if ids:
+                  sets=", ".join(f"{k}=?" for k in student_fields)
+                  query(new_account,new_db,f"UPDATE app_profiles SET {sets}, auth_user_id=auth_user_id WHERE id=?",
+                        [s.get(k) for k in student_fields]+[target_id])
+              else:
+                  cols=["id","auth_user_id"]+student_fields
+                  vals=[target_id,None]+[s.get(k) for k in student_fields]
+                  marks=",".join("?" for _ in cols)
+                  query(new_account,new_db,f"INSERT INTO app_profiles ({','.join(cols)}) VALUES ({marks})",vals)
+
+          # Refresh profile IDs after inserts.
+          target_profile_ids={r["id"] for r in query(new_account,new_db,"SELECT id FROM app_profiles")}
+
+          new_col_by_id={r["id"]:r for r in new_columns}
+          new_col_by_source={str(r.get("source_key") or ""):r for r in new_columns if r.get("source_key")}
+          column_map={}
+          for c in old_columns:
+              target=(new_col_by_id.get(c["id"]) or
+                      (new_col_by_source.get(str(c.get("source_key") or "")) if c.get("source_key") else None))
+              target_id=target["id"] if target else c["id"]
+              column_map[c["id"]]=target_id
+              created_by=profile_map.get(c.get("created_by"))
+              vals=[c.get("source_key"),c.get("label"),c.get("value_type"),c.get("fixed"),
+                    c.get("active"),c.get("sort_order"),created_by,c.get("created_at"),c.get("updated_at")]
+              if target:
+                  query(new_account,new_db,
+                    """UPDATE group_columns
+                          SET source_key=?,label=?,value_type=?,fixed=?,active=?,sort_order=?,
+                              created_by=?,created_at=?,updated_at=?
+                        WHERE id=?""", vals+[target_id])
+              else:
+                  query(new_account,new_db,
+                    """INSERT INTO group_columns
+                       (id,source_key,label,value_type,fixed,active,sort_order,created_by,created_at,updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",[target_id]+vals)
+
+          for v in old_values:
+              pid=profile_map.get(v["profile_id"])
+              cid=column_map.get(v["column_id"])
+              if not pid or pid not in target_profile_ids or not cid:
+                  raise RuntimeError("Missing mapped profile/column for group value")
+              updated_by=profile_map.get(v.get("updated_by"))
+              query(new_account,new_db,
+                """INSERT INTO group_column_values(profile_id,column_id,value,updated_by,updated_at)
+                   VALUES(?,?,?,?,?)
+                   ON CONFLICT(profile_id,column_id) DO UPDATE SET
+                     value=excluded.value,updated_by=excluded.updated_by,updated_at=excluded.updated_at""",
+                [pid,cid,v.get("value"),updated_by,v.get("updated_at")])
+
+          target_courses=query(new_account,new_db,"SELECT id,name FROM courses")
+          course_by_id={r["id"]:r for r in target_courses}
+          course_by_name={str(r.get("name") or "").strip().lower():r for r in target_courses}
+          course_map={}
+          course_fields=["legacy_name","name","short_name","color","icon","card_size","calendar_lane",
+                         "sort_order","active","config","created_at","updated_at","professor_name",
+                         "professor_email","schedule_text","classroom"]
+          for c in old_courses:
+              target=course_by_id.get(c["id"]) or course_by_name.get(str(c.get("name") or "").strip().lower())
+              target_id=target["id"] if target else c["id"]
+              course_map[c["id"]]=target_id
+              vals=[c.get(k) for k in course_fields]
+              if target:
+                  sets=", ".join(f"{k}=?" for k in course_fields)
+                  query(new_account,new_db,f"UPDATE courses SET {sets} WHERE id=?",vals+[target_id])
+              else:
+                  cols=["id"]+course_fields
+                  marks=",".join("?" for _ in cols)
+                  query(new_account,new_db,f"INSERT INTO courses ({','.join(cols)}) VALUES ({marks})",
+                        [target_id]+vals)
+
+          # Field-level verification without exposing personal or academic text.
+          verified_students=0
+          for s in old_students:
+              t=query(new_account,new_db,
+                "SELECT "+",".join(student_fields)+" FROM app_profiles WHERE id=?",
+                [profile_map[s["id"]]])
+              if len(t)!=1 or any(t[0].get(k)!=s.get(k) for k in student_fields):
+                  raise RuntimeError("Student verification mismatch")
+              verified_students+=1
+
+          verified_values=0
+          for v in old_values:
+              t=query(new_account,new_db,
+                "SELECT value FROM group_column_values WHERE profile_id=? AND column_id=?",
+                [profile_map[v["profile_id"]],column_map[v["column_id"]]])
+              if len(t)!=1 or t[0].get("value")!=v.get("value"):
+                  raise RuntimeError("Group value verification mismatch")
+              verified_values+=1
+
+          verified_courses=0
+          for c in old_courses:
+              t=query(new_account,new_db,
+                "SELECT "+",".join(course_fields)+" FROM courses WHERE id=?",
+                [course_map[c["id"]]])
+              if len(t)!=1 or any(t[0].get(k)!=c.get(k) for k in course_fields):
+                  raise RuntimeError("Course verification mismatch")
+              verified_courses+=1
+
+          summary={
+              "students_verified":verified_students,
+              "group_columns_source":len(old_columns),
+              "group_values_verified":verified_values,
+              "courses_verified":verified_courses,
+              "target_counts":{
+                  "students":query(new_account,new_db,"SELECT COUNT(*) AS n FROM app_profiles WHERE role='student'")[0]["n"],
+                  "group_columns":query(new_account,new_db,"SELECT COUNT(*) AS n FROM group_columns")[0]["n"],
+                  "group_values":query(new_account,new_db,"SELECT COUNT(*) AS n FROM group_column_values")[0]["n"],
+                  "courses":query(new_account,new_db,"SELECT COUNT(*) AS n FROM courses")[0]["n"],
+              }
+          }
+          print(json.dumps(summary,indent=2))
+          if summary["students_verified"] != 26 or summary["group_values_verified"] != 78 or summary["courses_verified"] != 7:
+              raise SystemExit("Migration totals do not match source")
+
+      - name: Verify effective Microsoft login flow
+        shell: python
+        run: |
+          import re, urllib.request, json
+          req=urllib.request.Request("https://app.relnets.com/",method="GET")
+          try:
+              urllib.request.urlopen(req,timeout=20)
+              raise SystemExit("Expected Cloudflare Access redirect")
+          except urllib.error.HTTPError as e:
+              if e.code not in (301,302,303,307,308): raise
+              loc=e.headers.get("Location","")
+          # urllib may auto-follow; use a no-redirect opener for deterministic verification.
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+          opener=urllib.request.build_opener(NoRedirect)
+          try:
+              opener.open("https://app.relnets.com/",timeout=20)
+              raise SystemExit("Expected Access redirect")
+          except urllib.error.HTTPError as e:
+              loc=e.headers.get("Location","")
+          if "withered-glade-36de.cloudflareaccess.com/cdn-cgi/access/login/app.relnets.com" not in loc:
+              raise SystemExit("Unexpected Access redirect")
+          html=urllib.request.urlopen(loc,timeout=20).read().decode("utf-8","replace")
+          checks={
+              "microsoft_login":"login.microsoftonline.com" in html,
+              "entra_label":("Microsoft Entra ID" in html or "Azure AD" in html),
+              "auto_redirect":'data-auto-redirect-to-identity="true"' in html,
+              "correct_access_domain":"class.relnets.com" not in html,
+          }
+          print(json.dumps({"effective_auth_checks":checks},indent=2))
+          if not all(checks.values()): raise SystemExit("Effective Microsoft auth flow verification failed")

@@ -65,6 +65,20 @@ jobs:
           echo "=== CUSTOM DOMAINS ==="
           curl -fsS "${auth[@]}" "${api}/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/domains"             | jq '{success,errors,domains:[(.result // [])[] | select(.service=="webmail-relnets") | {id,hostname,service,environment,zone_id,zone_name}]}'
 
+          echo "=== PUBLIC HEALTH ==="
+          ok=0
+          for attempt in $(seq 1 30); do
+            if health="$(curl -fsS "https://mail.relnets.com/health" 2>/dev/null)"; then
+              echo "$health" | jq .
+              if echo "$health" | jq -e '.ok == true and (.mailDomains | index("relnets.com") != null)' >/dev/null; then
+                ok=1
+                break
+              fi
+            fi
+            sleep 2
+          done
+          [ "$ok" = "1" ] || { echo "mail.relnets.com health check failed"; exit 51; }
+
           echo "=== EMAIL ROUTING ==="
           zone=6e5e9950faabc1c8421d74dc0172bad0
           curl -fsS "${auth[@]}" "${api}/zones/${zone}/email/routing/rules?per_page=100"             | jq '{success,errors,rules:[(.result // [])[] | {id,name,enabled,actions,matchers}]}'

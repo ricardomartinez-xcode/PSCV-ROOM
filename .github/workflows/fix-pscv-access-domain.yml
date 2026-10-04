@@ -1,0 +1,40 @@
+name: Fix PSCV Access domain
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fix-pscv-access-domain.yml"
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
+      APP_ID: 5ea707e5-bd98-4ccd-b514-938c14c76ecc
+    steps:
+      - name: Update Access application domain
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS -X PUT \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps/$APP_ID" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data '{"domain":"app.relnets.com"}' \
+            | tee /tmp/update.json \
+            | jq '{success, errors, result: (.result | {id,name,domain,type,aud,auto_redirect_to_identity,app_launcher_visible,session_duration})}'
+          jq -e '.success == true and .result.domain == "app.relnets.com"' /tmp/update.json >/dev/null
+
+      - name: Verify Access application
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps/$APP_ID" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            | tee /tmp/app.json \
+            | jq '{success, result: (.result | {id,name,domain,type,aud,auto_redirect_to_identity,app_launcher_visible,session_duration})}'
+          jq -e '.success == true and .result.domain == "app.relnets.com"' /tmp/app.json >/dev/null

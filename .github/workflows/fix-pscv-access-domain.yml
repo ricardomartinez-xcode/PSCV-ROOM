@@ -1,4 +1,4 @@
-name: Inspect PSCV Access application
+name: Fix PSCV Access domain
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
       - ".github/workflows/fix-pscv-access-domain.yml"
 
 jobs:
-  inspect:
+  fix:
     runs-on: ubuntu-latest
     environment: production
     env:
@@ -15,11 +15,41 @@ jobs:
       ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
       APP_ID: 5ea707e5-bd98-4ccd-b514-938c14c76ecc
     steps:
-      - name: Read Access application
+      - name: Update Access application domain and destinations
         shell: bash
         run: |
           set -euo pipefail
-          curl -sS \
+          payload='{
+            "domain":"app.relnets.com",
+            "destinations":[
+              {"type":"public","uri":"app.relnets.com"},
+              {"type":"worker","worker_id":"f0678989c6234c7f8d17ac1a92a26109"}
+            ]
+          }'
+          http_code="$(curl -sS -o /tmp/update.json -w "%{http_code}" -X PUT \
             "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps/$APP_ID" \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-            | jq .
+            -H "Content-Type: application/json" \
+            --data "$payload")"
+          cat /tmp/update.json | jq .
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "::error::Cloudflare Access update failed with HTTP $http_code"
+            exit 1
+          fi
+          jq -e '.success == true and .result.domain == "app.relnets.com"' /tmp/update.json >/dev/null
+
+      - name: Verify Access application
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsS \
+            "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/access/apps/$APP_ID" \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            | tee /tmp/app.json \
+            | jq '{success, result: (.result | {id,name,domain,aud,destinations,self_hosted_domains})}'
+          jq -e '
+            .success == true
+            and .result.domain == "app.relnets.com"
+            and ([.result.destinations[] | select(.type=="public") | .uri] | index("app.relnets.com") != null)
+            and ([.result.destinations[] | select(.type=="public") | .uri] | index("class.relnets.com") == null)
+          ' /tmp/app.json >/dev/null

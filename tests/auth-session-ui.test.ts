@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
   ACCESS_LOGOUT_PATH,
-  MICROSOFT_LOGOUT_URL,
   canAccessAdminTab,
   getRoleLabel,
   getSessionCapabilities,
@@ -95,12 +94,12 @@ test("app shell uses the session provider instead of demo or Supabase profile fa
   assert.doesNotMatch(appShellSource, /from\("app_profiles"\)\.select\("\*"\)\.eq\("email"/);
 });
 
-test("logout revokes Cloudflare Access before closing the Microsoft session", () => {
+test("logout uses a top-level Cloudflare Access navigation", () => {
   assert.equal(ACCESS_LOGOUT_PATH, "/cdn-cgi/access/logout");
-  assert.equal(MICROSOFT_LOGOUT_URL, "https://login.microsoftonline.com/common/oauth2/v2.0/logout");
-  assert.match(appShellSource, /fetch\(ACCESS_LOGOUT_PATH/);
-  assert.match(appShellSource, /redirect: "manual"/);
-  assert.match(appShellSource, /window\.location\.assign\(MICROSOFT_LOGOUT_URL\)/);
+  assert.match(appShellSource, /window\.location\.assign\(ACCESS_LOGOUT_PATH\)/);
+  assert.doesNotMatch(appShellSource, /fetch\(ACCESS_LOGOUT_PATH/);
+  assert.doesNotMatch(appShellSource, /MICROSOFT_LOGOUT_URL/);
+  assert.match(authGateSource, /window\.location\.assign\(ACCESS_LOGOUT_PATH\)/);
 });
 
 test("administrative server routes keep requirePermission authorization", () => {

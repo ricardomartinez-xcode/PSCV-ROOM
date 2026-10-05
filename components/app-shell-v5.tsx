@@ -43,7 +43,7 @@ import {
 import type { DeliveryType, GroupMember, Task, TaskStatus, ViewRole } from "@/lib/domain";
 import { deliveryTypes, statuses } from "@/lib/domain";
 import { createD1BrowserClient } from "@/lib/d1/client";
-import { ACCESS_LOGOUT_PATH, MICROSOFT_LOGOUT_URL, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
+import { ACCESS_LOGOUT_PATH, getRoleLabel, getSessionCapabilities } from "@/lib/auth-permissions";
 import { lockBodyScroll } from "@/lib/body-scroll-lock";
 import { NOTIFICATION_QUERY_PARAM } from "@/lib/notification-action";
 import { calculateDaysRemaining, dateKeyInTimeZone, deriveReaderVisibility, deriveStatus, sortTasks } from "@/lib/task-utils";
@@ -406,19 +406,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       // The browser adapter has no local auth token; Cloudflare Access owns the app session.
     }
 
-    // Revoke Cloudflare Access first without navigating away, then close the
-    // Microsoft identity-provider session. This prevents the next login from
-    // silently returning to the same Microsoft account through SSO.
-    try {
-      await fetch(ACCESS_LOGOUT_PATH, {
-        credentials: "include",
-        cache: "no-store",
-        redirect: "manual",
-      });
-    } catch {
-      // Continue with Microsoft logout if the browser hides the manual redirect response.
-    }
-    window.location.assign(MICROSOFT_LOGOUT_URL);
+    // Cloudflare Access owns the HttpOnly authorization cookie. Use a top-level
+    // navigation so the cookie is reliably cleared on desktop and mobile.
+    window.location.assign(ACCESS_LOGOUT_PATH);
   }
 
   async function loadNotifications() {

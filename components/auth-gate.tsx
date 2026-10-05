@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useAuthSession } from "@/components/auth-session-provider";
+import { ACCESS_LOGOUT_PATH } from "@/lib/auth-permissions";
 
 type AuthGateProps = {
   children: ReactNode;
@@ -38,7 +39,9 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   function restartAccess() {
-    window.location.assign(window.location.href);
+    // A reload preserves a rejected/stale Access cookie. End the Access session
+    // so the next visit starts a fresh identity-provider flow.
+    window.location.assign(ACCESS_LOGOUT_PATH);
   }
 
   if (loading) {

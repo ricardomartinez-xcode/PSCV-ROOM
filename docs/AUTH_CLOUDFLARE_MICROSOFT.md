@@ -1,13 +1,15 @@
 # Cloudflare Access + Microsoft
 
-La app usa Cloudflare Access con Microsoft Entra ID. Ya no usa un proveedor de auth dentro de la aplicación.
+La app usa Cloudflare Access con Microsoft Entra ID. La autenticación ocurre en Access y la autorización interna ocurre en D1.
 
-## Produccion vigente
+## Producción vigente
 
 - Dominio protegido: `https://app.relnets.com`
-- Team domain: `relead.cloudflareaccess.com`
+- Team domain: `withered-glade-36de.cloudflareaccess.com`
 - Proveedor Access: Microsoft Entra ID (`azureAD`)
-- Politica Access: allow para el correo owner registrado en D1
+- Login automático al IdP: habilitado
+- Política Access: `allow everyone`, limitada por los IdP permitidos de la aplicación
+- Autorización de PSCV Room: perfil activo y permisos en `app_profiles`
 
 ## Modelo actual
 
@@ -19,44 +21,29 @@ Usuario
   -> Perfil y permisos en Cloudflare D1
 ```
 
-El Worker valida el encabezado `cf-access-jwt-assertion` y busca el perfil en `app_profiles`.
+El Worker valida `cf-access-jwt-assertion` y busca el perfil en `app_profiles`. Que Access autentique una identidad no concede permisos dentro de PSCV Room: si el perfil no existe o está inactivo, la API responde 403.
 
-No existe contraseña interna de PSCV Room para producción. La contraseña se administra en Microsoft y PSCV Room solo valida el token de Cloudflare Access.
+## Cambio y cierre de sesión
+
+El cierre de sesión navega en primer nivel a:
+
+```text
+https://app.relnets.com/cdn-cgi/access/logout
+```
+
+No se usa `fetch()` para cerrar Access. Esto permite que Cloudflare elimine de forma fiable su cookie `HttpOnly`, incluso en navegadores móviles. Si la app detecta una sesión inválida o no autorizada, **Volver a iniciar acceso** también termina primero la sesión de Access para evitar bucles con una cookie antigua.
+
+Para permitir cambio explícito de cuenta, el proveedor Microsoft debe usar `prompt=select_account`.
 
 ## Variables del Worker
 
 ```env
 AUTH_MODE="cloudflare-access"
-ACCESS_TEAM_DOMAIN="<team>.cloudflareaccess.com"
+ACCESS_TEAM_DOMAIN="withered-glade-36de.cloudflareaccess.com"
 ACCESS_AUD="<audience-tag>"
+AUTH_IDENTITY_PROVIDER="azureAD"
 ```
-
-Estos valores se configuran como secretos del Worker con `wrangler secret put`; no se guardan en git.
-
-Para desarrollo local contra la misma D1 remota:
-
-```env
-AUTH_MODE="development"
-ALLOW_DEV_AUTH="1"
-DEV_AUTH_EMAIL="admin@example.com"
-```
-
-`AUTH_MODE=development` no debe usarse en produccion.
 
 ## Base de permisos
 
-Los permisos viven en `app_profiles`:
-
-- `role`: `student`, `admin` u `owner`
-- `active`
-- `can_edit_tasks`
-- `can_delete_tasks`
-- `can_manage_materials`
-- `can_manage_users`
-- `can_manage_settings`
-- `can_manage_group`
-- `can_manage_notifications`
-- `can_view_reports`
-- `can_manage_r2`
-
-El acceso a la app se concede en Cloudflare Access/Microsoft Entra; el alcance dentro de la app se decide en D1.
+Los permisos viven en `app_profiles`: `role`, `active` y los campos `can_*`. Cloudflare Access/Microsoft verifica la identidad; D1 determina si esa identidad está autorizada y qué puede hacer.

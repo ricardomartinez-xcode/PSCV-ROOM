@@ -1,0 +1,98 @@
+name: Audit PSCV Access authentication
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/audit-access-auth.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      CLOUDFLARE_ACCOUNT_ID: e8cee5957315e28c1b4e4b2410c5fbcc
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Audit Access app, policies and Microsoft IdP
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p outputs
+
+          cf_get() {
+            curl --fail-with-body --silent --show-error \
+              --header "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+              "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/$1"
+          }
+
+          apps="$(cf_get access/apps)"
+          app_id="$(jq -r '.result[] | select(.domain == "app.relnets.com") | .id' <<<"$apps" | head -1)"
+          if [ -z "$app_id" ]; then
+            echo "::error::Access application for app.relnets.com was not found."
+            exit 1
+          fi
+
+          policies="$(cf_get "access/apps/$app_id/policies")"
+          idps="$(cf_get access/identity_providers)"
+
+          jq -n \
+            --arg app_id "$app_id" \
+            --argjson app "$(jq '.result[] | select(.id == "'"$app_id"'")' <<<"$apps")" \
+            --argjson policies "$(jq '.result' <<<"$policies")" \
+            --argjson idps "$(jq '.result' <<<"$idps")" \
+            '{
+              audited_at: (now | todate),
+              application: {
+                id: $app_id,
+                domain: $app.domain,
+                type: $app.type,
+                session_duration: $app.session_duration,
+                auto_redirect_to_identity: $app.auto_redirect_to_identity,
+                allowed_idps: ($app.allowed_idps // [])
+              },
+              policies: [
+                $policies[] | {
+                  id,
+                  name,
+                  decision,
+                  session_duration,
+                  include_selectors: [(.include // [])[] | keys[]],
+                  require_selectors: [(.require // [])[] | keys[]],
+                  exclude_selectors: [(.exclude // [])[] | keys[]],
+                  login_method_ids: [(.include // [])[] | .login_method.id? | select(. != null)],
+                  email_rule_count: ([ (.include // [])[] | .email.email? | select(. != null) ] | length)
+                }
+              ],
+              identity_providers: [
+                $idps[] | {
+                  id,
+                  name,
+                  type,
+                  prompt: (.config.prompt // null),
+                  client_id_present: ((.config.client_id // "") | length > 0),
+                  client_secret_present: ((.config.client_secret // "") | length > 0),
+                  directory_id_present: ((.config.directory_id // "") | length > 0)
+                }
+              ]
+            }' > outputs/access-auth-audit.json
+
+          cat outputs/access-auth-audit.json
+
+      - name: Publish sanitized audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add outputs/access-auth-audit.json
+          git commit -m 'chore: publish sanitized Access auth audit [skip ci]' || exit 0
+          git push origin HEAD:main

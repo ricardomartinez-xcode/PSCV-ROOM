@@ -1,0 +1,48 @@
+{
+  "audited_at": "2026-10-05T06:02:08Z",
+  "application": {
+    "id": "5ea707e5-bd98-4ccd-b514-938c14c76ecc",
+    "domain": "app.relnets.com",
+    "type": "self_hosted",
+    "session_duration": "24h",
+    "auto_redirect_to_identity": true,
+    "allowed_idps": [
+      "89bb4c2b-c2f0-4f59-964a-78242c89c174"
+    ]
+  },
+  "policies": [
+    {
+      "id": "b41868c2-da7a-4965-9706-60f8f04d560d",
+      "name": "PSCV-ROOM",
+      "decision": "allow",
+      "session_duration": "12h",
+      "include_selectors": [
+        "everyone"
+      ],
+      "require_selectors": [],
+      "exclude_selectors": [],
+      "login_method_ids": [],
+      "email_rule_count": 0
+    }
+  ],
+  "identity_providers": [
+    {
+      "id": "f5b49a4e-43e5-42e0-bb4c-23ca6b0396af",
+      "name": "",
+      "type": "cloudflare",
+      "prompt": null,
+      "client_id_present": false,
+      "client_secret_present": false,
+      "directory_id_present": false
+    },
+    {
+      "id": "89bb4c2b-c2f0-4f59-964a-78242c89c174",
+      "name": "Microsoft Entra ID",
+      "type": "azureAD",
+      "prompt": null,
+      "client_id_present": true,
+      "client_secret_present": false,
+      "directory_id_present": true
+    }
+  ]
+}

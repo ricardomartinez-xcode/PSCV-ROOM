@@ -102,7 +102,7 @@ const tableConfigs: Record<string, TableConfig> = {
   },
   materials: {
     id: true,
-    columns: ["id", "legacy_id", "section_id", "title", "material_type", "visibility", "provider", "source_url", "preview_url", "thumbnail_url", "r2_bucket", "r2_key", "file_id", "file_name", "content_type", "size_bytes", "observations", "uploaded_by", "created_at", "updated_at"],
+    columns: ["id", "legacy_id", "section_id", "title", "material_type", "visibility", "provider", "source_url", "preview_url", "thumbnail_url", "r2_bucket", "r2_key", "file_id", "file_name", "content_type", "size_bytes", "observations", "r2_missing_at", "uploaded_by", "created_at", "updated_at"],
   },
   group_columns: {
     id: true,
@@ -308,6 +308,7 @@ async function attachTaskMaterials(tasks: Array<Record<string, unknown>>, visibl
      LEFT JOIN material_sections ms ON ms.id = m.section_id
      WHERE tm.task_id IN (${placeholders})
        ${visibleOnly ? "AND m.visibility = 'visible'" : ""}
+       AND m.r2_missing_at IS NULL
      ORDER BY m.title ASC`,
     ids,
   );
@@ -362,13 +363,14 @@ async function selectTasks(query: DataQuery, profile: ServerProfile) {
 async function selectMaterials(query: DataQuery) {
   const values: unknown[] = [];
   const where = buildWhere("materials", query.filters, values, true);
+  const availableWhere = where ? `${where} AND m.r2_missing_at IS NULL` : " WHERE m.r2_missing_at IS NULL";
   const rows = await d1All<Record<string, unknown>>(
     `SELECT m.*, ms.id AS section_join_id, ms.name AS section_name, ms.path AS section_path,
       ms.color AS section_color, ms.icon AS section_icon, ms.card_size AS section_card_size,
       ms.preview_style AS section_preview_style, ms.sort_order AS section_sort_order
      FROM materials m
      LEFT JOIN material_sections ms ON ms.id = m.section_id
-     ${where}${buildOrder("materials", query.order)}${buildLimit(query.limit)}`,
+     ${availableWhere}${buildOrder("materials", query.order)}${buildLimit(query.limit)}`,
     values,
   );
   return rows.map((row) => serializeMaterialForClient(decodeJsonFields("materials", {

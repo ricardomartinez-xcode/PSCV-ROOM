@@ -15,6 +15,7 @@ type MaterialFileRow = {
   file_name: string | null;
   content_type: string | null;
   visibility: string | null;
+  r2_missing_at: string | null;
 };
 
 const INLINE_PREVIEW_TYPES = new Set([
@@ -79,12 +80,13 @@ export async function GET(request: Request, context: RouteContext) {
     const mode = requestUrl.searchParams.get("mode") === "download" ? "download" : "preview";
 
     const data = await d1First<MaterialFileRow>(
-      "SELECT id, title, provider, r2_key, file_name, content_type, visibility FROM materials WHERE id = ? LIMIT 1",
+      "SELECT id, title, provider, r2_key, file_name, content_type, visibility, r2_missing_at FROM materials WHERE id = ? LIMIT 1",
       [id],
     );
     if (!data || (data.visibility !== "visible" && !canReadHiddenMaterial(profile))) {
       return unavailableFileResponse(request, "Material no encontrado.", 404);
     }
+    if (data.r2_missing_at) return unavailableFileResponse(request, "Este documento ya no está en el bucket R2.", 404);
     if (!data.r2_key) return unavailableFileResponse(request, "Este material no tiene asset R2 asociado.", 404);
 
     let resolvedKey = data.r2_key;

@@ -155,7 +155,7 @@ export async function reconcileR2Materials(
        ON CONFLICT(r2_key) DO NOTHING`,
     ).bind(crypto.randomUUID(), sectionId, title, materialType, MATERIALS_R2_BUCKET_NAME,
       object.key, fileName, contentType, object.size, "Sincronizado automáticamente desde R2.", now).run();
-    if ((result.meta.changes ?? 0) > 0) inserted += 1;
+    if (Number(result.meta?.changes ?? 0) > 0) inserted += 1;
   }
 
   return { bucket: MATERIALS_R2_BUCKET_NAME, scanned: objects.length,

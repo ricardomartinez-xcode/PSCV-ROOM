@@ -5,7 +5,7 @@ import { MATERIALS_R2_BUCKET_NAME, materialR2KeyLookupCandidates, materialSectio
 // Always finish the entire paginated R2 listing before changing D1.
 const MAX_OBJECTS = 50_000;
 const WRITE_BATCH_SIZE = 60;
-const SKIP_FILE_RE = /(^|\\/)(\\.(DS_Store|keep)$|Thumbs\\.db$)/i;
+const SKIP_FILE_RE = /(^|\/)(\.(DS_Store|keep)$|Thumbs\.db$)/i;
 
 type BucketFile = { key: string; size: number };
 type MaterialIndexRow = {
@@ -146,7 +146,7 @@ export async function reconcileR2Materials(
     const sectionId = folder ? await ensureSection(db, folder, sections) : null;
     const { contentType, materialType } = fileProperties(fileName);
     const title = materialDisplayName(
-      fileName.replace(/\\.[a-z0-9]{2,8}$/i, "").replace(/[_-]+/g, " ").replace(/\\s+/g, " ").trim(),
+      fileName.replace(/\.[a-z0-9]{2,8}$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim(),
     );
     const result = await db.prepare(
       `INSERT INTO materials (id, section_id, title, material_type, visibility, provider,

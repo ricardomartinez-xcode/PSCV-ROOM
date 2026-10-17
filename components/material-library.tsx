@@ -115,6 +115,24 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
     return () => { window.clearTimeout(timeout); controller.abort(); };
   }, [loadLibrary]);
 
+  // Revalidate when the user returns to the tab, and periodically while open.
+  // External changes to R2 should not require a manual page reload.
+  useEffect(() => {
+    const controller = new AbortController();
+    const refresh = () => {
+      if (document.visibilityState === "visible") void loadLibrary(controller.signal);
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    const interval = window.setInterval(refresh, 60_000);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      controller.abort();
+    };
+  }, [loadLibrary]);
+
   const sections = useMemo(() => normalizeSections(data?.sections ?? []), [data]);
   const categories = useMemo(() => buildCategories(data?.materials ?? []), [data]);
   const selectedCategory = useMemo(

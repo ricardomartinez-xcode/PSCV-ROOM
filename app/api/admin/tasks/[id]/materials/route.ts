@@ -68,6 +68,7 @@ async function requireExistingMaterials(materialIds: string[]) {
   const rows = await d1All<{ id: string }>(
     `SELECT id FROM materials
      WHERE visibility = 'visible'
+       AND r2_missing_at IS NULL
        AND id IN (${materialIds.map(() => "?").join(",")})`,
     materialIds,
   );
@@ -108,6 +109,7 @@ async function linkedMaterials(taskId: string) {
      JOIN materials m ON m.id = tm.material_id
      WHERE tm.task_id = ?
        AND m.visibility = 'visible'
+       AND m.r2_missing_at IS NULL
      ORDER BY m.title ASC`,
     [taskId],
   );

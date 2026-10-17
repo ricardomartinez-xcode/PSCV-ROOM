@@ -247,7 +247,11 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
     }
 
     const prefix = root ? `${root}/` : "";
-    const listedObjects = await listNativeR2Objects(prefix, maxItems);
+    const listedObjects = await listNativeR2Objects(prefix, maxItems + 1);
+    // A partial inventory must never be mistaken for a complete bucket snapshot.
+    if (listedObjects.length > maxItems) {
+      throw new HttpError(409, "La importación excede maxItems. Amplía el límite para evitar una lectura incompleta.");
+    }
     const objects = listedObjects
       .filter(isImportableObject)
       .map(toImportable);
@@ -313,7 +317,7 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
           await d1Run(
             `UPDATE materials SET section_id = ?, title = ?, material_type = ?, visibility = ?, provider = ?,
               source_url = ?, preview_url = ?, r2_bucket = ?, r2_key = ?, file_name = ?, content_type = ?,
-              size_bytes = ?, observations = ?, updated_at = ?
+              size_bytes = ?, observations = ?, updated_at = ?, r2_missing_at = NULL
              WHERE id = ?`,
             [
               payload.section_id,

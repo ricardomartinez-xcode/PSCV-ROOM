@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { errorResponse, HttpError, requireProfile } from "@/lib/server/authz";
 import { materialSectionPathFromR2Key, normalizeMaterialR2Key } from "@/lib/server/r2-paths";
 import { d1All } from "@/lib/server/d1-data";
+import { getD1, getMaterialsBucket } from "@/lib/server/cloudflare";
+import { reconcileR2Materials } from "@/lib/server/materials-r2-sync";
 import { buildMaterialLibrarySearch } from "@/lib/server/material-search";
 
 type SectionRow = {
@@ -65,6 +67,9 @@ async function withR2Urls(row: MaterialRow, sectionsByPath: Map<string, SectionR
 export async function GET(request: Request) {
   try {
     await requireProfile(request);
+    // Read the authoritative bucket before exposing the indexed catalogue.
+    // Reconcile only differences; keep removed objects as audit-safe D1 rows.
+    await reconcileR2Materials(await getD1(), await getMaterialsBucket());
     const requestUrl = new URL(request.url);
     const rawQuery = requestUrl.searchParams.get("q") ?? "";
     if (rawQuery.length > 120) throw new HttpError(400, "La búsqueda admite hasta 120 caracteres.");
@@ -79,7 +84,7 @@ export async function GET(request: Request) {
     const sectionsResult = await d1All<SectionRow>(
       "SELECT id, name, path, color, icon, card_size, preview_style, sort_order FROM material_sections WHERE active = 1 ORDER BY sort_order ASC",
     );
-    const where: string[] = ["m.visibility = 'visible'", "m.r2_key IS NOT NULL"];
+    const where: string[] = ["m.visibility = 'visible'", "m.r2_key IS NOT NULL", "m.r2_missing_at IS NULL"];
     const values: unknown[] = [];
     if (sectionId) {
       where.push("m.section_id = ?");
@@ -114,8 +119,7 @@ export async function GET(request: Request) {
       values,
     );
 
-    // D1 is the query index. Native R2 listing belongs to diagnostics/import,
-    // not to every interactive search request.
+    // D1 is the search index; its availability state was reconciled with R2 above.
     const sections = sectionsResult;
     const sectionsByPath = new Map(sections.map((section) => [sectionKey(section.path), section]));
     const materials = await Promise.all(materialsResult
@@ -158,7 +162,7 @@ export async function GET(request: Request) {
         material_count: countsBySection[section.id] ?? 0,
       })),
       materials,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof Error && error.message.includes("Missing env var")) {
       return NextResponse.json({

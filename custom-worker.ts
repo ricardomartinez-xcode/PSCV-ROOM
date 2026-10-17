@@ -3,6 +3,7 @@ import handler from "./.open-next/worker.js";
 import { processDuePushNotifications } from "./lib/server/push-delivery";
 import { ensureAutomaticReminders } from "./lib/server/automatic-reminders";
 import { processDueReminderEmails } from "./lib/server/reminder-email-delivery";
+import { reconcileR2Materials } from "./lib/server/materials-r2-sync";
 
 type ScheduledContext = {
   waitUntil(promise: Promise<unknown>): void;
@@ -46,7 +47,11 @@ export async function processScheduledJobs(env: CloudflareEnv) {
     "reminder-email-delivery",
     () => processDueReminderEmails(env),
   );
-  return { automaticReminders, pushDelivery, reminderEmailDelivery };
+  const materialCatalog = await runScheduledJob(
+    "r2-material-catalog",
+    () => reconcileR2Materials(env.DB, env.MATERIALS_BUCKET),
+  );
+  return { automaticReminders, pushDelivery, reminderEmailDelivery, materialCatalog };
 }
 
 export default worker;

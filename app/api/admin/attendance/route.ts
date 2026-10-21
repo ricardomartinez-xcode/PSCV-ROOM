@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { errorResponse, HttpError, requirePermission } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
-import { defaultBreakMode } from "@/lib/permanencia-config";
+import { defaultBreakMode, validateFixedBreaks } from "@/lib/permanencia-config";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +14,7 @@ const modeSchema = z.enum(["none", "variable", "fixed", "mixed"]);
 
 const commandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create_session"), courseId: idSchema, date: dateSchema, startLocal: clockSchema, endLocal: clockSchema }),
+  z.object({ action: z.literal("save_pattern"), sessionId: idSchema }),
   z.object({ action: z.literal("mark_attendance"), sessionId: idSchema, profileId: idSchema, status: statusSchema, note: z.string().trim().max(500).optional() }),
   z.object({ action: z.literal("toggle_presence"), sessionId: idSchema, profileId: idSchema }),
   z.object({ action: z.literal("start_break"), sessionId: idSchema }),
@@ -47,6 +48,20 @@ function localInstant(date: string, clock: string) {
   const value = new Date(date + "T" + clock + ":00-06:00");
   if (Number.isNaN(value.getTime())) throw new HttpError(400, "Horario inválido.");
   return value.toISOString();
+}
+
+function dayOfWeek(date: string) {
+  validateDate(date);
+  return new Date(date + "T12:00:00Z").getUTCDay() || 7;
+}
+
+function clockForInstant(instant: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Mexico_City", hour: "2-digit", minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(instant));
+  const part = (name: string) => parts.find((p) => p.type === name)?.value ?? "";
+  return part("hour") + ":" + part("minute");
 }
 
 function json(data: unknown, status = 200) {
@@ -149,16 +164,55 @@ export async function POST(request: Request) {
       ).bind(cmd.courseId, start).first<{ id: string }>();
       if (existing) return json({ ok: true, sessionId: existing.id, existed: true });
       const id = crypto.randomUUID();
-      const mode = defaultBreakMode(cmd.startLocal, cmd.endLocal);
-      await db.prepare(
-        "INSERT INTO permanence_sessions(id,course_id,session_date,break_mode,scheduled_start_at,scheduled_end_at,created_by) VALUES(?,?,?,?,?,?,?)"
-      ).bind(id, cmd.courseId, cmd.date, mode, start, end, actor.id).run();
-      await audit(db, actor.id, "attendance.session.created", "permanence_session", id, { courseId: cmd.courseId, date: cmd.date, mode });
+      const pattern = await db.prepare(
+        "SELECT id,break_mode,fixed_breaks_json FROM permanence_patterns WHERE course_id=? AND weekday=? AND starts_local=? AND ends_local=?"
+      ).bind(cmd.courseId, dayOfWeek(cmd.date), cmd.startLocal, cmd.endLocal)
+        .first<{ id: string; break_mode: "none"|"variable"|"fixed"|"mixed"; fixed_breaks_json: string }>();
+      const mode = pattern?.break_mode ?? defaultBreakMode(cmd.startLocal, cmd.endLocal);
+      const preset: Array<{ startLocal: string; endLocal: string }> = pattern
+        ? JSON.parse(pattern.fixed_breaks_json) : [];
+      const checked = validateFixedBreaks(cmd.startLocal, cmd.endLocal, preset);
+      const writes = [db.prepare(
+        "INSERT INTO permanence_sessions(id,pattern_id,course_id,session_date,break_mode,scheduled_start_at,scheduled_end_at,created_by) VALUES(?,?,?,?,?,?,?,?)"
+      ).bind(id, pattern?.id ?? null, cmd.courseId, cmd.date, mode, start, end, actor.id)];
+      if (mode === "fixed" || mode === "mixed") {
+        for (const rest of checked) {
+          writes.push(db.prepare(
+            "INSERT INTO permanence_breaks(id,session_id,kind,start_at,end_at,recorded_by) VALUES(?,?,'fixed',?,?,?)"
+          ).bind(crypto.randomUUID(), id, localInstant(cmd.date, rest.startLocal), localInstant(cmd.date, rest.endLocal), actor.id));
+        }
+      }
+      await db.batch(writes);
+      await audit(db, actor.id, "attendance.session.created", "permanence_session", id,
+        { courseId: cmd.courseId, date: cmd.date, mode, patternId: pattern?.id ?? null });
       return json({ ok: true, sessionId: id }, 201);
     }
 
     const session = await requireOpenSession(db, cmd.sessionId);
     const action = cmd.action;
+
+    if (action === "save_pattern") {
+      const weekday = dayOfWeek(session.session_date);
+      const startLocal = clockForInstant(session.scheduled_start_at);
+      const endLocal = clockForInstant(session.scheduled_end_at);
+      const fixed = await db.prepare(
+        "SELECT start_at,end_at FROM permanence_breaks WHERE session_id = ? AND kind = 'fixed' ORDER BY start_at"
+      ).bind(session.id).all<{ start_at: string; end_at: string }>();
+      const fixedBreaks = (fixed.results ?? []).map((rest) => ({
+        startLocal: clockForInstant(rest.start_at), endLocal: clockForInstant(rest.end_at),
+      }));
+      validateFixedBreaks(startLocal, endLocal, fixedBreaks);
+      const id = crypto.randomUUID();
+      await db.prepare(
+        "INSERT INTO permanence_patterns(id,course_id,weekday,starts_local,ends_local,break_mode,fixed_breaks_json,created_by,updated_by) " +
+        "VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(course_id,weekday,starts_local,ends_local) DO UPDATE SET " +
+        "break_mode=excluded.break_mode,fixed_breaks_json=excluded.fixed_breaks_json,updated_by=excluded.updated_by,updated_at=CURRENT_TIMESTAMP"
+      ).bind(id, session.course_id, weekday, startLocal, endLocal, session.break_mode,
+        JSON.stringify(fixedBreaks), actor.id, actor.id).run();
+      await audit(db, actor.id, "attendance.pattern.saved", "permanence_session", session.id,
+        { weekday, startLocal, endLocal, mode: session.break_mode, fixedBreaks });
+      return json({ ok: true });
+    }
 
     if (action === "mark_attendance") {
       await requireStudent(db, cmd.profileId);

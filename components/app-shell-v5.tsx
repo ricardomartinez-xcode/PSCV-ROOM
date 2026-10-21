@@ -34,6 +34,7 @@ import type { AdminTab } from "@/components/admin-hub";
 import { useAuthSession } from "@/components/auth-session-provider";
 import { MaterialLibrary } from "@/components/material-library";
 import { AttendancePanel } from "@/components/attendance-panel";
+import { AttendanceStudentPanel } from "@/components/attendance-student-panel";
 import { NotificationSettingsPanel } from "@/components/providers";
 import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
 import {
@@ -82,6 +83,7 @@ type Profile = {
   email: string;
   fullName: string;
   role: "student" | "admin" | "owner";
+  profileRole: "student" | "professor" | "administrator";
   preferences: UserPreferences;
   canEditTasks: boolean;
   canDeleteTasks: boolean;
@@ -720,7 +722,8 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
 
   function go(next: Tab) {
     if (next === "completed" && !canViewCompleted) return;
-    if ((next === "group" || next === "attendance") && !capabilities.canManageGroup) return;
+    if (next === "group" && !capabilities.canManageGroup) return;
+    if (next === "attendance" && !capabilities.canViewAttendance) return;
     if (next === "admin" && !capabilities.canAccessAdmin) return;
     setTab(next);
     setDrawerOpen(false);
@@ -791,6 +794,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         sourceLabel="Cloudflare Access + D1"
         canViewCompleted={canViewCompleted}
         canManageGroup={capabilities.canManageGroup}
+        canViewAttendance={capabilities.canViewAttendance}
         canAccessAdmin={capabilities.canAccessAdmin}
         onClose={() => setDrawerOpen(false)}
         onSelect={go}
@@ -832,7 +836,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
         {tab === "schedule" ? <ScheduleAndProfessors courses={courses.filter((course) => course.active)} /> : null}
-        {tab === "attendance" && capabilities.canManageGroup ? <AttendancePanel /> : null}
+        {tab === "attendance" && capabilities.canViewAttendance ? capabilities.canManageAttendance ? <AttendancePanel /> : <AttendanceStudentPanel /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
         {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onMembersChange={setMembers} onError={setError} /> : null}
         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
@@ -976,6 +980,7 @@ function Drawer({
   sourceLabel,
   canViewCompleted,
   canManageGroup,
+  canViewAttendance,
   canAccessAdmin,
   onClose,
   onSelect,
@@ -989,6 +994,7 @@ function Drawer({
   sourceLabel: string;
   canViewCompleted: boolean;
   canManageGroup: boolean;
+  canViewAttendance: boolean;
   canAccessAdmin: boolean;
   onClose: () => void;
   onSelect: (tab: Tab) => void;
@@ -1014,7 +1020,7 @@ function Drawer({
           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
           <DrawerItem icon={<GraduationCap size={20} />} label="Horario" active={active === "schedule"} onClick={() => onSelect("schedule")} />
-          {canManageGroup ? <DrawerItem icon={<ClipboardCheck size={20} />} label="Asistencia" active={active === "attendance"} onClick={() => onSelect("attendance")} /> : null}
+          {canViewAttendance ? <DrawerItem icon={<ClipboardCheck size={20} />} label="Asistencia" active={active === "attendance"} onClick={() => onSelect("attendance")} /> : null}
           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
           {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
           {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}

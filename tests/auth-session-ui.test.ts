@@ -23,6 +23,7 @@ function profile(
     email: `${role}@example.com`,
     fullName: role,
     role,
+    profileRole: role === "student" ? "student" : "administrator",
     preferences: {
       calendarView: "month",
       taskDensity: "medium",
@@ -43,10 +44,10 @@ function profile(
   };
 }
 
-test("role labels distinguish student, admin and owner", () => {
+test("public role labels are Administrador, Profesor y Alumno", () => {
   assert.equal(getRoleLabel(profile("student")), "Alumno");
   assert.equal(getRoleLabel(profile("admin")), "Administrador");
-  assert.equal(getRoleLabel(profile("owner")), "Propietario");
+  assert.equal(getRoleLabel(profile("owner")), "Administrador");
 });
 
 test("student has no administrative capabilities", () => {

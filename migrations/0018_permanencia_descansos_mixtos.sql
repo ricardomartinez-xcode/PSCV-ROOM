@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS permanence_sessions (
   id TEXT PRIMARY KEY,
   pattern_id TEXT REFERENCES permanence_patterns(id) ON DELETE SET NULL,
   course_id TEXT NOT NULL REFERENCES courses(id) ON DELETE RESTRICT,
+  session_date TEXT NOT NULL,
+  break_mode TEXT NOT NULL DEFAULT 'none' CHECK (break_mode IN ('none','variable','fixed','mixed')),
   scheduled_start_at TEXT NOT NULL,
   scheduled_end_at TEXT NOT NULL,
   actual_end_at TEXT,
@@ -66,3 +68,19 @@ CREATE INDEX IF NOT EXISTS idx_permanence_breaks_session
   ON permanence_breaks(session_id,start_at);
 CREATE INDEX IF NOT EXISTS idx_permanence_presence_session
   ON permanence_presence(session_id,profile_id,start_at);
+
+
+-- Un pase de lista diario por materia/sesión. La ausencia es una marca explícita,
+-- no se infiere automáticamente de falta de registro.
+CREATE TABLE IF NOT EXISTS permanence_attendance (
+  session_id TEXT NOT NULL REFERENCES permanence_sessions(id) ON DELETE CASCADE,
+  profile_id TEXT NOT NULL REFERENCES app_profiles(id) ON DELETE RESTRICT,
+  status TEXT NOT NULL CHECK(status IN ('present','late','absent','excused')),
+  note TEXT,
+  recorded_by TEXT REFERENCES app_profiles(id) ON DELETE SET NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id,profile_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_permanence_sessions_date ON permanence_sessions(session_date,course_id);
+CREATE INDEX IF NOT EXISTS idx_permanence_attendance_profile ON permanence_attendance(profile_id,session_id);

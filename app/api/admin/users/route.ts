@@ -109,6 +109,9 @@ export async function PATCH(request: Request) {
     if (!actorIsOwner && target.profile_role !== "student") throw new HttpError(403, "Solamente el propietario interno puede modificar administradores y profesores.");
     if (!actorIsOwner && touchesPrivileges) throw new HttpError(403, "Solo el administrador principal puede modificar roles y permisos.");
 
+    if (target.role === "owner" && patch.profile_role !== undefined && patch.profile_role !== "administrator") {
+      throw new HttpError(400, "Una cuenta propietaria interna no puede cambiar a otro rol institucional.");
+    }
     const targetIsCanonicalOwner = target.email.trim().toLowerCase() === CANONICAL_OWNER_EMAIL;
     if (targetIsCanonicalOwner) {
       if (patch.email !== undefined && patch.email.trim().toLowerCase() !== CANONICAL_OWNER_EMAIL) {

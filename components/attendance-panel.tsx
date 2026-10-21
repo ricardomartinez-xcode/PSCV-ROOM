@@ -25,7 +25,8 @@ type Command =
   | { action: "toggle_presence"; sessionId: string; profileId: string }
   | { action: "start_break" | "end_break" | "close_session"; sessionId: string }
   | { action: "add_break"; sessionId: string; startLocal: string; endLocal: string }
-  | { action: "set_break_mode"; sessionId: string; mode: BreakMode };
+  | { action: "set_break_mode"; sessionId: string; mode: BreakMode }
+  | { action: "save_pattern"; sessionId: string };
 
 const basePath = "/api/admin/attendance";
 const formatClock = (iso: string) => new Intl.DateTimeFormat("es-MX", {
@@ -195,7 +196,7 @@ export function AttendancePanel() {
     <div className="attendancePage">
       <header className="attendanceHeading">
         <div><h2>Asistencia</h2><p>Pase de lista diario y permanencia efectiva con descansos autorizados.</p></div>
-        <label>Fecha <input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></label>
+        <label>Fecha <input type="date" value={date} onChange={(e) => { if (e.target.value) setDate(e.target.value); }} /></label>
       </header>
       <p className="attendanceDate">{dayLabel(date)}</p>
       {error && <div role="alert" className="attendanceError">{error}</div>}
@@ -229,7 +230,8 @@ export function AttendancePanel() {
                 {suggested.map((slot) => {
                   const matching = snapshot.courses.find((course) =>
                     normalizeName(course.name) === normalizeName(slot.courseName) ||
-                    normalizeName(course.short_name ?? "") === normalizeName(slot.courseName));
+                    normalizeName(course.short_name ?? "") === normalizeName(slot.courseName) ||
+                    (normalizeName(course.name).length > 12 && normalizeName(slot.courseName).startsWith(normalizeName(course.name))));
                   return <button type="button" key={slot.courseName + slot.startLocal}
                     disabled={busy || !matching}
                     title={!matching ? "Asocia esta materia desde la lista de D1 para poder iniciar la sesión." : undefined}
@@ -280,6 +282,12 @@ export function AttendancePanel() {
                       <option key={mode} value={mode}>{modeLabels[mode]}</option>)}
                   </select>
                 </label>
+                {selected.status === "open" && (
+                  <button type="button" disabled={busy} onClick={() =>
+                    void command({ action: "save_pattern", sessionId: selected.id })}>
+                    Guardar esta modalidad para el horario habitual
+                  </button>
+                )}
                 {selected.status === "open" && (selected.break_mode === "variable" || selected.break_mode === "mixed") && (
                   <button type="button" disabled={busy} className={activeBreak ? "attendancePrimary" : "attendanceSecondary"}
                     onClick={() => void command({ action: activeBreak ? "end_break" : "start_break", sessionId: selected.id })}>

@@ -4,6 +4,7 @@ export type AuthSessionProfile = Profile;
 type PermissionProfile = Pick<
   AuthSessionProfile,
   | "role"
+  | "profileRole"
   | "canEditTasks"
   | "canDeleteTasks"
   | "canManageMaterials"
@@ -28,6 +29,9 @@ export type AdminTabId =
 
 export type SessionCapabilities = {
   isStudent: boolean;
+  isProfessor: boolean;
+  canViewAttendance: boolean;
+  canManageAttendance: boolean;
   isAdmin: boolean;
   isOwner: boolean;
   canAccessAdmin: boolean;
@@ -46,6 +50,9 @@ export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
 
 const EMPTY_CAPABILITIES: SessionCapabilities = {
   isStudent: false,
+  isProfessor: false,
+  canViewAttendance: false,
+  canManageAttendance: false,
   isAdmin: false,
   isOwner: false,
   canAccessAdmin: false,
@@ -60,32 +67,37 @@ const EMPTY_CAPABILITIES: SessionCapabilities = {
   canManageR2: false,
 };
 
-export function getRoleLabel(profile: Pick<AuthSessionProfile, "role"> | null | undefined) {
-  if (profile?.role === "owner") return "Propietario";
-  if (profile?.role === "admin") return "Administrador";
+export function getRoleLabel(profile: Pick<AuthSessionProfile, "role" | "profileRole"> | null | undefined) {
+  if (profile?.profileRole === "professor") return "Profesor";
+  if (profile?.profileRole === "administrator" || profile?.role === "owner" || profile?.role === "admin") return "Administrador";
   return "Alumno";
 }
 
 export function getSessionCapabilities(profile: PermissionProfile | null | undefined): SessionCapabilities {
   if (!profile) return EMPTY_CAPABILITIES;
   const isOwner = profile.role === "owner";
-  const isAdmin = profile.role === "admin";
-  const isStudent = profile.role === "student";
+  const isAdmin = profile.profileRole === "administrator" && profile.role === "admin";
+  const isProfessor = profile.profileRole === "professor";
+  const isStudent = profile.profileRole === "student";
+  const allowedAdmin = isOwner || isAdmin;
 
   const capabilities: SessionCapabilities = {
     isStudent,
+    isProfessor,
+    canViewAttendance: true,
+    canManageAttendance: allowedAdmin && (isOwner || profile.canManageGroup) || isProfessor,
     isAdmin,
     isOwner,
     canAccessAdmin: false,
-    canEditTasks: isOwner || (isAdmin && profile.canEditTasks),
-    canDeleteTasks: isOwner || (isAdmin && profile.canDeleteTasks),
-    canManageMaterials: isOwner || (isAdmin && profile.canManageMaterials),
-    canManageUsers: isOwner || (isAdmin && profile.canManageUsers),
-    canManageSettings: isOwner || (isAdmin && profile.canManageSettings),
-    canManageGroup: isOwner || (isAdmin && profile.canManageGroup),
-    canManageNotifications: isOwner || (isAdmin && profile.canManageNotifications),
-    canViewReports: isOwner || (isAdmin && profile.canViewReports),
-    canManageR2: isOwner || (isAdmin && profile.canManageR2),
+    canEditTasks: isOwner || (allowedAdmin && profile.canEditTasks),
+    canDeleteTasks: isOwner || (allowedAdmin && profile.canDeleteTasks),
+    canManageMaterials: isOwner || (allowedAdmin && profile.canManageMaterials),
+    canManageUsers: isOwner || (allowedAdmin && profile.canManageUsers),
+    canManageSettings: isOwner || (allowedAdmin && profile.canManageSettings),
+    canManageGroup: isOwner || (allowedAdmin && profile.canManageGroup),
+    canManageNotifications: isOwner || (allowedAdmin && profile.canManageNotifications),
+    canViewReports: isOwner || (allowedAdmin && profile.canViewReports),
+    canManageR2: isOwner || (allowedAdmin && profile.canManageR2),
   };
 
   capabilities.canAccessAdmin = isOwner || Boolean(

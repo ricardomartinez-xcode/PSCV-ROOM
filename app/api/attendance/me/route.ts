@@ -63,6 +63,10 @@ export async function GET(request: Request) {
       const presence: TimeWindow[] = (presences.results ?? [])
         .filter((p) => p.session_id === session.id)
         .map((p) => ({ startAt: p.start_at, endAt: p.end_at }));
+      if (!mark && presence.length === 0) {
+        return { id: session.id, course: session.course_name, status: null,
+          note: null, provisional: session.status === "open", minutes: null, required: null, percentage: null };
+      }
       const officialBreaks: TimeWindow[] = (breaks.results ?? [])
         .filter((b) => b.session_id === session.id)
         .map((b) => ({ startAt: b.start_at, endAt: b.end_at }));

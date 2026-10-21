@@ -123,7 +123,7 @@ test("administrative server routes keep requirePermission authorization", () => 
   }
 
   assert.match(authzSource, /if \(profile\.role === "owner"\) return profile;/);
-  assert.match(authzSource, /if \(profile\.role !== "admin"\) throw new HttpError\(403, "No autorizado\."\);/);
+  assert.match(authzSource, /profile\.role !== "admin" \|\| profile\.profile_role !== "administrator"/);
   assert.match(
     authzSource,
     /if \(!enabled\(profile\[grants\[permission\]\] as number\)\) \{\s*throw new HttpError\(403, "No autorizado\."\);\s*\}/,

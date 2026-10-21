@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # TEMPORARY in branch fix only; revert after regenerating package-lock
   statuses: write
 
 concurrency:
@@ -45,10 +45,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref == 'fix/cloudflare-next16-opennext' && github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Repair lockfile on scoped upgrade branch
+        if: github.event_name == 'pull_request' && github.head_ref == 'fix/cloudflare-next16-opennext'
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          if ! git diff --quiet -- package-lock.json; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package-lock.json
+            git commit -m 'build: synchronize npm lockfile with supported Next.js'
+            git push origin HEAD:refs/heads/fix/cloudflare-next16-opennext
+          fi
       - name: Install
         run: npm ci
       - name: Lint

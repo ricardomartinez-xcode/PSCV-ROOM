@@ -71,6 +71,10 @@ function sessionTime(session: Session, snapshot: Snapshot) {
 function calculateForStudent(snapshot: Snapshot, session: Session, profileId: string) {
   const end = sessionTime(session, snapshot);
   if (!end || session.status === "cancelled") return null;
+  // Sin pase de lista NI intervalos no equivale a falta confirmada.
+  const observed = snapshot.attendance.some((item) => item.session_id === session.id && item.profile_id === profileId) ||
+    snapshot.presence.some((item) => item.session_id === session.id && item.profile_id === profileId);
+  if (!observed) return null;
   const presence: TimeWindow[] = snapshot.presence
     .filter((p) => p.session_id === session.id && p.profile_id === profileId)
     .map((p) => ({ startAt: p.start_at, endAt: p.end_at }));

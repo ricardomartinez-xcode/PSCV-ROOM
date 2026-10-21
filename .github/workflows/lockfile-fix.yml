@@ -1,0 +1,33 @@
+name: Generate compatible lockfile (one-time)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - package.json
+      - .github/workflows/lockfile-fix.yml
+permissions:
+  contents: write
+jobs:
+  lockfile:
+    if: github.head_ref == 'fix/cloudflare-next16-opennext' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/cloudflare-next16-opennext
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit updated dependency lock
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo 'Lockfile already up to date'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package-lock.json
+          git commit -m 'build: regenerate npm lockfile for Next.js 16 and OpenNext'
+          git push origin HEAD:refs/heads/fix/cloudflare-next16-opennext

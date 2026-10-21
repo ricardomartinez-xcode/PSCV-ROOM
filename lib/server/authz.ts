@@ -224,7 +224,6 @@ async function ensureOwnerProfile(
           auth_user_id = ?,
           full_name = ?,
           role = 'owner',
-      profile_role = 'administrator',
           profile_role = 'administrator',
           active = 1,
           can_edit_tasks = 1,

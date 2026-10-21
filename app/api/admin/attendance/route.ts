@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { errorResponse, HttpError, requirePermission } from "@/lib/server/authz";
+import { errorResponse, HttpError, requireProfile, type ServerProfile } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
 import { defaultBreakMode, validateFixedBreaks } from "@/lib/permanencia-config";
 
@@ -87,6 +87,30 @@ async function requireStudent(db: D1, id: string) {
   if (!row) throw new HttpError(404, "El alumno no está activo en D1.");
 }
 
+function isAdministrator(actor: ServerProfile) {
+  return actor.role === "owner" ||
+    actor.profile_role === "administrator" && actor.role === "admin" && actor.can_manage_group === 1;
+}
+
+function isProfessor(actor: ServerProfile) {
+  return actor.profile_role === "professor" && actor.role === "admin";
+}
+
+async function requireAttendanceManager(actor: ServerProfile) {
+  if (!isAdministrator(actor) && !isProfessor(actor)) {
+    throw new HttpError(403, "No tienes permiso para gestionar asistencia.");
+  }
+}
+
+async function requireCourseAccess(db: D1, actor: ServerProfile, courseId: string) {
+  await requireAttendanceManager(actor);
+  if (isAdministrator(actor)) return;
+  const taught = await db.prepare(
+    "SELECT id FROM courses WHERE id = ? AND active = 1 AND lower(trim(professor_email)) = lower(trim(?))"
+  ).bind(courseId, actor.email).first();
+  if (!taught) throw new HttpError(403, "Solo puedes gestionar asistencia de tus materias asignadas.");
+}
+
 async function audit(db: D1, actorId: string, action: string, entity: string, entityId: string, detail: Record<string, unknown>) {
   await db.prepare(
     "INSERT INTO audit_log(id,actor_id,action,entity,entity_id,after_data) VALUES (?,?,?,?,?,?)"
@@ -106,18 +130,24 @@ async function closePresence(db: D1, sessionId: string, profileId: string, insta
 
 export async function GET(request: Request) {
   try {
-    await requirePermission(request, "group:manage");
+    const actor = await requireProfile(request);
+    await requireAttendanceManager(actor);
     const day = new URL(request.url).searchParams.get("date") ?? "";
     const parsedDate = dateSchema.safeParse(day);
     if (!parsedDate.success) throw new HttpError(400, "Selecciona una fecha YYYY-MM-DD.");
     validateDate(day);
     const db = await getD1();
     const [courses, students, sessions] = await Promise.all([
-      db.prepare("SELECT id,name,short_name FROM courses WHERE active = 1 ORDER BY sort_order,name").all(),
+      isProfessor(actor)
+        ? db.prepare("SELECT id,name,short_name FROM courses WHERE active = 1 AND lower(trim(professor_email)) = lower(trim(?)) ORDER BY sort_order,name").bind(actor.email).all()
+        : db.prepare("SELECT id,name,short_name FROM courses WHERE active = 1 ORDER BY sort_order,name").all(),
       db.prepare("SELECT id,full_name,control_number FROM app_profiles WHERE active = 1 AND role = 'student' ORDER BY full_name LIMIT 500").all(),
-      db.prepare(
-        "SELECT id,course_id,session_date,scheduled_start_at,scheduled_end_at,actual_end_at,status,break_mode FROM permanence_sessions WHERE session_date = ? ORDER BY scheduled_start_at"
-      ).bind(day).all<SessionRow>(),
+      isProfessor(actor)
+        ? db.prepare("SELECT s.id,s.course_id,s.session_date,s.scheduled_start_at,s.scheduled_end_at,s.actual_end_at,s.status,s.break_mode FROM permanence_sessions s JOIN courses c ON c.id = s.course_id WHERE s.session_date = ? AND c.active = 1 AND lower(trim(c.professor_email)) = lower(trim(?)) ORDER BY s.scheduled_start_at")
+          .bind(day, actor.email).all<SessionRow>()
+        : db.prepare(
+            "SELECT id,course_id,session_date,scheduled_start_at,scheduled_end_at,actual_end_at,status,break_mode FROM permanence_sessions WHERE session_date = ? ORDER BY scheduled_start_at"
+          ).bind(day).all<SessionRow>(),
     ]);
     const ids = (sessions.results ?? []).map((s) => s.id);
     let attendance: AttendanceRow[] = [];
@@ -146,7 +176,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const actor = await requirePermission(request, "group:manage");
+    const actor = await requireProfile(request);
+    await requireAttendanceManager(actor);
     const input = commandSchema.safeParse(await request.json().catch(() => null));
     if (!input.success) throw new HttpError(400, input.error.issues[0]?.message ?? "Solicitud inválida.");
     const db = await getD1();
@@ -154,6 +185,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
 
     if (cmd.action === "create_session") {
+      await requireCourseAccess(db, actor, cmd.courseId);
       const start = localInstant(cmd.date, cmd.startLocal);
       const end = localInstant(cmd.date, cmd.endLocal);
       if (Date.parse(end) <= Date.parse(start)) throw new HttpError(400, "La hora de fin debe ser posterior a la de inicio.");
@@ -189,6 +221,7 @@ export async function POST(request: Request) {
     }
 
     const session = await requireOpenSession(db, cmd.sessionId);
+    await requireCourseAccess(db, actor, session.course_id);
     const action = cmd.action;
 
     if (action === "save_pattern") {

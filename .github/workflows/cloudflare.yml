@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write # TEMPORARY in branch fix only; revert after regenerating package-lock
+  contents: read
   statuses: write
 
 concurrency:
@@ -45,23 +45,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref == 'fix/cloudflare-next16-opennext' && github.head_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-      - name: Repair lockfile on scoped upgrade branch
-        if: github.event_name == 'pull_request' && github.head_ref == 'fix/cloudflare-next16-opennext'
-        run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          if ! git diff --quiet -- package-lock.json; then
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package-lock.json
-            git commit -m 'build: synchronize npm lockfile with supported Next.js'
-            git push origin HEAD:refs/heads/fix/cloudflare-next16-opennext
-          fi
       - name: Install
         run: npm ci
       - name: Lint
@@ -72,6 +59,30 @@ jobs:
         run: npm test
       - name: Build OpenNext Worker
         run: npm run cf:build
+      - name: Validate built Worker in local Cloudflare runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx wrangler d1 migrations apply pscv-room --local --config wrangler.jsonc
+          npx wrangler dev --local --port 8788 --config wrangler.jsonc > /tmp/pscv-worker-smoke.log 2>&1 &
+          worker_pid=$!
+          trap 'kill "$worker_pid" 2>/dev/null || true; if [ -f /tmp/pscv-worker-smoke.log ]; then tail -n 70 /tmp/pscv-worker-smoke.log; fi' EXIT
+          ready=false
+          for attempt in $(seq 1 60); do
+            if curl -fsS --max-time 3 http://127.0.0.1:8788/api/health > /tmp/pscv-health.json 2>/dev/null; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$worker_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" != "true" ]; then
+            echo "::error::Cloudflare Worker no inició ni respondió al endpoint de salud"
+            exit 1
+          fi
+          SMOKE_BASE_URL=http://127.0.0.1:8788 npm run smoke
 
   deploy:
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'

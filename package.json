@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run cf:dev:remote",
     "next:dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "smoke": "node scripts/smoke.mjs",
     "start": "wrangler dev --port 8788",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
@@ -18,7 +18,7 @@
     "cf:deploy": "npm run cf:build && wrangler deploy --config wrangler.jsonc",
     "cf:deploy:staging": "npm run cf:build && wrangler deploy --env staging",
     "cf:types": "wrangler types",
-    "next:build": "next build",
+    "next:build": "next build --webpack",
     "deploy": "opennextjs-cloudflare build && wrangler deploy --config wrangler.jsonc"
   },
   "dependencies": {

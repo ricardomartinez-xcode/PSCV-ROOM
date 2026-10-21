@@ -1,24 +1,12 @@
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { FlatCompat } from "@eslint/eslintrc";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
-const config = [
+// Next 16 publishes native ESLint flat configs; FlatCompat cannot load them.
+export default [
   {
     ignores: [".next/**", ".open-next/**", ".wrangler/**", "node_modules/**", "out/**", "dist/**", "coverage/**", "outputs/**", "next-env.d.ts"],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-  {
-    rules: {
-      "@next/next/no-img-element": "off",
-    },
-  },
+  ...nextVitals,
+  ...nextTs,
+  { rules: { "@next/next/no-img-element": "off" } },
 ];
-
-export default config;

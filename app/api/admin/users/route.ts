@@ -24,6 +24,7 @@ type UserRow = {
   full_name: string;
   control_number: string | null;
   role: "student" | "admin" | "owner";
+  profile_role: "student" | "professor" | "administrator";
   active: number;
 } & Record<PermissionKey, number>;
 
@@ -33,7 +34,7 @@ const patchSchema = z.object({
   full_name: z.string().trim().min(2).max(120).optional(),
   control_number: z.string().trim().max(48).nullable().optional(),
   active: z.boolean().optional(),
-  role: z.enum(["student", "admin", "owner"]).optional(),
+  profile_role: z.enum(["student", "professor", "administrator"]).optional(),
   can_edit_tasks: z.boolean().optional(),
   can_delete_tasks: z.boolean().optional(),
   can_manage_materials: z.boolean().optional(),
@@ -47,7 +48,7 @@ const patchSchema = z.object({
 
 const deleteSchema = z.object({ id: z.string().trim().min(1).max(128) }).strict();
 
-const userSelect = `SELECT id,email,full_name,control_number,role,active,
+const userSelect = `SELECT id,email,full_name,control_number,role,profile_role,active,
   can_edit_tasks,can_delete_tasks,can_manage_materials,can_manage_users,
   can_manage_settings,can_manage_group,can_manage_notifications,can_view_reports,can_manage_r2
   FROM app_profiles`;
@@ -104,16 +105,16 @@ export async function PATCH(request: Request) {
     if (!target) throw new HttpError(404, "Usuario no encontrado.");
 
     const actorIsOwner = actor.role === "owner";
-    const touchesPrivileges = patch.role !== undefined || permissionKeys.some((key) => patch[key] !== undefined);
-    if (!actorIsOwner && target.role !== "student") throw new HttpError(403, "Sólo el propietario puede modificar administradores u owners.");
-    if (!actorIsOwner && touchesPrivileges) throw new HttpError(403, "Sólo el propietario puede cambiar roles o permisos.");
+    const touchesPrivileges = patch.profile_role !== undefined || permissionKeys.some((key) => patch[key] !== undefined);
+    if (!actorIsOwner && target.profile_role !== "student") throw new HttpError(403, "Solamente el propietario interno puede modificar administradores y profesores.");
+    if (!actorIsOwner && touchesPrivileges) throw new HttpError(403, "Solo el administrador principal puede modificar roles y permisos.");
 
     const targetIsCanonicalOwner = target.email.trim().toLowerCase() === CANONICAL_OWNER_EMAIL;
     if (targetIsCanonicalOwner) {
       if (patch.email !== undefined && patch.email.trim().toLowerCase() !== CANONICAL_OWNER_EMAIL) {
         throw new HttpError(400, "El correo del propietario canónico no se puede cambiar.");
       }
-      if (patch.role !== undefined && patch.role !== "owner") throw new HttpError(400, "El propietario canónico no se puede degradar.");
+      if (patch.profile_role !== undefined && patch.profile_role !== "administrator") throw new HttpError(400, "La cuenta administradora principal no se puede degradar.");
       if (patch.active === false) throw new HttpError(400, "El propietario canónico no se puede desactivar.");
       for (const key of permissionKeys) {
         if (patch[key] === false) throw new HttpError(400, "Los permisos del propietario canónico no se pueden retirar.");
@@ -124,24 +125,30 @@ export async function PATCH(request: Request) {
     const controlNumber = patch.control_number === undefined ? undefined : (patch.control_number?.trim() || null);
     await assertUniqueProfileFields(id, email, controlNumber);
 
-    const nextRole = patch.role ?? target.role;
+    const nextRole = patch.profile_role ?? target.profile_role;
     const values: Record<string, unknown> = {};
     if (email !== undefined) values.email = email;
     if (patch.full_name !== undefined) values.full_name = patch.full_name.trim();
     if (controlNumber !== undefined) values.control_number = controlNumber;
     if (patch.active !== undefined) values.active = patch.active ? 1 : 0;
-    if (patch.role !== undefined) values.role = patch.role;
+    if (patch.profile_role !== undefined) {
+      values.profile_role = patch.profile_role;
+      values.role = target.role === "owner" ? "owner" : patch.profile_role === "student" ? "student" : "admin";
+    }
 
     for (const key of permissionKeys) {
       if (patch[key] !== undefined) values[key] = patch[key] ? 1 : 0;
     }
 
-    if (nextRole === "student") {
+    if (nextRole === "student" || nextRole === "professor") {
       for (const key of permissionKeys) values[key] = 0;
-    } else if (nextRole === "owner") {
-      if (!actorIsOwner) throw new HttpError(403, "Sólo un owner puede asignar el rol owner.");
-      for (const key of permissionKeys) values[key] = 1;
-      values.active = 1;
+    } else if (patch.profile_role === "administrator" && target.profile_role !== "administrator") {
+      // Administrador funcional: tareas, biblioteca, ajustes, grupo y reportes.
+      // Usuarios/R2 siguen siendo permisos especiales delegados por el propietario.
+      for (const key of permissionKeys) values[key] = key === "can_manage_users" || key === "can_manage_r2" ? 0 : 1;
+    }
+    if (nextRole !== "administrator" && permissionKeys.some((key) => patch[key] === true)) {
+      throw new HttpError(400, "Los permisos generales solo se asignan al rol Administrador.");
     }
 
     if (!Object.keys(values).length) return NextResponse.json({ user: normalizeForClient(target), message: "Sin cambios." });
@@ -173,7 +180,7 @@ export async function DELETE(request: Request) {
     if (!target) throw new HttpError(404, "Usuario no encontrado.");
     if (target.id === actor.id) throw new HttpError(400, "No puedes eliminar tu propia cuenta activa.");
     if (target.email.trim().toLowerCase() === CANONICAL_OWNER_EMAIL) throw new HttpError(400, "El propietario canónico no se puede eliminar.");
-    if (actor.role !== "owner" && target.role !== "student") throw new HttpError(403, "Sólo el propietario puede eliminar administradores u owners.");
+    if (actor.role !== "owner" && target.profile_role !== "student") throw new HttpError(403, "Solo el administrador principal puede eliminar profesores y administradores.");
 
     await d1Run(`DELETE FROM app_profiles WHERE id = ?`, [target.id]);
     invalidateProfileCache(target.id);

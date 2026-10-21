@@ -17,6 +17,7 @@ export type Profile = {
   email: string;
   fullName: string;
   role: "student" | "admin" | "owner";
+  profileRole: "student" | "professor" | "administrator";
   preferences: UserPreferences;
   canEditTasks: boolean;
   canDeleteTasks: boolean;
@@ -155,21 +156,25 @@ export function normalizePreferences(value: unknown): UserPreferences {
 export function toProfile(row: Record<string, unknown>): Profile {
   const role = row.role === "owner" ? "owner" : row.role === "admin" ? "admin" : "student";
   const owner = role === "owner";
+  const profileRole = row.profile_role === "professor" ? "professor"
+    : row.profile_role === "administrator" || owner || role === "admin" && row.profile_role === undefined ? "administrator" : "student";
+  const privileged = profileRole === "administrator";
   return {
     id: String(row.id),
     email: String(row.email),
     fullName: String(row.full_name ?? row.email),
     role,
+    profileRole,
     preferences: normalizePreferences(row.preferences),
-    canEditTasks: owner || booleanFlag(row.can_edit_tasks),
-    canDeleteTasks: owner || booleanFlag(row.can_delete_tasks),
-    canManageMaterials: owner || booleanFlag(row.can_manage_materials),
-    canManageUsers: owner || booleanFlag(row.can_manage_users),
-    canManageSettings: owner || booleanFlag(row.can_manage_settings),
-    canManageGroup: owner || booleanFlag(row.can_manage_group),
-    canManageNotifications: owner || booleanFlag(row.can_manage_notifications),
-    canViewReports: owner || booleanFlag(row.can_view_reports),
-    canManageR2: owner || booleanFlag(row.can_manage_r2),
+    canEditTasks: owner || (privileged && booleanFlag(row.can_edit_tasks)),
+    canDeleteTasks: owner || (privileged && booleanFlag(row.can_delete_tasks)),
+    canManageMaterials: owner || (privileged && booleanFlag(row.can_manage_materials)),
+    canManageUsers: owner || (privileged && booleanFlag(row.can_manage_users)),
+    canManageSettings: owner || (privileged && booleanFlag(row.can_manage_settings)),
+    canManageGroup: owner || (privileged && booleanFlag(row.can_manage_group)),
+    canManageNotifications: owner || (privileged && booleanFlag(row.can_manage_notifications)),
+    canViewReports: owner || (privileged && booleanFlag(row.can_view_reports)),
+    canManageR2: owner || (privileged && booleanFlag(row.can_manage_r2)),
   };
 }
 

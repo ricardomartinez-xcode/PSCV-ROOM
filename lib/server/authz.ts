@@ -17,6 +17,7 @@ export type ServerProfile = {
   email: string;
   full_name: string;
   role: "student" | "admin" | "owner";
+  profile_role: "student" | "professor" | "administrator";
   active: number;
   auth_user_id: string | null;
   can_edit_tasks: number;
@@ -137,7 +138,7 @@ export async function getCurrentIdentity(request: Request): Promise<AccessIdenti
   return { email, subject };
 }
 
-const PROFILE_SELECT = `SELECT id, email, full_name, role, active, auth_user_id,
+const PROFILE_SELECT = `SELECT id, email, full_name, role, profile_role, active, auth_user_id,
   can_edit_tasks, can_delete_tasks, can_manage_materials, can_manage_users,
   can_manage_settings, can_manage_group, can_manage_notifications,
   can_view_reports, can_manage_r2
@@ -174,6 +175,7 @@ function ownerProfileNeedsSync(profile: ServerProfile, identity: AccessIdentity)
     profile.auth_user_id !== identity.subject ||
     profile.full_name !== OWNER_FULL_NAME ||
     profile.role !== "owner" ||
+    profile.profile_role !== "administrator" ||
     !enabled(profile.active) ||
     !enabled(profile.can_edit_tasks) ||
     !enabled(profile.can_delete_tasks) ||
@@ -193,6 +195,7 @@ function asOwnerProfile(profile: ServerProfile, identity: AccessIdentity): Serve
     email: OWNER_EMAIL,
     full_name: OWNER_FULL_NAME,
     role: "owner",
+    profile_role: "administrator",
     active: 1,
     auth_user_id: identity.subject,
     can_edit_tasks: 1,
@@ -221,6 +224,8 @@ async function ensureOwnerProfile(
           auth_user_id = ?,
           full_name = ?,
           role = 'owner',
+      profile_role = 'administrator',
+          profile_role = 'administrator',
           active = 1,
           can_edit_tasks = 1,
           can_delete_tasks = 1,
@@ -241,15 +246,16 @@ async function ensureOwnerProfile(
 
   await db
     .prepare(`INSERT INTO app_profiles (
-      id, auth_user_id, email, full_name, role, active,
+      id, auth_user_id, email, full_name, role, profile_role, active,
       can_edit_tasks, can_delete_tasks, can_manage_materials, can_manage_users,
       can_manage_settings, can_manage_group, can_manage_notifications,
       can_view_reports, can_manage_r2
-    ) VALUES (?, ?, ?, ?, 'owner', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+    ) VALUES (?, ?, ?, ?, 'owner', 'administrator', 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
     ON CONFLICT(email) DO UPDATE SET
       auth_user_id = excluded.auth_user_id,
       full_name = excluded.full_name,
       role = 'owner',
+      profile_role = 'administrator',
       active = 1,
       can_edit_tasks = 1,
       can_delete_tasks = 1,
@@ -317,7 +323,7 @@ export async function requireProfile(request: Request): Promise<ServerProfile> {
 export async function requirePermission(request: Request, permission: Permission) {
   const profile = await requireProfile(request);
   if (profile.role === "owner") return profile;
-  if (profile.role !== "admin") throw new HttpError(403, "No autorizado.");
+  if (profile.role !== "admin" || profile.profile_role !== "administrator") throw new HttpError(403, "No autorizado.");
 
   const grants: Record<Permission, keyof ServerProfile> = {
     "tasks:edit": "can_edit_tasks",

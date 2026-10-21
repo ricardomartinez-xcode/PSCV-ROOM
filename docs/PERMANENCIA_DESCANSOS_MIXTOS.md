@@ -1,5 +1,21 @@
 # PSCV-ROOM — Permanencia con descansos fijos y variables
 
+## Tres roles de acceso (visibles en la plataforma)
+
+| Rol | Sección Asistencia | Permisos generales |
+| --- | --- | --- |
+| **Administrador** | Pase de lista, entradas/salidas, descansos configurables, reportes grupales y exportación, sujeto a `group:manage` | Gestión institucional según indicadores individuales existentes; cambios de roles y permisos reservados al administrador principal |
+| **Profesor** | Misma vista de captura que administrador, **solo para materias donde `courses.professor_email` coincide con el correo autenticado** | Sin gestión de usuarios, configuración global ni datos de otras materias |
+| **Alumno** | Vista «Mi asistencia» de lectura: sus propias marcas y porcentaje por fecha, nunca información de otros alumnos | Sin escritura de asistencia ni administración |
+
+**Compatibilidad:** D1 conserva el campo histórico `app_profiles.role` (`owner/admin/student`) para no reconstruir tablas referenciadas, pero añade `app_profiles.profile_role` con **administrator/professor/student**, el único rol institucional seleccionable en la aplicación. `owner` es exclusivamente una marca interna no asignable por UI. Al ascender un alumno a profesor se usa el rol técnico `admin` sin flags generales; las APIs aplican `profile_role` y el vínculo `courses.professor_email` antes de cualquier cambio.
+
+- La identidad del alumno procede **de la sesión de Cloudflare Access**, nunca de un ID suministrado por el navegador.
+- Las consultas de estudiantes entregan únicamente sus propios registros y descartan identidades ajenas.
+- Cambiar el rol de usuario tiene auditoría, y la cuenta administradora principal no puede degradarse ni eliminarse desde el panel.
+- Los profesores deben ser vinculados a sus materias en Gestión académica por correo, antes de registrar asistencia.
+- Nuevos profesores se crean como usuarios y luego el administrador principal les cambia el rol a «Profesor».
+
 ## Alcance del diseño
 
 Implementar un módulo interno y protegido en PSCV-ROOM, usando perfiles y materias ya almacenados en Cloudflare D1. **No** modifica asistencias oficiales institucionales ni comunica resultados a docentes automáticamente. El responsable registra observaciones presenciales, sujetas a corrección y auditoría. Los alumnos no registran sus propios tiempos.
@@ -44,7 +60,7 @@ Para ausencias momentáneas (p. ej. sanitario) se recomienda un tipo de incidenc
 - Los alumnos se leen **directamente de la tabla D1 `app_profiles`** filtrando `role = 'student' AND active = 1`, sin duplicar información en una tabla nueva.
 - Se podrá consultar la asistencia de cada clase de un día y la permanencia ponderada acumulada del mismo día.
 - Una marca de pase de lista **no sustituye** la medición de permanencia; las horas de entrada y salida construyen los intervalos.
-- La información se limita al usuario responsable con permiso `group:manage`. No modificar listas oficiales ni compartir registros personales automáticamente.
+- Los alumnos ven únicamente registros propios; los profesores pueden gestionar sus materias asignadas y los administradores con permiso `group:manage` gestionan el conjunto. No se modifica la lista oficial ni se comparten datos personales automáticamente.
 
 ## Modelo de datos
 
@@ -83,8 +99,8 @@ Un receso fijo puede **reprogramarse solo en la sesión** si el docente modifica
 
 ## Seguridad y operación
 
-- Nuevo módulo solo para owner o personal expresamente autorizado; los demás perfiles no acceden a detalles individuales.
+- Edición únicamente para administrador autorizado o profesor asignado a la materia; alumno accede a consulta privada de su propio historial.
 - Mantener D1 como fuente principal. Excel es exportación, no backend.
 - Crear un PR de revisión y probar en entorno aislado con D1 local o de pruebas. **No aplicar la migración directamente a la D1 de producción** ni desplegar en el dominio sin validar permisos y flujo.
 - Antes de usarlo, informar al grupo del propósito, criterios, acceso y plazo de conservación de los datos. No confundir permanencia de monitoreo interno con la asistencia oficial.
-- Estado de este cambio: propuesta en rama de trabajo; no se han aplicado migraciones a producción ni desplegado el módulo.
+- Estado de este cambio: API, menús, paneles diferenciados, matriz de roles y migraciones están en PR de revisión. No hay migraciones en producción ni despliegue del módulo; resta validar el compilador OpenNext/Next.js y probar D1 en entorno aislado.

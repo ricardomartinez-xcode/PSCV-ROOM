@@ -27,7 +27,24 @@ Para ausencias momentáneas (p. ej. sanitario) se recomienda un tipo de incidenc
 | Miércoles | 17:00–19:00 | Modificación de la Conducta | 120 min |
 | Jueves | 15:00–18:00 | Psicología Educativa | 180 min |
 
-**No inventar horarios de descansos**. Al activar el módulo, el responsable definirá las reglas por franja: fijo, variable o mixto, y los intervalos de los fijos.
+**Regla confirmada el 21/10/2026:** solamente las sesiones de tres horas incluyen receso y su horario casi siempre varía. Por ello las sesiones de 180 minutos inician en modo **variable** y las sesiones de 60 o 120 minutos en modo **sin descanso**. En cualquier momento, el responsable puede modificar la modalidad para una sesión concreta; no se inventan descansos ni tiempos.
+
+| Día | Horario | Materia | Descanso inicial |
+| --- | --- | --- | --- |
+| Lunes | 16–18 | Inglés VII | No |
+| Lunes | 18–21 | Evaluación Psicológica II | Variable |
+| Martes | 15–18 | Procesos Grupales y Manejo Constructivo de Conflictos | Variable |
+| Martes | 18–21 | Diagnóstico Psicométrico | Variable |
+| Miércoles | 16–17 | Inglés VII | No |
+| Miércoles | 17–19 | Modificación de la Conducta | No |
+| Jueves | 15–18 | Psicología Educativa | Variable |
+
+### Asistencia y permanencia diaria
+- El menú se llamará **Asistencia** y tendrá pase de lista (presente, retardo, ausente, justificado) y control de intervalos de entrada/salida.
+- Los alumnos se leen **directamente de la tabla D1 `app_profiles`** filtrando `role = 'student' AND active = 1`, sin duplicar información en una tabla nueva.
+- Se podrá consultar la asistencia de cada clase de un día y la permanencia ponderada acumulada del mismo día.
+- Una marca de pase de lista **no sustituye** la medición de permanencia; las horas de entrada y salida construyen los intervalos.
+- La información se limita al usuario responsable con permiso `group:manage`. No modificar listas oficiales ni compartir registros personales automáticamente.
 
 ## Modelo de datos
 
@@ -35,6 +52,7 @@ Para ausencias momentáneas (p. ej. sanitario) se recomienda un tipo de incidenc
 - 'permanence_sessions': sesión real con inicio/fin programados, cierre real y estado.
 - 'permanence_breaks': descansos efectivamente aplicados; distingue fijos y variables.
 - 'permanence_presence': intervalos de presencia por estudiante, registrando entradas y salidas.
+- 'permanence_attendance': estado de pase de lista por estudiante y por sesión, con historial en auditoría.
 
 Evitar sobrescribir intervalos históricos. Los ajustes posteriores deben conservar actor, momento, justificación y antes/después en 'audit_log'. La identidad y los permisos deben verificarse **en servidor**, aprovechando 'requirePermission(request, "group:manage")' y/o una capacidad específica en el futuro.
 
@@ -69,4 +87,4 @@ Un receso fijo puede **reprogramarse solo en la sesión** si el docente modifica
 - Mantener D1 como fuente principal. Excel es exportación, no backend.
 - Crear un PR de revisión y probar en entorno aislado con D1 local o de pruebas. **No aplicar la migración directamente a la D1 de producción** ni desplegar en el dominio sin validar permisos y flujo.
 - Antes de usarlo, informar al grupo del propósito, criterios, acceso y plazo de conservación de los datos. No confundir permanencia de monitoreo interno con la asistencia oficial.
-- Estado de este cambio: diseño, migración propuesta y motor de cálculo con pruebas; API, UI y despliegue son fases posteriores.
+- Estado de este cambio: propuesta en rama de trabajo; no se han aplicado migraciones a producción ni desplegado el módulo.

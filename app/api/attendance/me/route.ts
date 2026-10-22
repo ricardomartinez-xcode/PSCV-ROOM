@@ -76,6 +76,7 @@ export async function GET(request: Request) {
         classEndAt: new Date(sessionEnd).toISOString(),
         presence, officialBreaks, now,
         closed: session.status !== "open",
+        countInitialAbsence: mark?.status !== "present",
       });
       attendedMinutes += stats.remainingMinutes;
       absentMinutes += stats.absentMinutes;

@@ -39,3 +39,12 @@ test("responsive library styles support a desktop collection rail and mobile nav
   assert.match(style, /@media \(max-width: 760px\)/);
   assert.match(style, /@media \(prefers-reduced-motion: reduce\)/);
 });
+
+test("upload and management entrypoint is restricted to authorized users", () => {
+  const shell = readFileSync(new URL("../components/app-shell-v5.tsx", import.meta.url), "utf8");
+  assert.match(source, /onManage\?: \(\) => void/);
+  assert.match(source, /onClick=\{onManage\}/);
+  assert.match(shell, /capabilities\.canAccessAdmin && capabilities\.canManageMaterials/);
+  assert.match(shell, /setInitialAdminTab\("materials"\)/);
+  assert.match(shell, /go\("admin"\)/);
+});

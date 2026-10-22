@@ -11,7 +11,7 @@ type Entry = {
 };
 type MyAttendance = {
   date: string; entries: Entry[];
-  summary: { attendedMinutes: number; absentMinutes: number; exitCount: number; requiredMinutes: number; percentage: number | null };
+  summary: { attendedMinutes: number; balanceMinutes: number; absentMinutes: number; exitCount: number; requiredMinutes: number; percentage: number | null; provisional: boolean };
 };
 const labels: Record<NonNullable<Entry["status"]>, string> = {
   present: "Presente", late: "Retardo", absent: "Ausente", excused: "Justificada",
@@ -52,7 +52,7 @@ export function AttendanceStudentPanel() {
 
   return <div className="attendancePage">
     <header className="attendanceHeading">
-      <div><h2>Mi asistencia</h2><p>Tiempo exigible menos ausencias registradas, descontando los descansos oficiales.</p></div>
+      <div><h2>Mi asistencia</h2><p>El saldo empieza con todos los minutos exigibles y disminuye con los retardos y las salidas registradas.</p></div>
       <label>Fecha <input type="date" value={date} onChange={(event) => {
         if (event.target.value) setDate(event.target.value);
       }} /></label>
@@ -62,12 +62,12 @@ export function AttendanceStudentPanel() {
       <section className="attendanceSummary">
         <div><strong>{data.entries.length}</strong><span>Sesiones del día</span></div>
         <div><strong>{data.summary.absentMinutes.toFixed(1)}</strong><span>Minutos ausentes ({data.summary.exitCount} salidas)</span></div>
-        <div><strong>{showPercent(data.summary.percentage)}</strong><span>Permanencia del día</span></div>
+        <div><strong>{showPercent(data.summary.percentage)}</strong><span>{data.summary.provisional ? "Máximo posible del día" : "Permanencia del día"}</span></div>
       </section>
       <section className="attendanceSection">
         <h3>Detalle por materia</h3>
         <div className="attendanceTableScroll"><table className="attendanceTable">
-          <thead><tr><th>Materia</th><th>Asistencia</th><th>Salidas</th><th>Ausencia</th><th>Minutos presentes</th><th>Minutos exigibles</th><th>Permanencia</th></tr></thead>
+          <thead><tr><th>Materia</th><th>Asistencia</th><th>Salidas</th><th>Ausencia</th><th>Saldo de minutos / Presentes al cierre</th><th>Minutos exigibles</th><th>Máximo posible / Final</th></tr></thead>
           <tbody>{data.entries.map((entry) => <tr key={entry.id}>
             <td>{entry.course}</td>
             <td>{entry.status ? labels[entry.status] : "Sin registrar"}</td>
@@ -79,7 +79,7 @@ export function AttendanceStudentPanel() {
           </tr>)}</tbody>
         </table></div>
         {data.entries.length === 0 ? <p>No hay sesiones registradas para la fecha seleccionada.</p> : null}
-        <p className="attendanceHint">Permanencia = (minutos exigibles − minutos de ausencia) ÷ minutos exigibles. Los retardos y las salidas anticipadas cuentan como ausencia; los descansos oficiales no. La consulta no sustituye el registro oficial escolar.</p>
+        <p className="attendanceHint">Saldo = duración exigible de la clase − ausencia transcurrida. Mientras la clase está abierta, el saldo y el porcentaje indican lo máximo que todavía se podría alcanzar, no minutos ya asistidos. Los descansos oficiales no penalizan. La consulta no sustituye la asistencia oficial.</p>
       </section>
     </>}
   </div>;

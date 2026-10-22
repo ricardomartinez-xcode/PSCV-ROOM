@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, X } from "lucide-react";
+import { ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, X } from "lucide-react";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
 import { materialDisplayName } from "@/lib/material-display-name";

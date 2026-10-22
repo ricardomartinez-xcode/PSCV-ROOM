@@ -283,3 +283,79 @@ test("antes de comenzar la clase no se comunica un porcentaje definitivo", () =>
   assert.equal(saldo.remainingMinutes, 180);
   assert.equal(saldo.percentage, null);
 });
+
+
+test("Presente con pase de lista 48 minutos tarde conserva saldo íntegro sin salidas", () => {
+  const result = calculateSaldoPermanencia({
+    ...base, presence: [span("18:48", null)],
+    officialBreaks: [], now: d("18:48"),
+    closed: false, countInitialAbsence: false,
+  });
+  assert.equal(result.absentMinutes, 0);
+  assert.equal(result.remainingMinutes, 180);
+  assert.equal(result.exitCount, 0);
+  assert.equal(result.percentage, 100);
+});
+
+test("Retardo de 48 minutos sigue descontándose aunque registre cero salidas", () => {
+  const result = calculateSaldoPermanencia({
+    ...base, presence: [span("18:48", null)],
+    officialBreaks: [], now: d("18:48"),
+    closed: false, countInitialAbsence: true,
+  });
+  assert.equal(result.absentMinutes, 48);
+  assert.equal(result.remainingMinutes, 132);
+  assert.equal(result.exitCount, 0);
+  assert.equal(result.percentage, 73.3);
+});
+
+test("Presente marcado tarde que sale y regresa descuenta solo la salida explícita", () => {
+  const result = calculateSaldoPermanencia({
+    ...base,
+    presence: [span("18:48", "19:00"), span("19:10", null)],
+    officialBreaks: [], now: d("19:30"),
+    closed: false, countInitialAbsence: false,
+  });
+  assert.equal(result.absentMinutes, 10);
+  assert.equal(result.remainingMinutes, 170);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 94.4);
+});
+
+test("Presente registrado tarde no pierde minutos de descanso y solo descuenta ausencia efectiva", () => {
+  const result = calculateSaldoPermanencia({
+    ...base,
+    presence: [span("18:48", "19:25"), span("19:50", null)],
+    officialBreaks: [span("19:30", "19:45")],
+    now: d("20:00"), closed: false,
+    countInitialAbsence: false,
+  });
+  assert.equal(result.requiredMinutes, 165);
+  assert.equal(result.absentMinutes, 10);
+  assert.equal(result.remainingMinutes, 155);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 93.9);
+});
+
+test("Presente marcado tarde cierra con saldo íntegro si no hubo salidas", () => {
+  const result = calculateSaldoPermanencia({
+    ...base, presence: [span("18:48", "21:00")],
+    officialBreaks: [], now: d("21:00"),
+    closed: true, countInitialAbsence: false,
+  });
+  assert.equal(result.absentMinutes, 0);
+  assert.equal(result.remainingMinutes, 180);
+  assert.equal(result.exitCount, 0);
+  assert.equal(result.provisional, false);
+});
+
+test("Ausente explícito sigue restando tiempo de clase aunque no haya entrada", () => {
+  const result = calculateSaldoPermanencia({
+    ...base, presence: [],
+    officialBreaks: [], now: d("18:50"),
+    closed: false, countInitialAbsence: true,
+  });
+  assert.equal(result.absentMinutes, 50);
+  assert.equal(result.remainingMinutes, 130);
+  assert.equal(result.exitCount, 0);
+});

@@ -138,6 +138,12 @@ export function calculateSaldoPermanencia(args: {
   officialBreaks: TimeWindow[];
   now?: string;
   closed: boolean;
+  /**
+   * Por defecto, un hueco antes de la primera entrada es retardo/ausencia.
+   * false: el estado explícito "Presente" confirma asistencia desde el inicio;
+   * pasar lista más tarde no crea una falta retroactiva.
+   */
+  countInitialAbsence?: boolean;
 }): PermanenciaSaldoResult {
   const start = parseTime(args.classStartAt);
   const end = parseTime(args.classEndAt);
@@ -162,10 +168,21 @@ export function calculateSaldoPermanencia(args: {
     provisional: !args.closed,
   };
 
+  // Al pasar lista de "Presente" 48 minutos después del comienzo,
+  // se considera presente desde el inicio, siempre que exista al menos
+  // una entrada registrada. Se conservan intactos los intervalos originales
+  // para auditar posteriores salidas y regresos.
+  const firstArrival = args.presence.length > 0
+    ? Math.min(...args.presence.map((window) => parseTime(window.startAt)))
+    : null;
+  const syntheticOpening: TimeWindow[] =
+    args.countInitialAbsence === false && firstArrival !== null && firstArrival > start && firstArrival < end
+      ? [{ startAt: args.classStartAt, endAt: new Date(firstArrival).toISOString() }]
+      : [];
   const elapsed = calculatePermanencia({
     classStartAt: args.classStartAt,
     classEndAt: new Date(cutoff).toISOString(),
-    presence: args.presence,
+    presence: [...syntheticOpening, ...args.presence],
     officialBreaks: args.officialBreaks,
     now: args.now,
   });

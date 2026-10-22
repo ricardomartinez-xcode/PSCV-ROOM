@@ -21,7 +21,7 @@ type Snapshot = {
 };
 type Command =
   | { action: "create_session"; courseId: string; date: string; startLocal: string; endLocal: string }
-  | { action: "mark_attendance"; sessionId: string; profileId: string; status: Attendance["status"] }
+  | { action: "mark_attendance"; sessionId: string; profileId: string; status: Attendance["status"]; arrivalLocal?: string }
   | { action: "toggle_presence"; sessionId: string; profileId: string }
   | { action: "start_break" | "end_break" | "close_session"; sessionId: string }
   | { action: "add_break"; sessionId: string; startLocal: string; endLocal: string }
@@ -100,6 +100,10 @@ export function AttendancePanel() {
   const [endLocal, setEndLocal] = useState("21:00");
   const [manualBreakStart, setManualBreakStart] = useState("19:30");
   const [manualBreakEnd, setManualBreakEnd] = useState("19:45");
+  const [lateDialog, setLateDialog] = useState<{
+    sessionId: string; profileId: string; studentName: string;
+    arrivalLocal: string; classStartLocal: string; classEndLocal: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,7 +136,7 @@ export function AttendancePanel() {
     return () => { mounted = false; };
   }, [date]);
 
-  async function command(body: Command) {
+  async function command(body: Command): Promise<boolean> {
     setBusy(true);
     setError(null);
     try {
@@ -144,11 +148,40 @@ export function AttendancePanel() {
       if (!response.ok) throw new Error(result.error ?? "No se pudo guardar el registro.");
       await refresh(date);
       if (result.sessionId) setSelectedSessionId(result.sessionId);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo guardar.");
+      return false;
     } finally {
       setBusy(false);
     }
+  }
+
+  function openLateDialog(session: Session, student: Student) {
+    const first = snapshot?.presence
+      .filter((item) => item.session_id === session.id && item.profile_id === student.id)
+      .sort((a, b) => a.start_at.localeCompare(b.start_at))[0];
+    const classStartLocal = formatClock(session.scheduled_start_at);
+    const classEndLocal = formatClock(session.scheduled_end_at);
+    const suggested = first ? formatClock(first.start_at)
+      : formatClock(snapshot?.serverNow ?? new Date().toISOString());
+    setError(null);
+    setLateDialog({
+      sessionId: session.id, profileId: student.id, studentName: student.full_name,
+      arrivalLocal: suggested < classStartLocal ? classStartLocal :
+        suggested > classEndLocal ? classEndLocal : suggested,
+      classStartLocal, classEndLocal,
+    });
+  }
+
+  async function saveLateDialog() {
+    if (!lateDialog) return;
+    const ok = await command({
+      action: "mark_attendance", sessionId: lateDialog.sessionId,
+      profileId: lateDialog.profileId, status: "late",
+      arrivalLocal: lateDialog.arrivalLocal,
+    });
+    if (ok) setLateDialog(null);
   }
 
   const selected = snapshot?.sessions.find((s) => s.id === selectedSessionId) ?? null;
@@ -323,7 +356,7 @@ export function AttendancePanel() {
                 <span>{marked} marcados · {present} presentes o con retardo</span>
                 <button type="button" disabled={busy} onClick={() => void refresh(date).catch((cause) => setError(cause instanceof Error ? cause.message : "Error al actualizar."))}>Actualizar saldos</button>
               </div>
-              <p className="attendanceHint">El saldo inicia con la duración exigible completa. Marcar «Presente» después de empezar la clase no descuenta minutos anteriores. Solo «Retardo», «Ausente» y las salidas registradas generan ausencia; «Registrar regreso» detiene el descuento. Los descansos oficiales no penalizan.</p>
+              <p className="attendanceHint">El saldo inicia con la duración exigible completa. «Presente» no genera una ausencia por pasar lista tarde. Al seleccionar «Retardo», registra la hora real de llegada en la ventana emergente; el descuento se calcula desde el inicio de clase hasta esa hora. Las salidas y regresos se descuentan por separado; los descansos oficiales no penalizan.</p>
               <div className="attendanceTableScroll">
                 <table className="attendanceTable">
                   <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>{selected.status === "open" ? "Saldo de minutos" : "Minutos presentes"}</th><th>{selected.status === "open" ? "Máximo posible" : "Permanencia"}</th></tr></thead>
@@ -336,7 +369,9 @@ export function AttendancePanel() {
                             disabled={busy || selected.status !== "open"}
                             className={row.attendance?.status === status ? "isSelected" : ""}
                             aria-pressed={row.attendance?.status === status}
-                            onClick={() => void command({ action: "mark_attendance", sessionId: selected.id, profileId: row.id, status })}>
+                            onClick={() => status === "late"
+                              ? openLateDialog(selected, row)
+                              : void command({ action: "mark_attendance", sessionId: selected.id, profileId: row.id, status })}>
                             {statusLabels[status]}
                           </button>)}
                       </div></td>
@@ -380,6 +415,32 @@ export function AttendancePanel() {
             <p className="attendanceHint">«Sin marcar» no significa falta confirmada. Puede haber minutos ausentes con 0 salidas si el estado es «Retardo» o «Ausente»; «Presente» no genera retardo por registrar el pase de lista después del comienzo. El saldo abierto es provisional. Este registro no sustituye la asistencia oficial.</p>
           </section>
         </>
+      )}
+      {lateDialog && (
+        <div className="attendanceModalBackdrop" role="presentation">
+          <div className="attendanceModal" role="dialog" aria-modal="true" aria-labelledby="lateArrivalTitle" onKeyDown={(event) => {
+            if (event.key === "Escape" && !busy) setLateDialog(null);
+          }}>
+            <form onSubmit={(event) => { event.preventDefault(); void saveLateDialog(); }}>
+              <h3 id="lateArrivalTitle">Registrar retardo</h3>
+              <p><strong>{lateDialog.studentName}</strong></p>
+              <p className="attendanceHint">Indica la hora en que realmente llegó al salón. No se utilizará la hora en que estás pasando lista.</p>
+              <label htmlFor="lateArrivalTime">Hora real de llegada
+                <input id="lateArrivalTime" type="time" step={60} required
+                  min={lateDialog.classStartLocal} max={lateDialog.classEndLocal}
+                  value={lateDialog.arrivalLocal}
+                  autoFocus
+                  onChange={(event) => setLateDialog({ ...lateDialog, arrivalLocal: event.target.value })}/>
+              </label>
+              <p className="attendanceHint">Horario de clase: {lateDialog.classStartLocal}–{lateDialog.classEndLocal}. Puedes volver a seleccionar «Retardo» para corregir una hora ya registrada.</p>
+              {error && <div role="alert" className="attendanceError">{error}</div>}
+              <div className="attendanceModalActions">
+                <button type="button" disabled={busy} onClick={() => { setLateDialog(null); setError(null); }}>Cancelar</button>
+                <button type="submit" className="attendancePrimary" disabled={busy || !lateDialog.arrivalLocal}>{busy ? "Guardando…" : "Guardar retardo"}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

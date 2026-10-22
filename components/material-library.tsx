@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronRight, ExternalLink, Eye, FileText, FolderOpen, LayoutGrid, List, Search } from "lucide-react";
+import { ArrowLeft, ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, X } from "lucide-react";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
 import { materialDisplayName } from "@/lib/material-display-name";
@@ -70,6 +70,9 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
   const [categoryId, setCategoryId] = useState(ALL_SECTIONS);
   const [sectionId, setSectionId] = useState(ALL_SECTIONS);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [fileType, setFileType] = useState<"all" | "pdf" | "image" | "document" | "other">("all");
+  const [sort, setSort] = useState<"name" | "name-desc" | "size-desc">("name");
+  const [visibleCount, setVisibleCount] = useState(24);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,6 +158,19 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
     return rows;
   }, [categoryId, data, sectionId]);
 
+  const filteredMaterials = useMemo(() => {
+    const filtered = materials.filter((material) => fileType === "all" || materialFileType(material) === fileType);
+    return filtered.sort((a, b) => {
+      if (sort === "size-desc") {
+        return (b.size_bytes ?? 0) - (a.size_bytes ?? 0) || materialDisplayName(a.title).localeCompare(materialDisplayName(b.title), "es", { sensitivity: "base" });
+      }
+      const order = materialDisplayName(a.title).localeCompare(materialDisplayName(b.title), "es", { sensitivity: "base" });
+      return sort === "name-desc" ? -order : order;
+    });
+  }, [materials, fileType, sort]);
+
+  useEffect(() => setVisibleCount(24), [query, categoryId, sectionId, fileType, sort]);
+
   const sectionGroups = useMemo(() => {
     const byKey = new Map<string, SectionGroup>();
     const fallback: LibrarySection = {
@@ -169,7 +185,7 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
       material_count: 0,
     };
 
-    for (const material of materials) {
+    for (const material of filteredMaterials) {
       const section = material.section ? normalizeSection(material.section) : fallback;
       const key = section.id;
       const group = byKey.get(key) ?? { section, materials: [] };
@@ -180,10 +196,24 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
     return Array.from(byKey.values()).sort(
       (a, b) => (a.section.sort_order ?? 0) - (b.section.sort_order ?? 0) || a.section.name.localeCompare(b.section.name, "es"),
     );
-  }, [materials]);
+  }, [filteredMaterials]);
 
   const browsingRoot = categoryId === ALL_SECTIONS && sectionId === ALL_SECTIONS && !query.trim();
   const shouldGroup = !browsingRoot && sectionId === ALL_SECTIONS && !query.trim() && sectionGroups.length > 1;
+
+  function resetNavigation() {
+    setQuery("");
+    setCategoryId(ALL_SECTIONS);
+    setSectionId(ALL_SECTIONS);
+    setFileType("all");
+    setVisibleCount(24);
+  }
+
+  function selectCategory(id: string) {
+    setCategoryId(id);
+    setSectionId(ALL_SECTIONS);
+    setVisibleCount(24);
+  }
 
   function openSection(id: string) {
     setSectionId(id);
@@ -193,168 +223,233 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
   }
 
   return (
-    <div className={`libraryShell preview-${previewSize}`}>
+    <div className={`libraryShell materialsExplorer preview-${previewSize}`}>
+      <nav className="libraryBreadcrumbs" aria-label="Ruta de navegación">
+        <button type="button" onClick={resetNavigation} aria-current={browsingRoot ? "page" : undefined}>
+          <BookOpen size={15} aria-hidden="true" /> Biblioteca
+        </button>
+        {selectedCategory ? (
+          <><ChevronRight size={14} aria-hidden="true" />
+            <button type="button" onClick={() => selectCategory(selectedCategory.id)} aria-current={sectionId === ALL_SECTIONS ? "page" : undefined}>
+              {selectedCategory.name}
+            </button></>
+        ) : null}
+        {selectedSection ? (
+          <><ChevronRight size={14} aria-hidden="true" /><span aria-current="page">{selectedSection.name}</span></>
+        ) : null}
+      </nav>
+
       <section className="libraryHero">
         <div>
-          <p className="eyebrow">Biblioteca de recursos</p>
-          <h2>{selectedSection?.name ?? selectedCategory?.name ?? "Biblioteca académica"}</h2>
-          <p>
-            {selectedSection
-              ? selectedSection.path
-              : selectedCategory
-                ? `Explora las áreas y tipos de recurso dentro de ${selectedCategory.name}.`
-                : "Explora por Materias, Biblioteca e Instrumentos psicológicos según el contenido real de cada documento."}
-          </p>
+          <p className="eyebrow">PSCV · Recursos académicos</p>
+          <h2>{selectedSection?.name ?? selectedCategory?.name ?? "Tu biblioteca, en un solo lugar"}</h2>
+          <p>{selectedSection
+            ? selectedSection.path
+            : selectedCategory
+              ? "Encuentra los documentos organizados por áreas y consulta sus detalles."
+              : "Explora materiales de clase, lecturas e instrumentos psicológicos. Busca o navega por colecciones."}</p>
         </div>
-        <div className="libraryStats" aria-label={`${materials.length} recursos disponibles`}>
-          <strong>{materials.length}</strong>
+        <div className="libraryStats" aria-label={`${filteredMaterials.length} recursos visibles`}>
+          <strong>{loading ? "—" : filteredMaterials.length}</strong>
           <span>recursos</span>
         </div>
       </section>
 
-      <section className="libraryToolbar" aria-label="Controles de biblioteca">
-        <label className="librarySearch">
-          <Search size={16} aria-hidden="true" />
-          <span className="srOnly">Buscar</span>
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por nombre, área o archivo"
-          />
-        </label>
-
-        <div className="libraryFilterGroup">
-          <label className="libraryFilter">
-            <span>Colección</span>
-            <select
-              value={categoryId}
-              onChange={(event) => { setCategoryId(event.target.value); setSectionId(ALL_SECTIONS); }}
-            >
-              <option value={ALL_SECTIONS}>Todas las colecciones</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>{category.name} ({category.material_count})</option>
-              ))}
-            </select>
-          </label>
-
-          <label className="libraryFilter">
-            <span>Área</span>
-            <select
-              value={sectionId}
-              onChange={(event) => setSectionId(event.target.value)}
-            >
-              <option value={ALL_SECTIONS}>Todas las áreas</option>
-              {categorySections.map((section) => (
-                <option key={section.id} value={section.id}>
-                  {section.name} ({section.material_count})
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="libraryViewToggle" aria-label="Vista">
-          <button
-            className={view === "grid" ? "active" : ""}
-            aria-label="Vista de tarjetas"
-            title="Vista de tarjetas"
-            type="button"
-            onClick={() => setView("grid")}
-          >
-            <LayoutGrid size={16} />
+      <div className="libraryWorkbench">
+        <aside className="libraryExplorerNav" aria-label="Explorador de colecciones">
+          <p className="libraryNavCaption">COLECCIONES</p>
+          <button type="button" className={`libraryNavItem ${categoryId === ALL_SECTIONS ? "active" : ""}`}
+            onClick={resetNavigation} aria-current={categoryId === ALL_SECTIONS ? "page" : undefined}>
+            <BookOpen size={17} aria-hidden="true" /><span>Todos los recursos</span>
+            <small>{data?.materials.length ?? 0}</small>
           </button>
-          <button
-            className={view === "list" ? "active" : ""}
-            aria-label="Vista de lista"
-            title="Vista de lista"
-            type="button"
-            onClick={() => setView("list")}
-          >
-            <List size={16} />
-          </button>
-        </div>
-      </section>
-
-      {!query.trim() ? (
-        <nav className="sectionRail" aria-label="Colecciones principales">
           {categories.map((category) => (
-            <button key={category.id} type="button" className="sectionCard"
-              onClick={() => { setCategoryId(category.id); setSectionId(ALL_SECTIONS); }}
-              style={{ "--section-color": categoryColor(category.name) } as React.CSSProperties}>
-              <span className="sectionIcon"><FolderOpen size={16} /></span>
-              <span><strong>{category.name}</strong><small>{category.material_count} recursos</small></span>
-              <ChevronRight size={16} aria-hidden="true" />
+            <button type="button" key={category.id} className={`libraryNavItem ${categoryId === category.id ? "active" : ""}`}
+              onClick={() => selectCategory(category.id)} aria-current={categoryId === category.id && sectionId === ALL_SECTIONS ? "page" : undefined}>
+              <FolderOpen size={17} aria-hidden="true" /><span>{category.name}</span><small>{category.material_count}</small>
             </button>
           ))}
-        </nav>
-      ) : null}
+          {categoryId !== ALL_SECTIONS && categorySections.length > 0 ? (
+            <div className="libraryNavSubsections">
+              <p className="libraryNavCaption">ÁREAS</p>
+              {categorySections.map((section) => (
+                <button type="button" key={section.id} className={`libraryNavSubItem ${sectionId === section.id ? "active" : ""}`}
+                  onClick={() => openSection(section.id)} aria-current={sectionId === section.id ? "page" : undefined}>
+                  <span>{section.name}</span><small>{section.material_count}</small>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <p className="libraryNavHint">Solo se muestran materiales disponibles en tu biblioteca.</p>
+        </aside>
 
-      {categoryId !== ALL_SECTIONS && sectionId === ALL_SECTIONS && !query.trim() ? (
-        <nav className="sectionRail" aria-label="Áreas disponibles">
-          {categorySections.map((section) => (
-            <button key={section.id} type="button" className="sectionCard" onClick={() => openSection(section.id)}
-              style={{ "--section-color": section.color ?? "#2563eb" } as React.CSSProperties}>
-              <span className="sectionIcon"><FolderOpen size={16} /></span>
-              <span><strong>{section.name}</strong><small>{section.material_count} recursos</small></span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </button>
-          ))}
-        </nav>
-      ) : null}
+        <div className="libraryExplorerMain">
+          <nav className="libraryMobileNav" aria-label="Colecciones">
+            <button type="button" onClick={resetNavigation} className={categoryId === ALL_SECTIONS ? "active" : ""}>Todas</button>
+            {categories.map((category) => (
+              <button type="button" key={category.id} onClick={() => selectCategory(category.id)}
+                className={categoryId === category.id ? "active" : ""}>{category.name}</button>
+            ))}
+          </nav>
 
-      <section className="materialLibraryResults" aria-live="polite">
-        {loading ? <LibrarySkeleton /> : null}
-        {error ? <div className="systemBanner">{error}</div> : null}
-
-        {!loading && !error && browsingRoot ? (
-          <section className="emptyLibrary">
-            <strong>Elige una colección para comenzar</strong>
-            <p>Los materiales están organizados por materia, área académica e instrumentos psicológicos.</p>
+          <section className="libraryToolbar" aria-label="Buscar y organizar materiales">
+            <div className="librarySearchWrap">
+              <label className="librarySearch">
+                <Search size={18} aria-hidden="true" />
+                <span className="srOnly">Buscar recursos</span>
+                <input type="search" value={query} onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Buscar documento, materia o palabra clave…" />
+              </label>
+              {query ? <button className="librarySearchClear" type="button" aria-label="Limpiar búsqueda" onClick={() => setQuery("")}><X size={16} /></button> : null}
+            </div>
+            <div className="libraryFilterGroup">
+              <label className="libraryFilter">
+                <span>Colección</span>
+                <select value={categoryId} onChange={(event) => selectCategory(event.target.value)}>
+                  <option value={ALL_SECTIONS}>Todas las colecciones</option>
+                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name} ({category.material_count})</option>)}
+                </select>
+              </label>
+              <label className="libraryFilter">
+                <span>Área</span>
+                <select value={sectionId} onChange={(event) => setSectionId(event.target.value)}>
+                  <option value={ALL_SECTIONS}>Todas las áreas</option>
+                  {categorySections.map((section) => <option key={section.id} value={section.id}>{section.name} ({section.material_count})</option>)}
+                </select>
+              </label>
+              <label className="libraryFilter">
+                <span><ArrowUpDown size={12} aria-hidden="true" /> Ordenar</span>
+                <select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}>
+                  <option value="name">Nombre (A–Z)</option>
+                  <option value="name-desc">Nombre (Z–A)</option>
+                  <option value="size-desc">Mayor tamaño</option>
+                </select>
+              </label>
+            </div>
+            <div className="libraryViewToggle" role="group" aria-label="Vista de materiales">
+              <button className={view === "grid" ? "active" : ""} aria-pressed={view === "grid"}
+                aria-label="Vista de tarjetas" title="Vista de tarjetas" type="button" onClick={() => setView("grid")}><LayoutGrid size={17} /></button>
+              <button className={view === "list" ? "active" : ""} aria-pressed={view === "list"}
+                aria-label="Vista de lista" title="Vista de lista" type="button" onClick={() => setView("list")}><List size={17} /></button>
+            </div>
           </section>
-        ) : null}
 
-        {!loading && !error && !browsingRoot && materials.length === 0 ? (
-          <section className="emptyLibrary">
-            <strong>No encontramos recursos</strong>
-            <p>Prueba con otra palabra o vuelve a todas las áreas.</p>
-            {sectionId !== ALL_SECTIONS ? (
-              <button type="button" onClick={() => setSectionId(ALL_SECTIONS)}>Ver todas las áreas</button>
-            ) : null}
-          </section>
-        ) : null}
+          <div className="libraryTypeFilters" role="group" aria-label="Filtrar por tipo de archivo">
+            {([
+              ["all", "Todos"],
+              ["pdf", "PDF"],
+              ["document", "Documentos"],
+              ["image", "Imágenes"],
+              ["other", "Otros"],
+            ] as const).map(([id, label]) => (
+              <button type="button" key={id} aria-pressed={fileType === id} className={fileType === id ? "active" : ""}
+                onClick={() => setFileType(id)}>{label}</button>
+            ))}
+          </div>
 
-        {!loading && !error && !browsingRoot && materials.length > 0 && shouldGroup ? (
-          <div className="librarySectionStack">
-            {sectionGroups.map((group) => (
-              <section className="librarySectionGroup" key={group.section.id}>
-                <header className="librarySectionHeading">
-                  <div>
-                    <span className="sectionHeadingMark" style={{ background: group.section.color ?? "#2563eb" }} />
-                    <div>
-                      <p>{group.section.path}</p>
-                      <h3>{group.section.name}</h3>
-                    </div>
-                  </div>
-                  <button className="sectionGroupMore" type="button" onClick={() => openSection(group.section.id)}>
-                    Ver todos <span>{group.materials.length}</span><ChevronRight size={15} />
+          {!query.trim() && browsingRoot ? (
+            <section className="libraryCollections" aria-label="Explorar por colección">
+              <div className="librarySectionTitle"><h3>Explorar colecciones</h3><span>Elige una colección para comenzar</span></div>
+              <nav className="sectionRail" aria-label="Colecciones principales">
+                {categories.map((category) => (
+                  <button key={category.id} type="button" className="sectionCard" onClick={() => selectCategory(category.id)}
+                    style={{ "--section-color": categoryColor(category.name) } as React.CSSProperties}>
+                    <span className="sectionIcon"><FolderOpen size={20} /></span>
+                    <span><strong>{category.name}</strong><small>{category.material_count} recursos</small></span>
+                    <ChevronRight size={17} aria-hidden="true" />
                   </button>
-                </header>
-                <div className={view === "grid" ? "materialGrid compact" : "materialListV2"}>
-                  {group.materials.slice(0, SECTION_PREVIEW_LIMIT).map((material) => (
+                ))}
+              </nav>
+            </section>
+          ) : null}
+
+          {categoryId !== ALL_SECTIONS && sectionId === ALL_SECTIONS && !query.trim() ? (
+            <section className="libraryCollections" aria-label="Áreas de la colección">
+              <div className="librarySectionTitle"><h3>Áreas de {selectedCategory?.name ?? "la colección"}</h3><span>Selecciona un área para explorar</span></div>
+              <nav className="sectionRail" aria-label="Áreas disponibles">
+                {categorySections.map((section) => (
+                  <button key={section.id} type="button" className="sectionCard" onClick={() => openSection(section.id)}
+                    style={{ "--section-color": section.color ?? "#2563eb" } as React.CSSProperties}>
+                    <span className="sectionIcon"><FolderOpen size={19} /></span>
+                    <span><strong>{section.name}</strong><small>{section.material_count} recursos</small></span>
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </button>
+                ))}
+              </nav>
+            </section>
+          ) : null}
+
+          <section className="materialLibraryResults" aria-live="polite" aria-busy={loading}>
+            <div className="libraryResultHeading">
+              <div>
+                <h3>{browsingRoot ? "Recursos disponibles" : selectedSection?.name ?? (query.trim() ? "Resultados de búsqueda" : "Documentos de la colección")}</h3>
+                <p>{loading ? "Actualizando biblioteca…" : `${filteredMaterials.length} archivo${filteredMaterials.length === 1 ? "" : "s"} en esta vista`}</p>
+              </div>
+              {(query || categoryId !== ALL_SECTIONS || sectionId !== ALL_SECTIONS || fileType !== "all") ? (
+                <button type="button" className="libraryResetButton" onClick={resetNavigation}>
+                  <X size={14} aria-hidden="true" /> Limpiar filtros
+                </button>
+              ) : null}
+            </div>
+
+            {loading ? <LibrarySkeleton /> : null}
+            {error ? <div className="systemBanner" role="alert">
+              <strong>No pudimos cargar los materiales.</strong><p>{error}</p>
+              <button type="button" onClick={() => void loadLibrary(new AbortController().signal)}>Volver a intentar</button>
+            </div> : null}
+
+            {!loading && !error && filteredMaterials.length === 0 ? (
+              <section className="emptyLibrary">
+                <FolderOpen size={24} aria-hidden="true" />
+                <strong>{query.trim() ? "No encontramos coincidencias" : "No hay materiales en esta selección"}</strong>
+                <p>Intenta otro nombre, cambia el tipo de archivo o explora todas las colecciones.</p>
+                <button type="button" onClick={resetNavigation}>Ver todos los recursos</button>
+              </section>
+            ) : null}
+
+            {!loading && !error && filteredMaterials.length > 0 && shouldGroup ? (
+              <div className="librarySectionStack">
+                {sectionGroups.map((group) => (
+                  <section className="librarySectionGroup" key={group.section.id}>
+                    <header className="librarySectionHeading">
+                      <div>
+                        <span className="sectionHeadingMark" style={{ background: group.section.color ?? "#2563eb" }} />
+                        <div><p>{group.section.path}</p><h3>{group.section.name}</h3></div>
+                      </div>
+                      <button className="sectionGroupMore" type="button" onClick={() => openSection(group.section.id)}>
+                        Ver todos <span>{group.materials.length}</span><ChevronRight size={15} aria-hidden="true" />
+                      </button>
+                    </header>
+                    <div className={view === "grid" ? "materialGrid compact" : "materialListV2"}>
+                      {group.materials.slice(0, SECTION_PREVIEW_LIMIT).map((material) => (
+                        <MaterialCard key={material.id} material={material} view={view} />
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            ) : null}
+
+            {!loading && !error && filteredMaterials.length > 0 && !shouldGroup ? (
+              <>
+                <div className={view === "grid" ? "materialGrid" : "materialListV2"}>
+                  {filteredMaterials.slice(0, visibleCount).map((material) => (
                     <MaterialCard key={material.id} material={material} view={view} />
                   ))}
                 </div>
-              </section>
-            ))}
-          </div>
-        ) : null}
-
-        {!loading && !error && !browsingRoot && materials.length > 0 && !shouldGroup ? (
-          <div className={view === "grid" ? "materialGrid" : "materialListV2"}>
-            {materials.map((material) => <MaterialCard key={material.id} material={material} view={view} />)}
-          </div>
-        ) : null}
-      </section>
+                {filteredMaterials.length > visibleCount ? (
+                  <button className="libraryLoadMore" type="button" onClick={() => setVisibleCount((count) => count + 24)}>
+                    Mostrar más documentos <span>({visibleCount} de {filteredMaterials.length})</span>
+                  </button>
+                ) : null}
+              </>
+            ) : null}
+            {!loading && !error && (data?.materials.length ?? 0) >= 400 ? (
+              <p className="libraryLimitHint">Si no encuentras un archivo, utiliza la búsqueda para consultar más resultados.</p>
+            ) : null}
+          </section>
+        </div>
+      </div>
     </div>
   );
 }
@@ -383,17 +478,24 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
         <small title={section?.name ?? displayFileName}>{section?.name ?? displayFileName}</small>
       </div>
       <div className="materialActions">
-        {previewUrl ? (
-          <a href={previewUrl} aria-label={`Previsualizar ${displayName}`} title="Previsualizar" target="_blank" rel="noreferrer">
-            <Eye size={16} />
-          </a>
-        ) : null}
         {openUrl ? (
-          <a href={openUrl} aria-label={`Abrir ${displayName}`} title="Abrir" target="_blank" rel="noreferrer">
-            <ExternalLink size={16} />
-          </a>
+          <a className="materialOpenAction" href={openUrl} aria-label={`Abrir ${displayName}`}
+            target="_blank" rel="noopener noreferrer"><ExternalLink size={15} aria-hidden="true" /><span>Abrir</span></a>
+        ) : null}
+        {previewUrl && previewUrl !== openUrl ? (
+          <a href={previewUrl} aria-label={`Previsualizar ${displayName}`}
+            target="_blank" rel="noopener noreferrer"><Eye size={15} aria-hidden="true" /><span>Vista previa</span></a>
         ) : null}
       </div>
+      <details className="materialDetails">
+        <summary><Info size={14} aria-hidden="true" /> Detalles del archivo</summary>
+        <dl>
+          <div><dt>Nombre</dt><dd>{displayFileName}</dd></div>
+          <div><dt>Formato</dt><dd>{type}</dd></div>
+          {size ? <div><dt>Tamaño</dt><dd>{size}</dd></div> : null}
+          {section ? <div><dt>Área</dt><dd>{section.name}</dd></div> : null}
+        </dl>
+      </details>
     </article>
   );
 }
@@ -555,4 +657,15 @@ function slug(value: string) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+function materialFileType(material: LibraryMaterial): "pdf" | "image" | "document" | "other" {
+  const type = (material.content_type ?? "").toLowerCase();
+  const name = (material.file_name ?? material.title).toLowerCase();
+  const label = (material.material_type ?? "").toLowerCase();
+  if (type.includes("pdf") || /\.pdf(?:$|\?)/.test(name) || label === "pdf") return "pdf";
+  if (type.startsWith("image/") || /\.(?:png|jpg|jpeg|gif|webp|svg)(?:$|\?)/.test(name)) return "image";
+  if (/\.(?:docx?|pptx?|xlsx?|odt|ods|odp|txt|rtf)(?:$|\?)/.test(name)
+    || /(?:word|excel|spreadsheet|powerpoint|officedocument|text\/)/.test(type)) return "document";
+  return "other";
 }

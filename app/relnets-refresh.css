@@ -1,0 +1,85 @@
+/* RelNets interface refresh: presentational overrides only; no application logic changes. */
+:root {
+  --surface: #fff;
+  --surface-2: #f8fafc;
+  --surface-3: #eff5fb;
+  --ink: #17263b;
+  --ink-soft: #4b5c73;
+  --rule: #dce5ef;
+  --action: #205aa2;
+}
+html { scroll-behavior: smooth; }
+body { color: var(--ink); background: #edf3f9; }
+.mobileApp {
+  background: #f5f8fc;
+}
+.topAppBar {
+  background: rgba(255,255,255,.96);
+  border-bottom: 1px solid var(--rule);
+  box-shadow: 0 5px 24px rgba(22,47,79,.06);
+  backdrop-filter: blur(14px);
+}
+.barTitle { color: #162b47; font-weight: 750; letter-spacing: -.025em; }
+.iconButton { border-radius: 12px; transition: background-color .18s, color .18s; }
+.iconButton:hover { background: #eaf2fd; color: #155ba7; }
+.iconButton:focus-visible, button:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid #337dcc; outline-offset: 3px;
+}
+.screen, .groupScreen, .settingsScreen, .calendarWorkspace,
+.taskListWorkspace, .adminHub, .libraryShell { background: #f5f8fc; }
+.groupScreen { gap: 16px; padding: clamp(12px,2vw,24px); }
+.groupToolbar, .groupTableWrap, .calendarPane, .settingsCard,
+.adminHero, .adminCard, .metricCard, .libraryHero, .sectionCard,
+.materialCardV2, .taskListWorkspace .listScreen {
+  background: #fff;
+  border: 1px solid #dce5ef;
+  border-radius: 16px;
+  box-shadow: 0 6px 22px rgba(24,49,82,.045);
+}
+.groupToolbar { gap: 16px; padding: clamp(14px,2vw,22px); }
+.groupToolbar strong { font-size: clamp(18px,2vw,23px); letter-spacing: -.02em; }
+.groupToolbar span { font-size: 12px; color: #586a82; }
+.groupToolbar input, .groupColumnHeader input {
+  min-height: 42px; border: 1px solid #cbd9e7; border-radius: 10px;
+  background: #f9fbfd; color: #1f344e;
+}
+.groupToolbar input:focus, .groupColumnHeader input:focus {
+  background: #fff; border-color: #387dc4;
+}
+.groupTableWrap { overflow-x: auto; scrollbar-color: #b0c3d9 #f2f6fa; }
+.memberTable th, .memberTable td { height: 47px; padding: 9px 12px; }
+.memberTable th {
+  background: #f0f5fb; color: #354963;
+  font-size: 12px; font-weight: 750;
+}
+.memberTable tbody tr { transition: background-color .14s; }
+.memberTable tbody tr:hover { background: #f2f7fd; }
+.bottomNav {
+  border: 1px solid #e1e9f2; border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  overflow: hidden;
+  box-shadow: 0 -9px 28px rgba(23,47,76,.09);
+}
+.bottomNav button { transition: background-color .15s, color .15s; }
+.bottomNav button:not(.active):hover { background: #edf4fc; color: #1d548e; }
+@media (min-width: 900px) {
+  .mobileApp { box-shadow: 0 10px 46px rgba(20,44,76,.08); }
+}
+@media (max-width: 640px) {
+  .topAppBar { padding-inline: 9px; }
+  .groupScreen { padding: 12px 10px; gap: 12px; }
+  .groupToolbar { grid-template-columns: minmax(0,1fr); padding: 15px; }
+  .groupToolbar label { width: 100%; flex-wrap: wrap; }
+  .groupToolbar input { flex: 1 1 175px; max-width: 100%; }
+  .groupTableWrap { border-radius: 13px; }
+  .memberTable th, .memberTable td { padding: 10px; }
+  .bottomNav { width: 100%; border-radius: 16px 16px 0 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .iconButton,.bottomNav button,.memberTable tbody tr { transition: none; }
+}
+@media (forced-colors: active) {
+  .groupToolbar,.groupTableWrap,.bottomNav { border: 1px solid CanvasText; }
+}

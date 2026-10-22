@@ -875,7 +875,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onSubmit={(form) => void createTask(form)}
       />
 
-      <ScrollToTopButton />
+      <ScrollToTopButton compact={tab === "calendar"} />
 
       <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
@@ -892,7 +892,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   );
 }
 
-function ScrollToTopButton() {
+function ScrollToTopButton({ compact = false }: { compact?: boolean }) {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -914,7 +914,8 @@ function ScrollToTopButton() {
 
   return (
     <button
-      className="scrollToTop"
+      className={["scrollToTop", compact ? "calendarScrollToTop" : ""].join(" ")}
+      aria-label="Volver arriba"
       type="button"
       onClick={returnToTop}
     >
@@ -1283,72 +1284,130 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
   const cells = monthCells(year, month);
   const label = new Intl.DateTimeFormat("es-MX", { month: "long", year: "numeric" }).format(cursor);
   const today = dateKeyInTimeZone();
+  const [mobileView, setMobileView] = useState<"agenda" | "month">("agenda");
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
+  const dayDialogRef = useRef<HTMLDivElement>(null);
+  useContainedDialogFocus(Boolean(expandedDay), dayDialogRef, () => setExpandedDay(null));
+
+  const calendarDays = cells.map((day, index) => {
+    const key = day ? [year, String(month + 1).padStart(2, "0"), String(day).padStart(2, "0")].join("-") : "";
+    const dayTasks = day
+      ? tasks.filter((task) => task.itemKind === "event" ? eventIncludesDate(task, key) : task.dueDate === key)
+      : [];
+    return { day, key, index, dayTasks, hasEvent: dayTasks.some((task) => task.itemKind === "event") };
+  });
+  const agendaDays = calendarDays.filter((entry) => entry.day && entry.dayTasks.length);
+  const openDay = calendarDays.find((entry) => entry.key === expandedDay);
+  const dayHeading = (day: number) => new Intl.DateTimeFormat("es-MX", {
+    weekday: "long", day: "numeric", month: "long",
+  }).format(new Date(year, month, day));
+  function selectCalendarTask(id: string) {
+    setExpandedDay(null);
+    onSelect(id);
+  }
 
   return (
-    <div className="calendarWorkspace">
+    <div className={["calendarWorkspace", "adaptiveCalendar", mobileView === "month" ? "showMobileMonth" : "showMobileAgenda"].join(" ")}>
       <section className="calendarPane">
-        <div className="viewTabs"><span>Día</span><span>Semana</span><strong>Mes</strong><button type="button" onClick={() => setCursor(new Date())}>Hoy</button></div>
-        <div className="monthHead"><button aria-label="Mes anterior" onClick={() => setCursor(new Date(year, month - 1, 15))} type="button">‹</button><h2>{label}</h2><button aria-label="Mes siguiente" onClick={() => setCursor(new Date(year, month + 1, 15))} type="button">›</button></div>
-        <div className="weekdays"><span>do</span><span>lu</span><span>ma</span><span>mi</span><span>ju</span><span>vi</span><span>sá</span></div>
-        <div className="monthGrid">
-          {cells.map((day, index) => {
-            const key = day ? `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
-            const dayTasks = tasks.filter((task) => task.itemKind === "event" ? eventIncludesDate(task, key) : task.dueDate === key);
-            const hasEvent = dayTasks.some((task) => task.itemKind === "event");
-            return (
-              <div
-                className={`dayCell ${day && onCreateDate ? "canCreateTask" : ""} ${hasEvent ? "hasCalendarEvent" : ""}`}
-                key={`${key}-${index}`}
-                title={day && onCreateDate ? "Crear tarea en esta fecha" : undefined}
-              >
+        <div className="viewTabs">
+          <strong>Calendario</strong>
+          <button type="button" onClick={() => setCursor(new Date())}>Hoy</button>
+        </div>
+        <div className="monthHead">
+          <button aria-label="Mes anterior" onClick={() => { setExpandedDay(null); setCursor(new Date(year, month - 1, 15)); }} type="button">‹</button>
+          <h2>{label}</h2>
+          <button aria-label="Mes siguiente" onClick={() => { setExpandedDay(null); setCursor(new Date(year, month + 1, 15)); }} type="button">›</button>
+        </div>
+        <div className="calendarMobileMode" role="group" aria-label="Presentación del calendario en móvil">
+          <button type="button" className={mobileView === "agenda" ? "active" : ""}
+            aria-pressed={mobileView === "agenda"} onClick={() => setMobileView("agenda")}>Agenda</button>
+          <button type="button" className={mobileView === "month" ? "active" : ""}
+            aria-pressed={mobileView === "month"} onClick={() => setMobileView("month")}>Mes compacto</button>
+        </div>
+        <div className="calendarMonthSurface">
+          <div className="weekdays" aria-hidden="true"><span>do</span><span>lu</span><span>ma</span><span>mi</span><span>ju</span><span>vi</span><span>sá</span></div>
+          <div className="monthGrid" role="group" aria-label={"Vista mensual de " + label}>
+            {calendarDays.map(({ day, index, key, dayTasks, hasEvent }) => (
+              <div className={["dayCell", day && onCreateDate ? "canCreateTask" : "", hasEvent ? "hasCalendarEvent" : ""].join(" ")}
+                key={key + "-" + index}>
                 {day && onCreateDate ? (
-                  <button
-                    className={`dayNumber ${key === today ? "today" : ""}`}
-                    aria-label={`Crear tarea el ${key}`}
-                    onClick={() => onCreateDate(key)}
-                    type="button"
-                  >
-                    {String(day).padStart(2, "0")}
-                    <Plus className="dayCreateIcon" size={12} />
+                  <button className={["dayNumber", key === today ? "today" : ""].join(" ")}
+                    aria-label={"Crear tarea el " + key} onClick={() => onCreateDate(key)} type="button">
+                    {String(day).padStart(2, "0")}<Plus className="dayCreateIcon" size={12} />
                   </button>
                 ) : day ? (
-                  <span className={`dayNumber ${key === today ? "today" : ""}`}>{String(day).padStart(2, "0")}</span>
+                  <span className={["dayNumber", key === today ? "today" : ""].join(" ")}>{String(day).padStart(2, "0")}</span>
                 ) : null}
                 <div className="eventStack">
                   {dayTasks.slice(0, 3).map((task) => (
-                    <button
-                      className={`calendarEvent ${task.itemKind === "event" ? "calendarEventItem" : "calendarTaskItem"} ${selectedTask?.id === task.id ? "selected" : ""}`}
+                    <button className={["calendarEvent", task.itemKind === "event" ? "calendarEventItem" : "calendarTaskItem", selectedTask?.id === task.id ? "selected" : ""].join(" ")}
                       style={{ borderLeftColor: task.itemKind === "event" ? "#6d28d9" : (task.taskTypeColor ?? task.courseColor ?? "#4285dc") } as CSSProperties}
-                      key={task.id}
-                      title={`${task.dueTime} ${task.title}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelect(task.id);
-                      }}
-                      type="button"
-                    >
-                      <span>{task.dueTime}</span>
-                      <strong>{task.title}</strong>
+                      key={task.id} title={task.dueTime + " " + task.title}
+                      aria-label={(task.itemKind === "event" ? "Evento: " : "Actividad: ") + task.title + ", " + task.dueTime}
+                      onClick={(event) => { event.stopPropagation(); selectCalendarTask(task.id); }} type="button">
+                      <span>{task.dueTime}</span><strong>{task.title}</strong>
                     </button>
                   ))}
-                  {dayTasks.length > 3 ? (
-                    <button
-                      className="moreEvents"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        onSelect(dayTasks[3].id);
-                      }}
-                      type="button"
-                    >
-                      +{dayTasks.length - 3}
+                  {([3, 2, 1] as const).map((limit) => dayTasks.length > limit ? (
+                    <button key={limit} className={"moreEvents moreEvents-" + limit} type="button"
+                      aria-label={"Ver las " + dayTasks.length + " actividades del " + key}
+                      onClick={(event) => { event.stopPropagation(); setExpandedDay(key); }}>
+                      +{dayTasks.length - limit} más
                     </button>
-                  ) : null}
+                  ) : null)}
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
+        </div>
+        <div className="calendarMobileAgenda" aria-label={"Agenda de " + label}>
+          {agendaDays.length ? agendaDays.map(({ day, key, dayTasks }) => (
+            <section className="calendarAgendaDay" key={key} aria-label={dayHeading(day!)}>
+              <header className="calendarAgendaDayHead">
+                <time dateTime={key}>{dayHeading(day!)}</time>
+                <span>{dayTasks.length} {dayTasks.length === 1 ? "actividad" : "actividades"}</span>
+                {onCreateDate ? (
+                  <button type="button" onClick={() => onCreateDate(key)} aria-label={"Crear tarea el " + key}>
+                    <Plus size={17} aria-hidden="true" />
+                  </button>
+                ) : null}
+              </header>
+              <div className="calendarAgendaItems">
+                {dayTasks.map((task) => (
+                  <button key={task.id} type="button" onClick={() => selectCalendarTask(task.id)}
+                    className={["calendarAgendaItem", task.itemKind === "event" ? "isEvent" : ""].join(" ")}>
+                    <span>{task.dueTime}</span><strong>{task.title}</strong>
+                    <span className="calendarAgendaKind">{task.itemKind === "event" ? "Evento" : "Tarea"}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )) : <div className="calendarAgendaEmpty">No hay actividades registradas este mes.</div>}
         </div>
       </section>
+      {expandedDay && openDay?.day ? (
+        <div className="calendarDayDialogOverlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setExpandedDay(null);
+        }}>
+          <div className="calendarDayDialog" role="dialog" aria-modal="true"
+            aria-labelledby="calendarDayDialogTitle" ref={dayDialogRef}>
+            <header>
+              <div><span>Actividades del día</span><h3 id="calendarDayDialogTitle">{dayHeading(openDay.day)}</h3></div>
+              <button type="button" data-dialog-autofocus aria-label="Cerrar actividades del día"
+                onClick={() => setExpandedDay(null)}><X size={19} /></button>
+            </header>
+            <div className="calendarDayDialogItems">
+              {openDay.dayTasks.map((task) => (
+                <button key={task.id} type="button" onClick={() => selectCalendarTask(task.id)}
+                  className={["calendarAgendaItem", task.itemKind === "event" ? "isEvent" : ""].join(" ")}>
+                  <span>{task.dueTime}</span><strong>{task.title}</strong>
+                  <span className="calendarAgendaKind">{task.itemKind === "event" ? "Evento" : "Tarea"}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

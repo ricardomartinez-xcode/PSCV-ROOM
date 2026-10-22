@@ -303,3 +303,17 @@
 @media (forced-colors: active) {
   .materialsExplorer .libraryNavItem.active, .materialsExplorer .libraryTypeFilters button.active { outline: 2px solid Highlight; }
 }
+
+.materialsExplorer .libraryHeroSide { display: flex; flex-direction: column; gap: 9px; align-items: stretch; }
+.materialsExplorer .libraryManageAction {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  max-width: 220px; min-height: 42px; border: 1px solid rgba(255,255,255,.35);
+  border-radius: 11px; padding: 9px 12px; color: #153b63; background: #fff;
+  font-size: 12px; font-weight: 820; cursor: pointer;
+}
+.materialsExplorer .libraryManageAction:hover { background: #e7f3ff; }
+@media (max-width: 760px) {
+  .materialsExplorer .libraryHeroSide { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .materialsExplorer .libraryManageAction { flex: 1 1 190px; max-width: unset; }
+  .materialsExplorer .libraryHeroSide .libraryStats { flex: 1 1 100px; width: auto; min-width: 100px; }
+}

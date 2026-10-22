@@ -50,11 +50,11 @@ type CardSize = "compact" | "medium" | "large";
 type CourseConfig = { id: string; name: string; shortName: string; color: string; icon: string; cardSize: CardSize; active: boolean; professorName: string; professorEmail: string; scheduleText: string; classroom: string };
 type SectionConfig = { id: string; name: string; path: string; color: string; icon: string; cardSize: CardSize; previewStyle: string; active: boolean };
 type AdminTaskRow = { id: string; title: string; due_date: string; due_time: string | null; status: string; priority: string; visible_to_students: boolean; material_url: string | null; platform_url: string | null; courses: { name: string; color: string | null } | { name: string; color: string | null }[] | null; task_types: { name: string; color: string | null } | { name: string; color: string | null }[] | null };
-type AppProfileRow = { id: string; email: string; full_name: string | null; control_number: string | null; role: "student" | "admin" | "owner"; active: boolean; can_edit_tasks: boolean; can_delete_tasks: boolean; can_manage_materials: boolean; can_manage_users: boolean; can_manage_settings: boolean; can_manage_group: boolean; can_manage_notifications: boolean; can_view_reports: boolean; can_manage_r2: boolean };
+type AppProfileRow = { id: string; email: string; full_name: string | null; control_number: string | null; role: "student" | "admin" | "owner"; profile_role: "administrator" | "professor" | "student"; active: boolean; can_edit_tasks: boolean; can_delete_tasks: boolean; can_manage_materials: boolean; can_manage_users: boolean; can_manage_settings: boolean; can_manage_group: boolean; can_manage_notifications: boolean; can_view_reports: boolean; can_manage_r2: boolean };
 type CourseDraft = Pick<CourseConfig, "name" | "shortName" | "color" | "icon" | "cardSize" | "professorName" | "professorEmail" | "scheduleText" | "classroom">;
 type StudentDraft = { controlNumber: string; email: string; fullName: string };
 type UploadDestination = { id: string; sectionId: string | null; name: string; path: string; source: "d1" | "r2" };
-type AdminProfile = { role: "student" | "admin" | "owner"; canEditTasks: boolean; canDeleteTasks: boolean; canManageMaterials: boolean; canManageUsers: boolean; canManageSettings: boolean; canManageGroup: boolean; canManageNotifications: boolean; canViewReports: boolean; canManageR2: boolean } | null;
+type AdminProfile = { role: "student" | "admin" | "owner"; profileRole: "student" | "professor" | "administrator"; canEditTasks: boolean; canDeleteTasks: boolean; canManageMaterials: boolean; canManageUsers: boolean; canManageSettings: boolean; canManageGroup: boolean; canManageNotifications: boolean; canViewReports: boolean; canManageR2: boolean } | null;
 type HealthPayload = { ok?: boolean; mode?: string; auth?: { configured?: boolean }; integrations?: Record<string, boolean> };
 type DestinationsPayload = { ok?: boolean; root?: string; destinations?: UploadDestination[]; error?: string };
 type LibraryPayload = { ok?: boolean; summary?: { sections: number; materials: number; providers: Record<string, number> }; error?: string };
@@ -180,7 +180,7 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   async function loadProfiles() {
     if (!d1Client) return;
     setLoadingUsers(true);
-    const { data, error } = await d1Client.from("app_profiles").select("id,email,full_name,control_number,role,active,can_edit_tasks,can_delete_tasks,can_manage_materials,can_manage_users,can_manage_settings,can_manage_group,can_manage_notifications,can_view_reports,can_manage_r2").order("role").order("full_name");
+    const { data, error } = await d1Client.from("app_profiles").select("id,email,full_name,control_number,role,profile_role,active,can_edit_tasks,can_delete_tasks,can_manage_materials,can_manage_users,can_manage_settings,can_manage_group,can_manage_notifications,can_view_reports,can_manage_r2").order("role").order("full_name");
     if (error) onError(error.message); else setProfiles((data ?? []) as AppProfileRow[]);
     setLoadingUsers(false);
   }
@@ -1301,7 +1301,7 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
 
   return (
     <section className="adminCard adminModule adminUsersModule">
-      <div className="adminCardHead"><div><p className="adminModuleEyebrow">Accesos y permisos</p><h3>Usuarios</h3><p>Agrega alumnos y mantén sus datos de acceso escolar.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div>
+      <div className="adminCardHead"><div><p className="adminModuleEyebrow">Accesos y permisos</p><h3>Usuarios y roles</h3><p>Roles disponibles: Administrador, Profesor y Alumno. Las personas se crean inicialmente como alumnos y el administrador principal puede asignarles otro rol.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div>
       <form className="adminInlineForm studentCreateForm" onSubmit={submit}>
         <label>No. Control<input value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="28699" /></label>
         <label>Correo<input type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} placeholder="alumno@univdep.edu.mx" required /></label>
@@ -1328,7 +1328,7 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
   }, [profile]);
 
   const dirty = draft.fullName !== (profile.full_name ?? "") || draft.email !== profile.email || draft.controlNumber !== (profile.control_number ?? "");
-  const canManageThisProfile = canManagePermissions || profile.role === "student";
+  const canManageThisProfile = canManagePermissions || profile.profile_role === "student";
 
   async function save() {
     setSaving(true);
@@ -1348,7 +1348,9 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
         <input aria-label="Correo" type="email" disabled={!canManageThisProfile} value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} />
         <input aria-label="No. Control" disabled={!canManageThisProfile} value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="sin control" />
       </div>
-      <select value={profile.role} disabled={!canManagePermissions} onChange={(event) => void onUpdate(profile.id, { role: event.target.value as AppProfileRow["role"] })}><option value="student">Alumno</option><option value="admin">Admin</option><option value="owner">Owner</option></select>
+      <select aria-label={`Rol de ${profile.full_name ?? profile.email}`} value={profile.profile_role} disabled={!canManagePermissions || profile.role === "owner"} onChange={(event) => void onUpdate(profile.id, { profile_role: event.target.value as AppProfileRow["profile_role"] })}>
+        <option value="administrator">Administrador</option><option value="professor">Profesor</option><option value="student">Alumno</option>
+      </select>
       <div className="adminUserActions">
         <button type="button" onClick={() => void save()} disabled={!canManageThisProfile || saving || !dirty || !draft.email.trim() || !draft.fullName.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
         <button type="button" disabled={!canManageThisProfile} onClick={() => void onUpdate(profile.id, { active: !profile.active })}>{profile.active ? "Desactivar" : "Activar"}</button>
@@ -1363,15 +1365,15 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
         >{deleting ? "Eliminando..." : "Eliminar"}</button>
       </div>
       <div className="adminPermissionGrid">
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_edit_tasks} onChange={(event) => void onUpdate(profile.id, { can_edit_tasks: event.target.checked })} />Tareas</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_delete_tasks} onChange={(event) => void onUpdate(profile.id, { can_delete_tasks: event.target.checked })} />Eliminar</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_materials} onChange={(event) => void onUpdate(profile.id, { can_manage_materials: event.target.checked })} />Materiales</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_users} onChange={(event) => void onUpdate(profile.id, { can_manage_users: event.target.checked })} />Usuarios</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_settings} onChange={(event) => void onUpdate(profile.id, { can_manage_settings: event.target.checked })} />Ajustes</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_group} onChange={(event) => void onUpdate(profile.id, { can_manage_group: event.target.checked })} />Grupo</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_notifications} onChange={(event) => void onUpdate(profile.id, { can_manage_notifications: event.target.checked })} />Avisos</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_view_reports} onChange={(event) => void onUpdate(profile.id, { can_view_reports: event.target.checked })} />Reportes</label>
-        <label><input type="checkbox" disabled={!canManagePermissions} checked={profile.can_manage_r2} onChange={(event) => void onUpdate(profile.id, { can_manage_r2: event.target.checked })} />R2</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_edit_tasks} onChange={(event) => void onUpdate(profile.id, { can_edit_tasks: event.target.checked })} />Tareas</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_delete_tasks} onChange={(event) => void onUpdate(profile.id, { can_delete_tasks: event.target.checked })} />Eliminar</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_materials} onChange={(event) => void onUpdate(profile.id, { can_manage_materials: event.target.checked })} />Materiales</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_users} onChange={(event) => void onUpdate(profile.id, { can_manage_users: event.target.checked })} />Usuarios</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_settings} onChange={(event) => void onUpdate(profile.id, { can_manage_settings: event.target.checked })} />Ajustes</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_group} onChange={(event) => void onUpdate(profile.id, { can_manage_group: event.target.checked })} />Grupo</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_notifications} onChange={(event) => void onUpdate(profile.id, { can_manage_notifications: event.target.checked })} />Avisos</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_view_reports} onChange={(event) => void onUpdate(profile.id, { can_view_reports: event.target.checked })} />Reportes</label>
+        <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_r2} onChange={(event) => void onUpdate(profile.id, { can_manage_r2: event.target.checked })} />R2</label>
       </div>
     </article>
   );

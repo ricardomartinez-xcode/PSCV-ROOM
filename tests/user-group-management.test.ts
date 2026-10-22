@@ -17,7 +17,7 @@ test("admin users UI persists profile data, roles and permission flags through t
   assert.match(usersRoute, /requirePermission\(request, "users:manage"\)/);
   assert.match(usersRoute, /export async function PATCH/);
   assert.match(usersRoute, /export async function DELETE/);
-  assert.match(usersRoute, /Sólo el propietario puede cambiar roles o permisos/);
+  assert.match(usersRoute, /Solo el administrador principal puede modificar roles y permisos/);
   assert.match(usersRoute, /El propietario canónico no se puede eliminar/);
 });
 

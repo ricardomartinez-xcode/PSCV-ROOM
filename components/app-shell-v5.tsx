@@ -33,6 +33,8 @@ import {
 import type { AdminTab } from "@/components/admin-hub";
 import { useAuthSession } from "@/components/auth-session-provider";
 import { MaterialLibrary } from "@/components/material-library";
+import { AttendancePanel } from "@/components/attendance-panel";
+import { AttendanceStudentPanel } from "@/components/attendance-student-panel";
 import { NotificationSettingsPanel } from "@/components/providers";
 import { CloudflareImageUpload, type UploadedImage } from "@/components/cloudflare-image-upload";
 import {
@@ -55,7 +57,7 @@ const AdminHub = dynamic(
 );
 
 type D1Browser = NonNullable<ReturnType<typeof createD1BrowserClient>>;
-type Tab = "calendar" | "tasks" | "materials" | "schedule" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
+type Tab = "calendar" | "tasks" | "materials" | "schedule" | "attendance" | "completed" | "group" | "admin" | "prefs" | "taskDetail";
 type CardSize = "compact" | "medium" | "large";
 type DetailOrigin = Exclude<Tab, "taskDetail">;
 
@@ -81,6 +83,7 @@ type Profile = {
   email: string;
   fullName: string;
   role: "student" | "admin" | "owner";
+  profileRole: "student" | "professor" | "administrator";
   preferences: UserPreferences;
   canEditTasks: boolean;
   canDeleteTasks: boolean;
@@ -720,6 +723,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   function go(next: Tab) {
     if (next === "completed" && !canViewCompleted) return;
     if (next === "group" && !capabilities.canManageGroup) return;
+    if (next === "attendance" && !capabilities.canViewAttendance) return;
     if (next === "admin" && !capabilities.canAccessAdmin) return;
     setTab(next);
     setDrawerOpen(false);
@@ -790,6 +794,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         sourceLabel="Cloudflare Access + D1"
         canViewCompleted={canViewCompleted}
         canManageGroup={capabilities.canManageGroup}
+        canViewAttendance={capabilities.canViewAttendance}
         canAccessAdmin={capabilities.canAccessAdmin}
         onClose={() => setDrawerOpen(false)}
         onSelect={go}
@@ -831,6 +836,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         ) : null}
         {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
         {tab === "schedule" ? <ScheduleAndProfessors courses={courses.filter((course) => course.active)} /> : null}
+        {tab === "attendance" && capabilities.canViewAttendance ? capabilities.canManageAttendance ? <AttendancePanel /> : <AttendanceStudentPanel /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}
         {tab === "group" ? <Group members={members} d1Client={d1Client} role={capabilities.canManageGroup ? "admin" : "reader"} canManageMembers={capabilities.canManageUsers} profile={profile} onMembersChange={setMembers} onError={setError} /> : null}
         {tab === "prefs" ? <Preferences profile={profile} d1Client={d1Client} onProfile={setProfileOverride} onError={setError} /> : null}
@@ -974,6 +980,7 @@ function Drawer({
   sourceLabel,
   canViewCompleted,
   canManageGroup,
+  canViewAttendance,
   canAccessAdmin,
   onClose,
   onSelect,
@@ -987,6 +994,7 @@ function Drawer({
   sourceLabel: string;
   canViewCompleted: boolean;
   canManageGroup: boolean;
+  canViewAttendance: boolean;
   canAccessAdmin: boolean;
   onClose: () => void;
   onSelect: (tab: Tab) => void;
@@ -1012,6 +1020,7 @@ function Drawer({
           <DrawerItem icon={<ListTodo size={20} />} label="Tareas" active={active === "tasks"} onClick={() => onSelect("tasks")} />
           <DrawerItem icon={<FolderOpen size={20} />} label="Materiales" active={active === "materials"} onClick={() => onSelect("materials")} />
           <DrawerItem icon={<GraduationCap size={20} />} label="Horario" active={active === "schedule"} onClick={() => onSelect("schedule")} />
+          {canViewAttendance ? <DrawerItem icon={<ClipboardCheck size={20} />} label="Asistencia" active={active === "attendance"} onClick={() => onSelect("attendance")} /> : null}
           <DrawerItem icon={<Settings size={20} />} label="Preferencias" active={active === "prefs"} onClick={() => onSelect("prefs")} />
           {canViewCompleted ? <DrawerItem icon={<CheckCircle2 size={20} />} label="Entregadas" active={active === "completed"} onClick={() => onSelect("completed")} /> : null}
           {canManageGroup ? <DrawerItem icon={<Users size={20} />} label="Lista de grupo" active={active === "group"} onClick={() => onSelect("group")} /> : null}
@@ -2123,7 +2132,7 @@ function ScheduleAndProfessors({ courses }: { courses: CourseConfig[] }) {
 }
 
 function titleFor(tab: Tab) {
-  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario de clases" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
+  return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario de clases" : tab === "attendance" ? "Asistencia" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
 }
 function monthCells(year: number, month: number) { const first = new Date(year, month, 1).getDay(); const total = new Date(year, month + 1, 0).getDate(); const cells: Array<number | null> = Array(first).fill(null).concat(Array.from({ length: total }, (_, index) => index + 1)); while (cells.length % 7 !== 0) cells.push(null); return cells; }
 function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }

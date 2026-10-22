@@ -23,6 +23,7 @@ function profile(
     email: `${role}@example.com`,
     fullName: role,
     role,
+    profileRole: role === "student" ? "student" : "administrator",
     preferences: {
       calendarView: "month",
       taskDensity: "medium",
@@ -43,10 +44,10 @@ function profile(
   };
 }
 
-test("role labels distinguish student, admin and owner", () => {
+test("public role labels are Administrador, Profesor y Alumno", () => {
   assert.equal(getRoleLabel(profile("student")), "Alumno");
   assert.equal(getRoleLabel(profile("admin")), "Administrador");
-  assert.equal(getRoleLabel(profile("owner")), "Propietario");
+  assert.equal(getRoleLabel(profile("owner")), "Administrador");
 });
 
 test("student has no administrative capabilities", () => {
@@ -122,7 +123,7 @@ test("administrative server routes keep requirePermission authorization", () => 
   }
 
   assert.match(authzSource, /if \(profile\.role === "owner"\) return profile;/);
-  assert.match(authzSource, /if \(profile\.role !== "admin"\) throw new HttpError\(403, "No autorizado\."\);/);
+  assert.match(authzSource, /profile\.role !== "admin" \|\| profile\.profile_role !== "administrator"/);
   assert.match(
     authzSource,
     /if \(!enabled\(profile\[grants\[permission\]\] as number\)\) \{\s*throw new HttpError\(403, "No autorizado\."\);\s*\}/,

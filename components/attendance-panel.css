@@ -47,3 +47,17 @@
 .attendancePage button:focus-visible,.attendancePage input:focus-visible,.attendancePage select:focus-visible{outline:3px solid #55abc2;outline-offset:2px}
 @media(max-width:650px){.attendanceSummary{grid-template-columns:repeat(3,minmax(0,1fr))}.attendanceSummary div{padding:.75rem .5rem}.attendanceSummary strong{font-size:1.25rem}.attendanceSummary span{font-size:.67rem}.attendanceSection{padding:.8rem}.attendanceStatusButtons{min-width:270px}.attendanceHeading{align-items:stretch}.attendanceHeading label{width:100%}.attendanceHeading input{width:100%}}
 @media(prefers-color-scheme:dark){.attendanceStatusButtons .isSelected{background:#113f42;color:#9ce5e3}.attendanceIn{background:#173a27!important;color:#9fe3b5!important}.attendanceOut{background:#523716!important;color:#ffdfac!important}.attendanceSecondary{background:#143c48!important;color:#a0e6eb!important}.attendanceDanger{background:#462422!important;color:#ffb3ae!important}.attendanceError{background:#3c2020;color:#ffbaba}}
+
+
+/* Cuadro compacto y accesible para registrar la llegada de alumnos con retardo. */
+.attendanceModalBackdrop{position:fixed;inset:0;z-index:1200;display:grid;place-items:center;background:rgba(7,19,33,.58);padding:1rem}
+.attendanceModal{width:min(100%,420px);max-height:calc(100dvh - 2rem);overflow-y:auto;background:var(--card,#fff);color:var(--text,#17283b);border:1px solid var(--border,#d9e1e9);border-radius:16px;box-shadow:0 22px 65px rgba(0,0,0,.25);padding:1.25rem}
+.attendanceModal form{display:grid;gap:.9rem}
+.attendanceModal h3,.attendanceModal p{margin:0}
+.attendanceModal h3{font-size:1.15rem}
+.attendanceModal label{display:grid;gap:.4rem;font-weight:650;font-size:.88rem}
+.attendanceModal input[type="time"]{width:100%;min-height:46px;border:1px solid #a9bfcd;border-radius:10px;padding:.5rem;background:var(--card,#fff);color:inherit;font:inherit}
+.attendanceModalActions{display:flex;justify-content:flex-end;gap:.65rem;flex-wrap:wrap}
+.attendanceModalActions button{padding:.7rem .9rem;border:1px solid #b6c8d6;border-radius:9px;background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}
+.attendanceModalActions button:disabled{opacity:.5;cursor:not-allowed}
+.attendanceModal input:focus-visible,.attendanceModal button:focus-visible{outline:3px solid #55abc2;outline-offset:2px}

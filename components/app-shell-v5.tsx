@@ -873,7 +873,9 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
         <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
-        <button aria-current={activeNavTab === "schedule" ? "page" : undefined} className={activeNavTab === "schedule" ? "active" : ""} onClick={() => go("schedule")} type="button"><GraduationCap size={22} />Horario</button>
+        {capabilities.canViewAttendance ? (
+          <button aria-current={activeNavTab === "attendance" ? "page" : undefined} className={activeNavTab === "attendance" ? "active" : ""} onClick={() => go("attendance")} type="button"><ClipboardCheck size={22} />Asistencia</button>
+        ) : null}
         {capabilities.canAccessAdmin ? (
           <button aria-current={activeNavTab === "admin" ? "page" : undefined} className={activeNavTab === "admin" ? "active" : ""} onClick={() => go("admin")} type="button"><SlidersHorizontal size={22} />Admin</button>
         ) : null}

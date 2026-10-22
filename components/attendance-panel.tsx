@@ -74,6 +74,8 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
   const observed = snapshot.attendance.some((item) => item.session_id === session.id && item.profile_id === profileId) ||
     snapshot.presence.some((item) => item.session_id === session.id && item.profile_id === profileId);
   if (!observed) return null;
+  const attendanceStatus = snapshot.attendance.find((item) =>
+    item.session_id === session.id && item.profile_id === profileId)?.status;
   const presence: TimeWindow[] = snapshot.presence
     .filter((p) => p.session_id === session.id && p.profile_id === profileId)
     .map((p) => ({ startAt: p.start_at, endAt: p.end_at }));
@@ -85,6 +87,7 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
     classEndAt: end, presence, officialBreaks,
     now: snapshot.serverNow,
     closed: session.status === "closed",
+    countInitialAbsence: attendanceStatus !== "present",
   });
 }
 
@@ -320,7 +323,7 @@ export function AttendancePanel() {
                 <span>{marked} marcados · {present} presentes o con retardo</span>
                 <button type="button" disabled={busy} onClick={() => void refresh(date).catch((cause) => setError(cause instanceof Error ? cause.message : "Error al actualizar."))}>Actualizar saldos</button>
               </div>
-              <p className="attendanceHint">El saldo inicia con la duración exigible completa. Cada salida descuenta el tiempo transcurrido fuera del salón y «Registrar regreso» detiene ese descuento. Los retardos también descuentan minutos y los descansos oficiales no penalizan. «Presente» y «Retardo» registran la primera entrada automáticamente.</p>
+              <p className="attendanceHint">El saldo inicia con la duración exigible completa. Marcar «Presente» después de empezar la clase no descuenta minutos anteriores. Solo «Retardo», «Ausente» y las salidas registradas generan ausencia; «Registrar regreso» detiene el descuento. Los descansos oficiales no penalizan.</p>
               <div className="attendanceTableScroll">
                 <table className="attendanceTable">
                   <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>{selected.status === "open" ? "Saldo de minutos" : "Minutos presentes"}</th><th>{selected.status === "open" ? "Máximo posible" : "Permanencia"}</th></tr></thead>
@@ -374,7 +377,7 @@ export function AttendancePanel() {
                 ))}</tbody>
               </table>
             </div>
-            <p className="attendanceHint">«Sin marcar» significa ausencia de registro, no falta confirmada. El saldo de una clase abierta representa permanencia máxima posible, no minutos ya cursados. El pase de lista es independiente del control oficial institucional.</p>
+            <p className="attendanceHint">«Sin marcar» no significa falta confirmada. Puede haber minutos ausentes con 0 salidas si el estado es «Retardo» o «Ausente»; «Presente» no genera retardo por registrar el pase de lista después del comienzo. El saldo abierto es provisional. Este registro no sustituye la asistencia oficial.</p>
           </section>
         </>
       )}

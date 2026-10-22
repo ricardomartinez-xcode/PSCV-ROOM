@@ -4,6 +4,7 @@ import { PushNotificationsBootstrap } from "@/components/push-notifications-boot
 import "./pscv.css";
 import "./relnets-refresh.css";
 import "./materials-explorer.css";
+import "./calendar-responsive.css";
 import "./schedule-grid.css";
 
 export const metadata: Metadata = {

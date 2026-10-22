@@ -1,6 +1,6 @@
 import { HttpError, errorResponse, requireProfile } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
-import { calculatePermanencia, type TimeWindow } from "@/lib/permanencia-math";
+import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     ).bind(date).all<Session>()).results ?? [];
     const ids = sessions.map((session) => session.id);
     if (!ids.length) {
-      return Response.json({ date, entries: [], summary: { attendedMinutes: 0, absentMinutes: 0, requiredMinutes: 0, exitCount: 0, percentage: null } }, {
+      return Response.json({ date, entries: [], summary: { attendedMinutes: 0, balanceMinutes: 0, absentMinutes: 0, requiredMinutes: 0, exitCount: 0, percentage: null, provisional: false } }, {
         headers: { "Cache-Control": "private, no-store" },
       });
     }
@@ -54,9 +54,8 @@ export async function GET(request: Request) {
     let requiredMinutes = 0;
     let exitCount = 0;
     const entries = sessions.map((session) => {
-      const cutoff = session.status === "open"
-        ? Math.min(Date.parse(now), Date.parse(session.scheduled_end_at))
-        : Date.parse(session.actual_end_at ?? session.scheduled_end_at);
+      const sessionEnd = Date.parse(session.status === "open" ? session.scheduled_end_at : session.actual_end_at ?? session.scheduled_end_at);
+      const cutoff = session.status === "open" ? Math.min(Date.parse(now), sessionEnd) : sessionEnd;
       const mark = (marks.results ?? []).find((item) => item.session_id === session.id);
       if (cutoff <= Date.parse(session.scheduled_start_at)) {
         return { id: session.id, course: session.course_name, status: mark?.status ?? null,
@@ -72,26 +71,29 @@ export async function GET(request: Request) {
       const officialBreaks: TimeWindow[] = (breaks.results ?? [])
         .filter((b) => b.session_id === session.id)
         .map((b) => ({ startAt: b.start_at, endAt: b.end_at }));
-      const stats = calculatePermanencia({
+      const stats = calculateSaldoPermanencia({
         classStartAt: session.scheduled_start_at,
-        classEndAt: new Date(cutoff).toISOString(),
+        classEndAt: new Date(sessionEnd).toISOString(),
         presence, officialBreaks, now,
+        closed: session.status !== "open",
       });
-      attendedMinutes += stats.presentMinutes;
+      attendedMinutes += stats.remainingMinutes;
       absentMinutes += stats.absentMinutes;
       exitCount += stats.exitCount;
       requiredMinutes += stats.requiredMinutes;
       return { id: session.id, course: session.course_name, status: mark?.status ?? null,
         note: mark?.note ?? null, provisional: session.status === "open",
-        minutes: stats.presentMinutes, absentMinutes: stats.absentMinutes,
+        minutes: stats.remainingMinutes, absentMinutes: stats.absentMinutes,
         exits: stats.exitCount, required: stats.requiredMinutes, percentage: stats.percentage };
     });
     return Response.json({
       date, entries,
       summary: {
         attendedMinutes: Math.round(attendedMinutes * 10) / 10,
+        balanceMinutes: Math.round(attendedMinutes * 10) / 10,
         absentMinutes: Math.round(absentMinutes * 10) / 10,
         exitCount,
+        provisional: sessions.some((session) => session.status === "open"),
         requiredMinutes: Math.round(requiredMinutes * 10) / 10,
         percentage: requiredMinutes > 0 ? Math.round(attendedMinutes / requiredMinutes * 1000) / 10 : null,
       },

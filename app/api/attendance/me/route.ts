@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     ).bind(date).all<Session>()).results ?? [];
     const ids = sessions.map((session) => session.id);
     if (!ids.length) {
-      return Response.json({ date, entries: [], summary: { attendedMinutes: 0, requiredMinutes: 0, percentage: null } }, {
+      return Response.json({ date, entries: [], summary: { attendedMinutes: 0, absentMinutes: 0, requiredMinutes: 0, exitCount: 0, percentage: null } }, {
         headers: { "Cache-Control": "private, no-store" },
       });
     }
@@ -50,7 +50,9 @@ export async function GET(request: Request) {
     ]);
     const now = new Date().toISOString();
     let attendedMinutes = 0;
+    let absentMinutes = 0;
     let requiredMinutes = 0;
+    let exitCount = 0;
     const entries = sessions.map((session) => {
       const cutoff = session.status === "open"
         ? Math.min(Date.parse(now), Date.parse(session.scheduled_end_at))
@@ -58,14 +60,14 @@ export async function GET(request: Request) {
       const mark = (marks.results ?? []).find((item) => item.session_id === session.id);
       if (cutoff <= Date.parse(session.scheduled_start_at)) {
         return { id: session.id, course: session.course_name, status: mark?.status ?? null,
-          note: mark?.note ?? null, provisional: true, minutes: null, required: null, percentage: null };
+          note: mark?.note ?? null, provisional: true, minutes: null, absentMinutes: null, exits: null, required: null, percentage: null };
       }
       const presence: TimeWindow[] = (presences.results ?? [])
         .filter((p) => p.session_id === session.id)
         .map((p) => ({ startAt: p.start_at, endAt: p.end_at }));
       if (!mark && presence.length === 0) {
         return { id: session.id, course: session.course_name, status: null,
-          note: null, provisional: session.status === "open", minutes: null, required: null, percentage: null };
+          note: null, provisional: session.status === "open", minutes: null, absentMinutes: null, exits: null, required: null, percentage: null };
       }
       const officialBreaks: TimeWindow[] = (breaks.results ?? [])
         .filter((b) => b.session_id === session.id)
@@ -76,15 +78,20 @@ export async function GET(request: Request) {
         presence, officialBreaks, now,
       });
       attendedMinutes += stats.presentMinutes;
+      absentMinutes += stats.absentMinutes;
+      exitCount += stats.exitCount;
       requiredMinutes += stats.requiredMinutes;
       return { id: session.id, course: session.course_name, status: mark?.status ?? null,
         note: mark?.note ?? null, provisional: session.status === "open",
-        minutes: stats.presentMinutes, required: stats.requiredMinutes, percentage: stats.percentage };
+        minutes: stats.presentMinutes, absentMinutes: stats.absentMinutes,
+        exits: stats.exitCount, required: stats.requiredMinutes, percentage: stats.percentage };
     });
     return Response.json({
       date, entries,
       summary: {
         attendedMinutes: Math.round(attendedMinutes * 10) / 10,
+        absentMinutes: Math.round(absentMinutes * 10) / 10,
+        exitCount,
         requiredMinutes: Math.round(requiredMinutes * 10) / 10,
         percentage: requiredMinutes > 0 ? Math.round(attendedMinutes / requiredMinutes * 1000) / 10 : null,
       },

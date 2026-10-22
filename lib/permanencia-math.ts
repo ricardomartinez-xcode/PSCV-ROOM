@@ -176,7 +176,7 @@ export function calculateSaldoPermanencia(args: {
     ? Math.min(...args.presence.map((window) => parseTime(window.startAt)))
     : null;
   const syntheticOpening: TimeWindow[] =
-    args.countInitialAbsence === false && firstArrival !== null && firstArrival > start
+    args.countInitialAbsence === false && firstArrival !== null && firstArrival > start && firstArrival < end
       ? [{ startAt: args.classStartAt, endAt: new Date(firstArrival).toISOString() }]
       : [];
   const elapsed = calculatePermanencia({

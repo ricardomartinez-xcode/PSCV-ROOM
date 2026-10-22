@@ -159,8 +159,10 @@ export function AttendancePanel() {
     if (!snapshot || !selected) return [];
     return snapshot.students.map((student) => {
       const attendance = snapshot.attendance.find((a) => a.session_id === selected.id && a.profile_id === student.id);
-      const currentPresence = snapshot.presence.some((p) => p.session_id === selected.id && p.profile_id === student.id && p.end_at === null);
-      return { ...student, attendance, currentPresence, stats: calculateForStudent(snapshot, selected, student.id) };
+      const records = snapshot.presence.filter((p) => p.session_id === selected.id && p.profile_id === student.id);
+      const currentPresence = records.some((p) => p.end_at === null);
+      return { ...student, attendance, currentPresence, hasEntered: records.length > 0,
+        stats: calculateForStudent(snapshot, selected, student.id) };
     });
   }, [snapshot, selected]);
 
@@ -170,23 +172,24 @@ export function AttendancePanel() {
   const dailyStats = useMemo(() => {
     if (!snapshot) return [];
     return snapshot.students.map((student) => {
-      let required = 0; let attended = 0; let markedCount = 0;
+      let required = 0; let attended = 0; let absent = 0; let exits = 0; let markedCount = 0;
       for (const session of snapshot.sessions) {
         const stats = calculateForStudent(snapshot, session, student.id);
-        if (stats) { required += stats.requiredMinutes; attended += stats.presentMinutes; }
+        if (stats) { required += stats.requiredMinutes; attended += stats.presentMinutes; absent += stats.absentMinutes; exits += stats.exitCount; }
         if (snapshot.attendance.some((a) => a.session_id === session.id && a.profile_id === student.id)) markedCount++;
       }
-      return { student, required, attended, markedCount,
+      return { student, required, attended, absent, exits, markedCount,
         percentage: required > 0 ? Math.round(attended / required * 1000) / 10 : null };
     });
   }, [snapshot]);
 
   function exportCsv() {
-    const header = ["Alumno", "Número de control", "Fecha", "Sesiones marcadas", "Minutos presentes", "Minutos exigibles", "Permanencia %"];
+    const header = ["Alumno", "Número de control", "Fecha", "Sesiones marcadas", "Salidas", "Minutos ausentes", "Minutos presentes", "Minutos exigibles", "Permanencia %"];
     const quote = (value: string | number) => '"' + String(value).replaceAll('"', '""') + '"';
     const lines = [header.map(quote).join(","), ...dailyStats.map((s) => [
       s.student.full_name, s.student.control_number ?? "", date, s.markedCount,
-      s.attended.toFixed(1), s.required.toFixed(1), s.percentage ?? "",
+      s.exits, s.required > 0 ? s.absent.toFixed(1) : "",
+      s.required > 0 ? s.attended.toFixed(1) : "", s.required > 0 ? s.required.toFixed(1) : "", s.percentage ?? "",
     ].map(quote).join(","))];
     const csv = "\uFEFF" + lines.join("\r\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -199,7 +202,7 @@ export function AttendancePanel() {
   return (
     <div className="attendancePage">
       <header className="attendanceHeading">
-        <div><h2>Asistencia</h2><p>Pase de lista diario y permanencia efectiva con descansos autorizados.</p></div>
+        <div><h2>Asistencia</h2><p>Porcentaje calculado restando las ausencias del tiempo exigible, sin contar descansos oficiales.</p></div>
         <label>Fecha <input type="date" value={date} onChange={(e) => { if (e.target.value) setDate(e.target.value); }} /></label>
       </header>
       <p className="attendanceDate">{dayLabel(date)}</p>
@@ -316,10 +319,10 @@ export function AttendancePanel() {
                 <h3>Pase de lista y permanencia</h3>
                 <span>{marked} marcados · {present} presentes o con retardo</span>
               </div>
-              <p className="attendanceHint">Marcar «Presente» o «Retardo» inicia la permanencia; «Ausente» o «Justificada» la detiene. Los controles de entrada y salida registran los regresos. Un estado no sustituye los minutos observados.</p>
+              <p className="attendanceHint">Cada salida abre un periodo de ausencia y cada regreso lo cierra. El retardo también resta los minutos anteriores a la primera entrada. Los descansos oficiales no penalizan; al finalizar la clase se descuenta cualquier ausencia pendiente. «Presente» y «Retardo» registran la primera entrada automáticamente.</p>
               <div className="attendanceTableScroll">
                 <table className="attendanceTable">
-                  <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / salida</th><th>Minutos</th><th>Permanencia</th></tr></thead>
+                  <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>Minutos presentes</th><th>Permanencia</th></tr></thead>
                   <tbody>{studentStats.map((row) => (
                     <tr key={row.id}>
                       <td><strong>{row.full_name}</strong><small>{row.control_number ?? "Sin número de control"}</small></td>
@@ -336,31 +339,35 @@ export function AttendancePanel() {
                       <td><button type="button" disabled={busy || selected.status !== "open"}
                         className={row.currentPresence ? "attendanceOut" : "attendanceIn"}
                         onClick={() => void command({ action: "toggle_presence", sessionId: selected.id, profileId: row.id })}>
-                        {row.currentPresence ? "Registrar salida" : "Registrar entrada"}
+                        {row.currentPresence ? "Registrar salida" : row.hasEntered ? "Registrar regreso" : "Registrar entrada"}
                       </button></td>
+                      <td>{row.stats ? row.stats.exitCount : "—"}</td>
+                      <td>{row.stats ? row.stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
                       <td>{row.stats ? row.stats.presentMinutes.toFixed(1) + " min" : "—"}</td>
                       <td><strong>{percentLabel(row.stats?.percentage ?? null)}</strong></td>
                     </tr>
                   ))}</tbody>
                 </table>
               </div>
-              {selected.status === "open" && <p className="attendanceHint">Los porcentajes son provisionales hasta finalizar la sesión.</p>}
+              {selected.status === "open" && <p className="attendanceHint">Cálculo provisional hasta finalizar la sesión. Los minutos se recalculan al registrar un evento o volver a consultar, sin temporizador por alumno.</p>}
             </section>
           )}
 
           <section className="attendanceSection">
             <div className="attendanceSectionTitle">
-              <div><h3>Resumen diario</h3><p>Permanencia ponderada por minutos exigibles de todas las clases registradas en la fecha.</p></div>
+              <div><h3>Resumen diario</h3><p>Tiempo exigible menos ausencias efectivas, ponderado por los minutos de cada clase.</p></div>
               <button type="button" onClick={exportCsv} disabled={snapshot.sessions.length === 0}>Exportar CSV</button>
             </div>
             <div className="attendanceTableScroll">
               <table className="attendanceTable">
-                <thead><tr><th>Alumno</th><th>Sesiones con pase de lista</th><th>Minutos presentes</th><th>Minutos exigibles</th><th>Permanencia diaria</th></tr></thead>
+                <thead><tr><th>Alumno</th><th>Sesiones con pase de lista</th><th>Salidas</th><th>Minutos ausentes</th><th>Minutos presentes</th><th>Minutos exigibles</th><th>Permanencia diaria</th></tr></thead>
                 <tbody>{dailyStats.map((row) => (
                   <tr key={row.student.id}>
                     <td>{row.student.full_name}</td>
                     <td>{row.markedCount} de {snapshot.sessions.length}</td>
-                    <td>{row.attended.toFixed(1)}</td><td>{row.required.toFixed(1)}</td>
+                    <td>{row.required > 0 ? row.exits : "—"}</td>
+                    <td>{row.required > 0 ? row.absent.toFixed(1) : "—"}</td>
+                    <td>{row.required > 0 ? row.attended.toFixed(1) : "—"}</td><td>{row.required > 0 ? row.required.toFixed(1) : "—"}</td>
                     <td><strong>{percentLabel(row.percentage)}</strong></td>
                   </tr>
                 ))}</tbody>

@@ -834,7 +834,14 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
             <TaskList tasks={shownTasks} role={taskActionRole} selectedTask={listSelectedTask} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "tasks")} onDone={(id) => void markDone(id)} onCreate={capabilities.canEditTasks ? () => openTaskForm("tasks") : undefined} />
           </>
         ) : null}
-        {tab === "materials" ? <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query} /> : null}
+        {tab === "materials" ? (
+          <MaterialLibrary previewSize={prefs.materialPreviewSize} globalQuery={query}
+            onManage={capabilities.canAccessAdmin && capabilities.canManageMaterials ? () => {
+              setInitialAdminTab("materials");
+              go("admin");
+            } : undefined}
+          />
+        ) : null}
         {tab === "schedule" ? <ScheduleAndProfessors courses={courses.filter((course) => course.active)} /> : null}
         {tab === "attendance" && capabilities.canViewAttendance ? capabilities.canManageAttendance ? <AttendancePanel /> : <AttendanceStudentPanel /> : null}
         {tab === "completed" ? <TaskList tasks={completedTasks} role="reader" selectedTask={null} density={prefs.taskDensity} onSelect={(id) => openTaskDetail(id, "completed")} onDone={() => undefined} completedOnly /> : null}

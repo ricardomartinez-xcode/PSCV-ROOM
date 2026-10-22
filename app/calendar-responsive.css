@@ -1,0 +1,388 @@
+/* PSCV responsive calendar: scoped overrides after legacy app styles. */
+.adaptiveCalendar {
+  min-width: 0;
+  display: block;
+  padding: 12px 12px calc(92px + env(safe-area-inset-bottom));
+  background: #f5f8fc;
+}
+.adaptiveCalendar .calendarPane {
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid #dce5ef;
+  border-radius: 16px;
+  box-shadow: 0 8px 26px rgba(30, 55, 83, .055);
+}
+.adaptiveCalendar .viewTabs {
+  display: flex;
+  height: 48px;
+  padding: 7px 16px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e6edf5;
+}
+.adaptiveCalendar .viewTabs::before { content: none; }
+.adaptiveCalendar .viewTabs > span { display: none; }
+.adaptiveCalendar .viewTabs strong {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  font-size: 14px;
+  font-weight: 850;
+  color: #264768;
+}
+.adaptiveCalendar .viewTabs button {
+  display: inline-flex;
+  height: 34px;
+  min-height: 34px;
+  align-items: center;
+  border: 1px solid #cbdbeb;
+  border-radius: 9px;
+  padding: 0 12px;
+  background: #f4f9ff;
+  color: #1a5a9c;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.adaptiveCalendar .monthHead {
+  height: 52px;
+  padding: 0 12px;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+}
+.adaptiveCalendar .monthHead h2 {
+  overflow: hidden;
+  font-size: clamp(16px,2vw,21px);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: capitalize;
+}
+.adaptiveCalendar .monthHead button {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  padding: 0;
+  background: #f2f6fb;
+  color: #2c5681;
+  font-size: 25px;
+  line-height: 1;
+}
+.adaptiveCalendar .monthHead button:hover { background: #e1eefa; }
+.adaptiveCalendar .calendarMobileMode, .adaptiveCalendar .calendarMobileAgenda { display: none; }
+.adaptiveCalendar .calendarMonthSurface { min-width: 0; width: 100%; }
+.adaptiveCalendar .weekdays { height: 31px; color: #52677b; font-size: 11px; font-weight: 760; background: #f7f9fd; }
+.adaptiveCalendar .monthGrid {
+  display: grid;
+  grid-template-columns: repeat(7,minmax(0,1fr));
+  grid-auto-rows: auto;
+  align-items: start;
+  width: 100%;
+  min-width: 0;
+  border-left: 1px solid #e2e8f0;
+}
+.adaptiveCalendar .calendarPane .dayCell {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 127px;
+  min-height: 127px;
+  max-height: 127px;
+  min-width: 0;
+  gap: 5px;
+  padding: 7px 5px;
+  overflow: hidden;
+  border-right: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #fff;
+}
+.adaptiveCalendar .calendarPane .dayCell.hasCalendarEvent {
+  background: linear-gradient(180deg, rgba(109,40,217,.045), rgba(109,40,217,.01)), #fff;
+}
+.adaptiveCalendar .calendarPane .dayNumber {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  min-width: 26px;
+  width: auto;
+  height: 26px;
+  margin: 0;
+  padding: 1px 5px;
+  gap: 3px;
+  border-radius: 7px;
+  color: #38516a;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+.adaptiveCalendar .calendarPane .dayNumber.today {
+  color: #fff;
+  background: #235f9b;
+}
+.adaptiveCalendar .calendarPane .dayNumber.today .dayCreateIcon { color: #fff; }
+.adaptiveCalendar .calendarPane .eventStack {
+  position: static;
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: max-content;
+  align-content: start;
+  justify-items: stretch;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  max-height: none;
+  gap: 4px;
+  overflow: hidden;
+}
+.adaptiveCalendar .calendarPane .calendarEvent {
+  display: flex;
+  flex: 0 0 auto;
+  align-self: start;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 25px;
+  min-height: 25px;
+  max-height: 25px;
+  gap: 5px;
+  padding: 3px 5px;
+  border: 1px solid #d9e5f2;
+  border-left-width: 3px;
+  border-radius: 6px;
+  color: #334861;
+  background: #f7fbff;
+  box-shadow: none;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem {
+  display: flex;
+  align-items: center;
+  grid-template-columns: none;
+  border-color: #d9c5fa !important;
+  border-left-color: #7c3aed !important;
+  background: #f5edff !important;
+}
+.adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem::before {
+  content: "";
+  display: inline-block;
+  flex: 0 0 6px;
+  align-self: center;
+  width: 6px;
+  height: 6px;
+  padding: 0;
+  border-radius: 999px;
+  background: #7c3aed;
+}
+.adaptiveCalendar .calendarPane .calendarEvent span {
+  display: inline-block;
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 9px;
+  line-height: 1;
+}
+.adaptiveCalendar .calendarPane .calendarEvent strong,
+.adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem strong {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #304359;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 16px;
+  overflow-wrap: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem strong { color: #5b21b6; }
+.adaptiveCalendar .calendarPane .moreEvents {
+  width: 100%;
+  min-height: 20px;
+  height: 20px;
+  border: 1px solid #cbdbea;
+  border-radius: 6px;
+  padding: 1px 5px;
+  background: #eef4fa;
+  color: #285b88;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: left;
+}
+.adaptiveCalendar .calendarPane .moreEvents-2,
+.adaptiveCalendar .calendarPane .moreEvents-1 { display: none; }
+
+/* At tablet widths show two entries per cell; on desktop show three. */
+@media (max-width: 1100px) {
+  .adaptiveCalendar .calendarPane .dayCell { height: 108px; min-height: 108px; max-height: 108px; }
+  .adaptiveCalendar .calendarPane .calendarEvent:nth-child(n+3) { display: none; }
+  .adaptiveCalendar .calendarPane .moreEvents-3 { display: none; }
+  .adaptiveCalendar .calendarPane .moreEvents-2 { display: block; }
+  .adaptiveCalendar .calendarPane .calendarEvent span { display: none; }
+  .adaptiveCalendar .calendarPane .calendarEvent strong { font-size: 9px; }
+}
+
+@media (max-width: 760px) {
+  .adaptiveCalendar { padding: 9px 9px calc(90px + env(safe-area-inset-bottom)); }
+  .adaptiveCalendar .calendarPane { border-radius: 13px; }
+  .adaptiveCalendar .calendarMobileMode {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 0 11px 12px;
+    padding: 4px;
+    border: 1px solid #dce7f2;
+    border-radius: 12px;
+    background: #f3f7fb;
+  }
+  .adaptiveCalendar .calendarMobileMode button {
+    min-height: 40px;
+    border: 0;
+    border-radius: 9px;
+    background: transparent;
+    color: #526982;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .adaptiveCalendar .calendarMobileMode button.active {
+    background: #fff;
+    color: #185e9f;
+    box-shadow: 0 1px 5px rgba(30,52,80,.09);
+  }
+  .adaptiveCalendar.showMobileAgenda .calendarMonthSurface { display: none; }
+  .adaptiveCalendar.showMobileAgenda .calendarMobileAgenda { display: grid; gap: 12px; padding: 0 11px 16px; }
+  .adaptiveCalendar.showMobileMonth .calendarMobileAgenda { display: none; }
+  .adaptiveCalendar .calendarPane .dayCell {
+    height: 81px;
+    min-height: 81px;
+    max-height: 81px;
+    padding: 4px 2px;
+    gap: 3px;
+  }
+  .adaptiveCalendar .calendarPane .dayNumber { height: 21px; min-width: 20px; font-size: 10px; padding: 0 2px; }
+  .adaptiveCalendar .calendarPane .dayCreateIcon { width: 9px; height: 9px; }
+  .adaptiveCalendar .calendarPane .eventStack { gap: 3px; }
+  .adaptiveCalendar .calendarPane .calendarEvent {
+    height: 20px;
+    min-height: 20px;
+    max-height: 20px;
+    padding: 1px 3px;
+    gap: 2px;
+  }
+  .adaptiveCalendar .calendarPane .calendarEvent:nth-child(n+2) { display: none; }
+  .adaptiveCalendar .calendarPane .moreEvents-2 { display: none; }
+  .adaptiveCalendar .calendarPane .moreEvents-1 { display: block; }
+  .adaptiveCalendar .calendarPane .calendarEvent strong,
+  .adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem strong { font-size: 8px; line-height: 16px; }
+  .adaptiveCalendar .calendarPane .calendarEvent.calendarEventItem::before { width: 4px; height: 4px; flex-basis: 4px; }
+  .adaptiveCalendar .calendarPane .moreEvents { height: 19px; min-height: 19px; line-height: 17px; font-size: 9px; }
+  .adaptiveCalendar .calendarPane .weekdays { height: 28px; font-size: 10px; }
+  .adaptiveCalendar .calendarAgendaDay { overflow: hidden; border: 1px solid #dfe8f1; border-radius: 13px; background: #fff; }
+  .adaptiveCalendar .calendarAgendaDayHead {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    min-height: 44px; padding: 9px 11px;
+    border-bottom: 1px solid #e9eff6; background: #f7faff;
+  }
+  .adaptiveCalendar .calendarAgendaDayHead time { flex: 1 1 auto; color: #234c76; font-size: 13px; font-weight: 850; text-transform: capitalize; }
+  .adaptiveCalendar .calendarAgendaDayHead span { color: #6e8195; font-size: 11px; }
+  .adaptiveCalendar .calendarAgendaDayHead > button { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid #cfe0ef; border-radius: 9px; background: #fff; color: #2767a2; }
+  .adaptiveCalendar .calendarAgendaItems, .adaptiveCalendar .calendarDayDialogItems { display: grid; gap: 7px; padding: 9px; }
+  .adaptiveCalendar .calendarAgendaItem {
+    display: grid;
+    grid-template-columns: 48px minmax(0,1fr) auto;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 9px;
+    border: 1px solid #deebf7;
+    border-left: 3px solid #2b79bc;
+    border-radius: 10px;
+    color: #30435b;
+    background: #fff;
+    text-align: left;
+    cursor: pointer;
+  }
+  .adaptiveCalendar .calendarAgendaItem.isEvent { border-left-color: #7c3aed; background: #faf6ff; }
+  .adaptiveCalendar .calendarAgendaItem > span:first-child { color: #526c88; font-size: 11px; font-weight: 750; }
+  .adaptiveCalendar .calendarAgendaItem strong { min-width: 0; font-size: 12px; font-weight: 780; line-height: 1.3; overflow-wrap: anywhere; }
+  .adaptiveCalendar .calendarAgendaKind { justify-self: end; color: #697e95; font-size: 10px; }
+  .adaptiveCalendar .calendarAgendaEmpty { padding: 38px 12px; color: #697e95; text-align: center; font-size: 13px; }
+}
+
+.adaptiveCalendar .calendarDayDialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1250;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(15,30,48,.5);
+}
+.adaptiveCalendar .calendarDayDialog {
+  display: grid;
+  grid-template-rows: auto minmax(0,1fr);
+  width: min(480px,100%);
+  max-height: min(75dvh,650px);
+  overflow: hidden;
+  border: 1px solid #d7e4ef;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 26px 70px rgba(13,31,55,.24);
+}
+.adaptiveCalendar .calendarDayDialog > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  padding: 17px;
+  border-bottom: 1px solid #e6edf5;
+}
+.adaptiveCalendar .calendarDayDialog > header span { color: #61809c; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.adaptiveCalendar .calendarDayDialog > header h3 { margin: 4px 0 0; color: #1c3c5c; font-size: 18px; text-transform: capitalize; }
+.adaptiveCalendar .calendarDayDialog > header button {
+  display: grid; flex: 0 0 auto; place-items: center;
+  width: 37px; height: 37px; border: 1px solid #dce6f0;
+  border-radius: 10px; background: #f7faff; color: #3d5d79; cursor: pointer;
+}
+.adaptiveCalendar .calendarDayDialogItems { display: grid; align-content: start; gap: 8px; padding: 14px; overflow-y: auto; }
+.adaptiveCalendar .calendarDayDialog .calendarAgendaItem {
+  display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 9px;
+  width: 100%; min-height: 46px; padding: 10px; border: 1px solid #dce7f2;
+  border-left: 3px solid #2a72b1; border-radius: 10px; background: #fff; color: #284562; text-align: left; cursor: pointer;
+}
+.adaptiveCalendar .calendarDayDialog .calendarAgendaItem.isEvent { border-left-color: #7c3aed; background: #faf7ff; }
+.adaptiveCalendar .calendarDayDialog .calendarAgendaItem strong { font-size: 12px; overflow-wrap: anywhere; }
+.adaptiveCalendar .calendarDayDialog .calendarAgendaItem span { color: #536e88; font-size: 11px; }
+.adaptiveCalendar .calendarDayDialog .calendarAgendaKind { font-size: 10px; }
+.calendarScrollToTop {
+  right: max(14px, env(safe-area-inset-right)) !important;
+  bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: 0;
+}
+.calendarScrollToTop span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+@media (max-width: 410px) {
+  .adaptiveCalendar .calendarPane .dayCell { height: 76px; min-height: 76px; max-height: 76px; }
+  .adaptiveCalendar .calendarAgendaItem { grid-template-columns: 44px minmax(0,1fr); }
+  .adaptiveCalendar .calendarAgendaKind { grid-column: 2; justify-self: start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adaptiveCalendar *, .adaptiveCalendar *::before, .adaptiveCalendar *::after { transition: none !important; animation: none !important; }
+}
+@media (forced-colors: active) {
+  .adaptiveCalendar .calendarEvent, .adaptiveCalendar .calendarAgendaItem { border: 1px solid CanvasText; }
+  .adaptiveCalendar .calendarMobileMode button.active { outline: 2px solid Highlight; }
+}

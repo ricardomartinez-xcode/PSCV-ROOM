@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { calculatePermanencia, type TimeWindow } from "@/lib/permanencia-math";
+import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
 import { suggestedPermanenceSchedule, type BreakMode } from "@/lib/permanencia-config";
 import "./attendance-panel.css";
 
@@ -60,11 +60,10 @@ function normalizeName(value: string) {
 
 function sessionTime(session: Session, snapshot: Snapshot) {
   const start = Date.parse(session.scheduled_start_at);
-  const scheduledEnd = Date.parse(session.scheduled_end_at);
-  const current = Date.parse(snapshot.serverNow);
   const end = session.status === "open"
-    ? Math.min(scheduledEnd, current)
+    ? Date.parse(session.scheduled_end_at)
     : Date.parse(session.actual_end_at ?? session.scheduled_end_at);
+  if (session.status === "open" && Date.parse(snapshot.serverNow) <= start) return null;
   return end > start ? new Date(end).toISOString() : null;
 }
 
@@ -81,10 +80,11 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
   const officialBreaks: TimeWindow[] = snapshot.breaks
     .filter((b) => b.session_id === session.id)
     .map((b) => ({ startAt: b.start_at, endAt: b.end_at }));
-  return calculatePermanencia({
+  return calculateSaldoPermanencia({
     classStartAt: session.scheduled_start_at,
     classEndAt: end, presence, officialBreaks,
     now: snapshot.serverNow,
+    closed: session.status === "closed",
   });
 }
 
@@ -175,7 +175,7 @@ export function AttendancePanel() {
       let required = 0; let attended = 0; let absent = 0; let exits = 0; let markedCount = 0;
       for (const session of snapshot.sessions) {
         const stats = calculateForStudent(snapshot, session, student.id);
-        if (stats) { required += stats.requiredMinutes; attended += stats.presentMinutes; absent += stats.absentMinutes; exits += stats.exitCount; }
+        if (stats) { required += stats.requiredMinutes; attended += stats.remainingMinutes; absent += stats.absentMinutes; exits += stats.exitCount; }
         if (snapshot.attendance.some((a) => a.session_id === session.id && a.profile_id === student.id)) markedCount++;
       }
       return { student, required, attended, absent, exits, markedCount,
@@ -184,7 +184,7 @@ export function AttendancePanel() {
   }, [snapshot]);
 
   function exportCsv() {
-    const header = ["Alumno", "Número de control", "Fecha", "Sesiones marcadas", "Salidas", "Minutos ausentes", "Minutos presentes", "Minutos exigibles", "Permanencia %"];
+    const header = ["Alumno", "Número de control", "Fecha", "Sesiones marcadas", "Salidas", "Minutos ausentes", "Saldo de minutos (provisional si sesión abierta)", "Minutos exigibles", "Permanencia máxima/final %"];
     const quote = (value: string | number) => '"' + String(value).replaceAll('"', '""') + '"';
     const lines = [header.map(quote).join(","), ...dailyStats.map((s) => [
       s.student.full_name, s.student.control_number ?? "", date, s.markedCount,
@@ -202,7 +202,7 @@ export function AttendancePanel() {
   return (
     <div className="attendancePage">
       <header className="attendanceHeading">
-        <div><h2>Asistencia</h2><p>Porcentaje calculado restando las ausencias del tiempo exigible, sin contar descansos oficiales.</p></div>
+        <div><h2>Asistencia</h2><p>El saldo comienza con todos los minutos exigibles y solo disminuye al registrar ausencias, retardos o salidas. No se acumula desde cero.</p></div>
         <label>Fecha <input type="date" value={date} onChange={(e) => { if (e.target.value) setDate(e.target.value); }} /></label>
       </header>
       <p className="attendanceDate">{dayLabel(date)}</p>
@@ -318,11 +318,12 @@ export function AttendancePanel() {
               <div className="attendanceSectionTitle">
                 <h3>Pase de lista y permanencia</h3>
                 <span>{marked} marcados · {present} presentes o con retardo</span>
+                <button type="button" disabled={busy} onClick={() => void refresh(date).catch((cause) => setError(cause instanceof Error ? cause.message : "Error al actualizar."))}>Actualizar saldos</button>
               </div>
-              <p className="attendanceHint">Cada salida abre un periodo de ausencia y cada regreso lo cierra. El retardo también resta los minutos anteriores a la primera entrada. Los descansos oficiales no penalizan; al finalizar la clase se descuenta cualquier ausencia pendiente. «Presente» y «Retardo» registran la primera entrada automáticamente.</p>
+              <p className="attendanceHint">El saldo inicia con la duración exigible completa. Cada salida descuenta el tiempo transcurrido fuera del salón y «Registrar regreso» detiene ese descuento. Los retardos también descuentan minutos y los descansos oficiales no penalizan. «Presente» y «Retardo» registran la primera entrada automáticamente.</p>
               <div className="attendanceTableScroll">
                 <table className="attendanceTable">
-                  <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>Minutos presentes</th><th>Permanencia</th></tr></thead>
+                  <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>{selected.status === "open" ? "Saldo de minutos" : "Minutos presentes"}</th><th>{selected.status === "open" ? "Máximo posible" : "Permanencia"}</th></tr></thead>
                   <tbody>{studentStats.map((row) => (
                     <tr key={row.id}>
                       <td><strong>{row.full_name}</strong><small>{row.control_number ?? "Sin número de control"}</small></td>
@@ -343,24 +344,24 @@ export function AttendancePanel() {
                       </button></td>
                       <td>{row.stats ? row.stats.exitCount : "—"}</td>
                       <td>{row.stats ? row.stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
-                      <td>{row.stats ? row.stats.presentMinutes.toFixed(1) + " min" : "—"}</td>
+                      <td>{row.stats ? row.stats.remainingMinutes.toFixed(1) + " min" : "—"}</td>
                       <td><strong>{percentLabel(row.stats?.percentage ?? null)}</strong></td>
                     </tr>
                   ))}</tbody>
                 </table>
               </div>
-              {selected.status === "open" && <p className="attendanceHint">Cálculo provisional hasta finalizar la sesión. Los minutos se recalculan al registrar un evento o volver a consultar, sin temporizador por alumno.</p>}
+              {selected.status === "open" && <p className="attendanceHint">Mientras la sesión está abierta, el saldo representa los minutos y porcentaje máximos que aún se pueden alcanzar; no acredita tiempo futuro como ya asistido. Pulsa «Actualizar saldos» para reflejar una salida todavía en curso. Al finalizar la clase se obtiene la permanencia real.</p>}
             </section>
           )}
 
           <section className="attendanceSection">
             <div className="attendanceSectionTitle">
-              <div><h3>Resumen diario</h3><p>Tiempo exigible menos ausencias efectivas, ponderado por los minutos de cada clase.</p></div>
+              <div><h3>Resumen diario</h3><p>Saldo disponible = minutos exigibles de las clases registradas menos ausencias transcurridas. Es provisional mientras existan clases abiertas.</p></div>
               <button type="button" onClick={exportCsv} disabled={snapshot.sessions.length === 0}>Exportar CSV</button>
             </div>
             <div className="attendanceTableScroll">
               <table className="attendanceTable">
-                <thead><tr><th>Alumno</th><th>Sesiones con pase de lista</th><th>Salidas</th><th>Minutos ausentes</th><th>Minutos presentes</th><th>Minutos exigibles</th><th>Permanencia diaria</th></tr></thead>
+                <thead><tr><th>Alumno</th><th>Sesiones con pase de lista</th><th>Salidas</th><th>Minutos ausentes</th><th>Saldo de minutos</th><th>Minutos exigibles</th><th>Máximo diario / Final</th></tr></thead>
                 <tbody>{dailyStats.map((row) => (
                   <tr key={row.student.id}>
                     <td>{row.student.full_name}</td>
@@ -373,7 +374,7 @@ export function AttendancePanel() {
                 ))}</tbody>
               </table>
             </div>
-            <p className="attendanceHint">«Sin marcar» significa ausencia de registro, no falta confirmada. El pase de lista de esta sección es independiente del control oficial institucional.</p>
+            <p className="attendanceHint">«Sin marcar» significa ausencia de registro, no falta confirmada. El saldo de una clase abierta representa permanencia máxima posible, no minutos ya cursados. El pase de lista es independiente del control oficial institucional.</p>
           </section>
         </>
       )}

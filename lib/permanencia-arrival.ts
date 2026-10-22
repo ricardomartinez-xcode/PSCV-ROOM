@@ -13,8 +13,9 @@ export function resolveLateArrival(args: {
   firstPresenceEndAt?: string | null;
 }): string {
   const { sessionDate, arrivalLocal, scheduledStartAt, scheduledEndAt, recordedAt, firstPresenceEndAt } = args;
+  const day = Date.parse(sessionDate + "T12:00:00Z");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(sessionDate) ||
-      new Date(sessionDate + "T12:00:00Z").toISOString().slice(0, 10) !== sessionDate) {
+      !Number.isFinite(day) || new Date(day).toISOString().slice(0, 10) !== sessionDate) {
     throw new Error("La fecha de la sesión no es válida.");
   }
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(arrivalLocal)) {

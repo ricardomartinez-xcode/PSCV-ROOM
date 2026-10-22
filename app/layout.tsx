@@ -3,6 +3,7 @@ import { Providers } from "@/components/providers";
 import { PushNotificationsBootstrap } from "@/components/push-notifications-bootstrap";
 import "./pscv.css";
 import "./relnets-refresh.css";
+import "./materials-explorer.css";
 import "./schedule-grid.css";
 
 export const metadata: Metadata = {

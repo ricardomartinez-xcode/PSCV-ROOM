@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, X } from "lucide-react";
+import { ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, UploadCloud, X } from "lucide-react";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
 import { materialDisplayName } from "@/lib/material-display-name";
@@ -47,6 +47,7 @@ type LibraryResponse = {
 type MaterialLibraryProps = {
   previewSize: PreviewSize;
   globalQuery?: string;
+  onManage?: () => void;
 };
 
 type SectionGroup = {
@@ -64,7 +65,7 @@ const ALL_SECTIONS = "all";
 const SECTION_PREVIEW_LIMIT = 4;
 const hasD1Config = hasD1BrowserConfig();
 
-export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibraryProps) {
+export function MaterialLibrary({ previewSize, globalQuery = "", onManage }: MaterialLibraryProps) {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [query, setQuery] = useState(globalQuery);
   const [categoryId, setCategoryId] = useState(ALL_SECTIONS);
@@ -249,9 +250,16 @@ export function MaterialLibrary({ previewSize, globalQuery = "" }: MaterialLibra
               ? "Encuentra los documentos organizados por áreas y consulta sus detalles."
               : "Explora materiales de clase, lecturas e instrumentos psicológicos. Busca o navega por colecciones."}</p>
         </div>
-        <div className="libraryStats" aria-label={`${filteredMaterials.length} recursos visibles`}>
-          <strong>{loading ? "—" : filteredMaterials.length}</strong>
-          <span>recursos</span>
+        <div className="libraryHeroSide">
+          {onManage ? (
+            <button className="libraryManageAction" type="button" onClick={onManage}>
+              <UploadCloud size={17} aria-hidden="true" /> Subir y gestionar archivos
+            </button>
+          ) : null}
+          <div className="libraryStats" aria-label={`${filteredMaterials.length} recursos visibles`}>
+            <strong>{loading ? "—" : filteredMaterials.length}</strong>
+            <span>recursos</span>
+          </div>
         </div>
       </section>
 

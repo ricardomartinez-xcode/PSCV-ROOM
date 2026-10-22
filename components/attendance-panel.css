@@ -1,0 +1,49 @@
+.attendancePage{display:grid;gap:1.1rem;max-width:1220px;margin:0 auto;padding:1rem 0 6rem;color:var(--text,#17283b)}
+.attendanceHeading,.attendanceSectionTitle{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.attendanceHeading h2{font-size:clamp(1.35rem,2vw,1.9rem);margin:0 0 .25rem}
+.attendanceHeading p,.attendanceSectionTitle p,.attendanceBreakControls p{margin:.25rem 0;color:var(--muted,#67788a);font-size:.86rem;line-height:1.5}
+.attendanceDate{margin:0;font-weight:650;text-transform:capitalize}
+.attendanceHeading input,.attendanceForm input,.attendanceForm select,.attendanceBreakControls select{min-height:40px;border:1px solid #bccbd8;border-radius:9px;padding:.45rem .55rem;background:var(--card,#fff);color:inherit;max-width:100%;font:inherit}
+.attendanceHeading label,.attendanceForm label,.attendanceBreakControls label{display:grid;gap:.35rem;font-size:.8rem;font-weight:650}
+.attendanceError{border:1px solid #ea9d9d;background:#fff1f1;color:#982828;padding:.8rem;border-radius:10px}
+.attendanceSummary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem}
+.attendanceSummary div,.attendanceSection{border:1px solid var(--border,#d9e1e9);border-radius:15px;background:var(--card,#fff)}
+.attendanceSummary div{padding:1rem;display:grid;gap:.25rem}
+.attendanceSummary strong{font-size:1.6rem}
+.attendanceSummary span{font-size:.77rem;color:var(--muted,#67788a)}
+.attendanceSection{padding:1rem;display:grid;gap:1rem}
+.attendanceSection h3{font-size:1.07rem;margin:0;font-weight:750}
+.attendanceSectionTitle p{max-width:570px}
+.attendanceSessionTabs,.attendanceSuggestions{display:flex;gap:.6rem;flex-wrap:wrap}
+.attendanceSessionTabs button,.attendanceSuggestions button{flex:1 1 190px;text-align:left;display:grid;gap:.35rem;min-width:140px}
+.attendanceSessionTabs button,.attendanceSuggestions button,.attendanceForm button,.attendanceSectionTitle button,.attendanceBreakControls button,.attendanceStatusButtons button,.attendanceIn,.attendanceOut{border-radius:9px;border:1px solid #c7d1dd;background:var(--card,#fff);padding:.55rem .75rem;color:inherit;cursor:pointer;font:inherit;font-size:.83rem}
+.attendanceSessionTabs .active,.attendanceStatusButtons .isSelected{border-color:#047f84;background:#e6f7f6;color:#046769;font-weight:750}
+.attendanceSessionTabs span,.attendanceSuggestions small{color:var(--muted,#67788a);font-size:.78rem;font-weight:400}
+.attendanceForm{display:flex;align-items:end;gap:.65rem;flex-wrap:wrap}
+.attendanceForm label{flex:1 1 130px}
+.attendanceForm label:first-of-type{flex:2 1 250px}
+.attendanceForm button{min-height:40px}
+.attendancePrimary{background:#086b78!important;color:white!important;border-color:#086b78!important}
+.attendanceSecondary{background:#e4f6f8!important;color:#086b78!important;border-color:#086b78!important}
+.attendanceDanger{background:#fff6f5!important;color:#a42a23!important;border-color:#e9bcb8!important}
+.attendanceBreakControls{background:var(--surface-secondary,#f2f6f9);padding:1rem;border-radius:12px;display:flex;align-items:center;gap:.75rem;flex-wrap:wrap}
+.attendanceBreakControls>div:first-child{flex:1 1 270px}
+.attendanceBreakControls ul{width:100%;margin:0;padding-left:1.4rem;font-size:.8rem}
+.attendanceBreakControls .attendanceForm{flex:1 1 100%;padding:.7rem;border-top:1px solid #cad8df}
+.attendanceBreakControls .attendanceForm>span{width:100%;font-size:.82rem;font-weight:650}
+.attendanceTableScroll{overflow-x:auto;max-width:100%;border:1px solid var(--border,#d9e1e9);border-radius:11px}
+.attendanceTable{width:100%;border-collapse:collapse;font-size:.83rem;white-space:nowrap}
+.attendanceTable td,.attendanceTable th{padding:.77rem .7rem;border-bottom:1px solid var(--border,#e0e8ee);text-align:left;vertical-align:middle}
+.attendanceTable th{font-size:.76rem;background:var(--surface-secondary,#f2f6f9);color:var(--muted,#4e6579)}
+.attendanceTable tbody tr:last-child td{border-bottom:0}
+.attendanceTable td:first-child{min-width:200px;white-space:normal}
+.attendanceTable td small{display:block;color:var(--muted,#67788a);font-size:.72rem;margin-top:.18rem}
+.attendanceStatusButtons{display:flex;flex-wrap:wrap;gap:.3rem;min-width:295px}
+.attendanceStatusButtons button{padding:.4rem .52rem;font-size:.71rem}
+.attendanceIn{background:#e4f7ea!important;border-color:#99d5ad!important;color:#176936!important;min-width:120px}
+.attendanceOut{background:#fff1e6!important;border-color:#f7cf9f!important;color:#924f04!important;min-width:120px}
+.attendanceHint{margin:0;color:var(--muted,#67788a);font-size:.8rem;line-height:1.5}
+.attendancePage button:disabled{opacity:.55;cursor:not-allowed}
+.attendancePage button:focus-visible,.attendancePage input:focus-visible,.attendancePage select:focus-visible{outline:3px solid #55abc2;outline-offset:2px}
+@media(max-width:650px){.attendanceSummary{grid-template-columns:repeat(3,minmax(0,1fr))}.attendanceSummary div{padding:.75rem .5rem}.attendanceSummary strong{font-size:1.25rem}.attendanceSummary span{font-size:.67rem}.attendanceSection{padding:.8rem}.attendanceStatusButtons{min-width:270px}.attendanceHeading{align-items:stretch}.attendanceHeading label{width:100%}.attendanceHeading input{width:100%}}
+@media(prefers-color-scheme:dark){.attendanceStatusButtons .isSelected{background:#113f42;color:#9ce5e3}.attendanceIn{background:#173a27!important;color:#9fe3b5!important}.attendanceOut{background:#523716!important;color:#ffdfac!important}.attendanceSecondary{background:#143c48!important;color:#a0e6eb!important}.attendanceDanger{background:#462422!important;color:#ffb3ae!important}.attendanceError{background:#3c2020;color:#ffbaba}}

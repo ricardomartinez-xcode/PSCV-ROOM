@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculatePermanencia, type TimeWindow } from "../lib/permanencia-math.ts";
+import { calculatePermanencia, calculateSaldoPermanencia, type TimeWindow } from "../lib/permanencia-math.ts";
 
 const d = (time: string) => "2026-10-21T" + time + ":00-06:00";
 const span = (start: string, end: string | null): TimeWindow => ({
@@ -181,4 +181,105 @@ test("intervalos solapados no duplican salidas ni ausencia", () => {
   assert.equal(result.absentMinutes, 30);
   assert.equal(result.exitCount, 1);
   assert.equal(result.percentage, 83.3);
+});
+
+
+test("saldo decreciente inicia en duración total, no se acumula desde cero", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:00", null)], officialBreaks: [],
+    now: d("18:30"), closed: false,
+  });
+  assert.equal(saldo.requiredMinutes, 180);
+  assert.equal(saldo.elapsedRequiredMinutes, 30);
+  assert.equal(saldo.remainingMinutes, 180);
+  assert.equal(saldo.absentMinutes, 0);
+  assert.equal(saldo.percentage, 100);
+  assert.equal(saldo.provisional, true);
+});
+
+test("salida activa reduce saldo solo por los minutos transcurridos", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:00", "18:30")],
+    officialBreaks: [], now: d("18:40"), closed: false,
+  });
+  assert.equal(saldo.absentMinutes, 10);
+  assert.equal(saldo.remainingMinutes, 170);
+  assert.equal(saldo.percentage, 94.4);
+  assert.equal(saldo.exitCount, 1);
+});
+
+test("registro de regreso detiene el descuento, sin acumular saldo adicional", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base,
+    presence: [span("18:00", "18:30"), span("18:45", null)],
+    officialBreaks: [], now: d("19:00"), closed: false,
+  });
+  assert.equal(saldo.absentMinutes, 15);
+  assert.equal(saldo.remainingMinutes, 165);
+  assert.equal(saldo.percentage, 91.7);
+  assert.equal(saldo.exitCount, 1);
+});
+
+test("retardo reduce el saldo desde inicio de clase sin contarse como salida", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:20", null)],
+    officialBreaks: [], now: d("18:30"), closed: false,
+  });
+  assert.equal(saldo.absentMinutes, 20);
+  assert.equal(saldo.remainingMinutes, 160);
+  assert.equal(saldo.exitCount, 0);
+  assert.equal(saldo.percentage, 88.9);
+});
+
+test("descanso futuro fijo ya reduce el tiempo exigible inicial", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:00", null)],
+    officialBreaks: [span("19:30", "19:45")], now: d("18:30"), closed: false,
+  });
+  assert.equal(saldo.requiredMinutes, 165);
+  assert.equal(saldo.remainingMinutes, 165);
+  assert.equal(saldo.percentage, 100);
+});
+
+test("salida durante descanso variable descuenta únicamente minutos no autorizados", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base,
+    presence: [span("18:00", "19:20"), span("19:50", null)],
+    officialBreaks: [span("19:30", "19:45")],
+    now: d("20:00"), closed: false,
+  });
+  assert.equal(saldo.absentMinutes, 15);
+  assert.equal(saldo.requiredMinutes, 165);
+  assert.equal(saldo.remainingMinutes, 150);
+  assert.equal(saldo.percentage, 90.9);
+});
+
+test("cierre de clase convierte saldo en permanencia real y descuenta salida sin regreso", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:00", "20:30")],
+    officialBreaks: [], now: d("21:30"), closed: true,
+  });
+  assert.equal(saldo.remainingMinutes, 150);
+  assert.equal(saldo.absentMinutes, 30);
+  assert.equal(saldo.percentage, 83.3);
+  assert.equal(saldo.provisional, false);
+  assert.equal(saldo.exitCount, 1);
+});
+
+test("cierre automático exacto a las 21:00 no crea salida de aula", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [span("18:00", "21:00")],
+    officialBreaks: [], now: d("21:00"), closed: true,
+  });
+  assert.equal(saldo.remainingMinutes, 180);
+  assert.equal(saldo.exitCount, 0);
+});
+
+test("antes de comenzar la clase no se comunica un porcentaje definitivo", () => {
+  const saldo = calculateSaldoPermanencia({
+    ...base, presence: [], officialBreaks: [],
+    now: d("17:50"), closed: false,
+  });
+  assert.equal(saldo.remainingMinutes, 180);
+  assert.equal(saldo.percentage, null);
 });

@@ -85,3 +85,100 @@ test("intervalos fuera de la clase se recortan a sus límites", () => {
   assert.equal(result.officialBreakMinutes, 15);
   assert.equal(result.percentage, 100);
 });
+
+test("dos salidas descuentan 30 minutos de los 165 exigibles", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:00", "19:00"), span("19:20", "20:20"), span("20:30", "21:00")],
+    officialBreaks: [span("19:30", "19:45")],
+  });
+  assert.equal(result.requiredMinutes, 165);
+  assert.equal(result.absentMinutes, 30);
+  assert.equal(result.presentMinutes, 135);
+  assert.equal(result.exitCount, 2);
+  assert.equal(result.percentage, 81.8);
+});
+
+test("retardo se descuenta desde el inicio sin contarse como salida", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:20", "21:00")],
+    officialBreaks: [span("19:30", "19:45")],
+  });
+  assert.equal(result.absentMinutes, 20);
+  assert.equal(result.exitCount, 0);
+  assert.equal(result.percentage, 87.9);
+});
+
+test("salir únicamente durante el descanso no penaliza permanencia", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:00", "19:30"), span("19:45", "21:00")],
+    officialBreaks: [span("19:30", "19:45")],
+  });
+  assert.equal(result.absentMinutes, 0);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 100);
+});
+
+test("ausente explícito sin intervalos conserva cero por ciento de permanencia", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [],
+    officialBreaks: [span("19:30", "19:45")],
+  });
+  assert.equal(result.absentMinutes, 165);
+  assert.equal(result.presentMinutes, 0);
+  assert.equal(result.exitCount, 0);
+  assert.equal(result.percentage, 0);
+});
+
+test("salida sin regreso descuenta el resto de una sesión cerrada", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:00", "20:30")],
+    officialBreaks: [span("19:30", "19:45")],
+  });
+  assert.equal(result.absentMinutes, 30);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 81.8);
+});
+
+test("sesión abierta resta ausencia únicamente hasta el momento de consulta", () => {
+  const result = calculatePermanencia({
+    classStartAt: d("18:00"),
+    classEndAt: d("19:00"),
+    presence: [span("18:00", "18:30")],
+    officialBreaks: [],
+    now: d("19:00"),
+  });
+  assert.equal(result.requiredMinutes, 60);
+  assert.equal(result.absentMinutes, 30);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 50);
+});
+
+test("descanso superpuesto a ausencia no se descuenta dos veces", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:00", "19:25"), span("20:00", "21:00")],
+    officialBreaks: [span("19:30", "19:45"), span("19:40", "19:55")],
+  });
+  assert.equal(result.officialBreakMinutes, 25);
+  assert.equal(result.absentMinutes, 10);
+  assert.equal(result.requiredMinutes, 155);
+  assert.equal(result.presentMinutes, 145);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 93.5);
+});
+
+test("intervalos solapados no duplican salidas ni ausencia", () => {
+  const result = calculatePermanencia({
+    ...base,
+    presence: [span("18:00", "19:00"), span("18:30", "19:15"), span("19:45", "21:00")],
+    officialBreaks: [],
+  });
+  assert.equal(result.absentMinutes, 30);
+  assert.equal(result.exitCount, 1);
+  assert.equal(result.percentage, 83.3);
+});

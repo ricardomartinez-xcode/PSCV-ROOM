@@ -34,7 +34,7 @@ export function resolveLateArrival(args: {
   if (arrival > now) {
     throw new Error("La hora de llegada no puede estar en el futuro.");
   }
-  if (firstPresenceEndAt && arrival > Date.parse(firstPresenceEndAt)) {
+  if (firstPresenceEndAt && arrival >= Date.parse(firstPresenceEndAt)) {
     throw new Error("La llegada no puede ser posterior a una salida ya registrada.");
   }
   return new Date(arrival).toISOString();

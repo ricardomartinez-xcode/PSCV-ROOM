@@ -111,3 +111,84 @@ export function calculatePermanencia(args: {
     percentage: required === 0 ? null : Math.round(present / required * 1000) / 10,
   };
 }
+
+
+/**
+ * Saldo decreciente para la interfaz: empieza con TODOS los minutos exigibles
+ * programados y resta solo las ausencias transcurridas hasta el reloj de corte.
+ *
+ * En una sesión abierta, remainingMinutes y percentage representan el máximo
+ * alcanzable, no minutos ya cursados ni asistencia final.
+ * En una sesión cerrada, el saldo equivale a la permanencia real.
+ */
+export type PermanenciaSaldoResult = {
+  requiredMinutes: number;
+  absentMinutes: number;
+  remainingMinutes: number;
+  elapsedRequiredMinutes: number;
+  exitCount: number;
+  percentage: number | null;
+  provisional: boolean;
+};
+
+export function calculateSaldoPermanencia(args: {
+  classStartAt: string;
+  classEndAt: string;
+  presence: TimeWindow[];
+  officialBreaks: TimeWindow[];
+  now?: string;
+  closed: boolean;
+}): PermanenciaSaldoResult {
+  const start = parseTime(args.classStartAt);
+  const end = parseTime(args.classEndAt);
+  if (end <= start) throw new Error("La clase debe terminar después de comenzar.");
+
+  const asOf = args.now === undefined ? Date.now() : parseTime(args.now);
+  const full = calculatePermanencia({
+    classStartAt: args.classStartAt,
+    classEndAt: args.classEndAt,
+    presence: [],
+    officialBreaks: args.officialBreaks,
+    now: args.now,
+  });
+  const cutoff = args.closed ? end : Math.min(Math.max(start, asOf), end);
+  if (cutoff <= start) return {
+    requiredMinutes: full.requiredMinutes,
+    absentMinutes: 0,
+    remainingMinutes: full.requiredMinutes,
+    elapsedRequiredMinutes: 0,
+    exitCount: 0,
+    percentage: null,
+    provisional: !args.closed,
+  };
+
+  const elapsed = calculatePermanencia({
+    classStartAt: args.classStartAt,
+    classEndAt: new Date(cutoff).toISOString(),
+    presence: args.presence,
+    officialBreaks: args.officialBreaks,
+    now: args.now,
+  });
+
+  // Un evento de salida acaba un intervalo de presencia. Al cerrar la clase
+  // automáticamente, NO se cuenta ese cierre como una salida anticipada.
+  const exitTimes = new Set(
+    args.presence
+      .filter((window) => window.endAt !== null)
+      .map((window) => parseTime(window.endAt!))
+      .filter((exit) => exit >= start && exit < end && exit <= cutoff),
+  );
+  const remainingMinutes = Math.max(0, Math.round(
+    (full.requiredMinutes - elapsed.absentMinutes) * 10,
+  ) / 10);
+  return {
+    requiredMinutes: full.requiredMinutes,
+    absentMinutes: elapsed.absentMinutes,
+    remainingMinutes,
+    elapsedRequiredMinutes: elapsed.requiredMinutes,
+    exitCount: exitTimes.size,
+    percentage: full.requiredMinutes === 0 ? null
+      : Math.round(remainingMinutes / full.requiredMinutes * 1000) / 10,
+    provisional: !args.closed,
+  };
+}

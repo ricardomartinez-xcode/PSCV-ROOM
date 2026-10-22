@@ -48,6 +48,7 @@ const tableConfigs: Record<string, TableConfig> = {
       "email",
       "full_name",
       "role",
+      "profile_role",
       "active",
       "can_edit_tasks",
       "can_delete_tasks",
@@ -134,12 +135,12 @@ function bool(value: unknown) {
 }
 
 function can(profile: ServerProfile, field: keyof ServerProfile) {
-  return profile.role === "owner" || bool(profile[field]);
+  return profile.role === "owner" || profile.profile_role === "administrator" && profile.role === "admin" && bool(profile[field]);
 }
 
 function canReadHiddenMaterials(profile: ServerProfile) {
   return profile.role === "owner"
-    || (profile.role === "admin" && (can(profile, "can_manage_materials") || can(profile, "can_manage_r2")));
+    || (profile.profile_role === "administrator" && profile.role === "admin" && (can(profile, "can_manage_materials") || can(profile, "can_manage_r2")));
 }
 
 function ensureTable(table: string) {
@@ -448,7 +449,7 @@ function ensureSelectAllowed(table: string, query: DataQuery, profile: ServerPro
 
 function scopeSelectQuery(table: string, query: DataQuery, profile: ServerProfile): DataQuery {
   const filters = [...(query.filters ?? [])];
-  if (profile.role === "student" && table === "tasks") {
+  if (profile.profile_role !== "administrator" && profile.role !== "owner" && table === "tasks") {
     filters.push({ op: "eq", column: "visible_to_students", value: true });
   }
   if (!canReadHiddenMaterials(profile) && table === "materials") {

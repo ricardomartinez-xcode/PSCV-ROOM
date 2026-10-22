@@ -3,6 +3,7 @@ import { z } from "zod";
 import { errorResponse, HttpError, requireProfile, type ServerProfile } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
 import { defaultBreakMode, validateFixedBreaks } from "@/lib/permanencia-config";
+import { resolveLateArrival } from "@/lib/permanencia-arrival";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ const modeSchema = z.enum(["none", "variable", "fixed", "mixed"]);
 const commandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create_session"), courseId: idSchema, date: dateSchema, startLocal: clockSchema, endLocal: clockSchema }),
   z.object({ action: z.literal("save_pattern"), sessionId: idSchema }),
-  z.object({ action: z.literal("mark_attendance"), sessionId: idSchema, profileId: idSchema, status: statusSchema, note: z.string().trim().max(500).optional() }),
+  z.object({ action: z.literal("mark_attendance"), sessionId: idSchema, profileId: idSchema, status: statusSchema, arrivalLocal: clockSchema.optional(), note: z.string().trim().max(500).optional() }),
   z.object({ action: z.literal("toggle_presence"), sessionId: idSchema, profileId: idSchema }),
   z.object({ action: z.literal("start_break"), sessionId: idSchema }),
   z.object({ action: z.literal("end_break"), sessionId: idSchema }),
@@ -252,23 +253,79 @@ export async function POST(request: Request) {
       const before = await db.prepare(
         "SELECT status,note FROM permanence_attendance WHERE session_id = ? AND profile_id = ?"
       ).bind(session.id, cmd.profileId).first<{ status: string; note: string | null }>();
-      await db.prepare(
+
+      // La primera entrada es el dato de llegada; cambiar el estado a Retardo
+      // no debe fingir que el alumno llegó cuando el docente pasó lista.
+      const firstPresence = cmd.status === "late"
+        ? await db.prepare(
+            "SELECT id,start_at,end_at FROM permanence_presence WHERE session_id=? AND profile_id=? ORDER BY start_at,id LIMIT 1"
+          ).bind(session.id, cmd.profileId)
+            .first<{ id: string; start_at: string; end_at: string | null }>()
+        : null;
+
+      let actualArrival: string | null = null;
+      if (cmd.status === "late") {
+        if (!cmd.arrivalLocal) {
+          throw new HttpError(400, "Para registrar un retardo, introduce la hora real de llegada.");
+        }
+        try {
+          actualArrival = resolveLateArrival({
+            sessionDate: session.session_date,
+            arrivalLocal: cmd.arrivalLocal,
+            scheduledStartAt: session.scheduled_start_at,
+            scheduledEndAt: session.scheduled_end_at,
+            recordedAt: now,
+            firstPresenceEndAt: firstPresence?.end_at,
+          });
+        } catch (problem) {
+          throw new HttpError(400, problem instanceof Error ? problem.message : "Hora de llegada inválida.");
+        }
+      }
+
+      const changes = [db.prepare(
         "INSERT INTO permanence_attendance(session_id,profile_id,status,note,recorded_by,updated_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP) " +
         "ON CONFLICT(session_id,profile_id) DO UPDATE SET status=excluded.status,note=excluded.note,recorded_by=excluded.recorded_by,updated_at=CURRENT_TIMESTAMP"
-      ).bind(session.id, cmd.profileId, cmd.status, cmd.note ?? null, actor.id).run();
-      if (cmd.status === "present" || cmd.status === "late") {
-        const open = await db.prepare("SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? AND end_at IS NULL")
-          .bind(session.id, cmd.profileId).first();
-        if (!open) {
-          await db.prepare(
+      ).bind(session.id, cmd.profileId, cmd.status, cmd.note ?? null, actor.id)];
+
+      if (cmd.status === "late" && actualArrival) {
+        if (firstPresence) {
+          // Una corrección preserva cualquier salida/regreso posterior y su auditoría.
+          changes.push(db.prepare(
+            "UPDATE permanence_presence SET start_at=? WHERE id=?"
+          ).bind(actualArrival, firstPresence.id));
+        } else {
+          changes.push(db.prepare(
             "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
-          ).bind(crypto.randomUUID(), session.id, cmd.profileId, now, actor.id).run();
+          ).bind(crypto.randomUUID(), session.id, cmd.profileId, actualArrival, actor.id));
+        }
+      } else if (cmd.status === "present") {
+        const open = await db.prepare(
+          "SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? AND end_at IS NULL"
+        ).bind(session.id, cmd.profileId).first();
+        if (!open) {
+          changes.push(db.prepare(
+            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
+          ).bind(crypto.randomUUID(), session.id, cmd.profileId, now, actor.id));
         }
       } else {
-        await closePresence(db, session.id, cmd.profileId, now);
+        const open = await db.prepare(
+          "SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? AND end_at IS NULL"
+        ).bind(session.id, cmd.profileId).first<{ id: string }>();
+        if (open) {
+          changes.push(db.prepare(
+            "UPDATE permanence_presence SET end_at=? WHERE id=? AND end_at IS NULL"
+          ).bind(now, open.id));
+        }
       }
+
+      await db.batch(changes);
       await audit(db, actor.id, "attendance.mark", "permanence_session", session.id,
-        { profileId: cmd.profileId, before, after: { status: cmd.status, note: cmd.note ?? null }, at: now });
+        {
+          profileId: cmd.profileId,
+          before: { ...before, firstArrivalAt: firstPresence?.start_at ?? null },
+          after: { status: cmd.status, note: cmd.note ?? null, actualArrivalAt: actualArrival },
+          recordedAt: now,
+        });
       return json({ ok: true });
     }
 

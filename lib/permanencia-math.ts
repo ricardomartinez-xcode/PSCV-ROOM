@@ -1,6 +1,9 @@
 /**
- * Cálculo de permanencia efectiva. Todas las fechas son ISO-8601 con zona.
- * No se usa el pase de lista para inferir presencia continua.
+ * Permanencia por descuento de ausencias (ISO 8601 con zona horaria).
+ *
+ * Los eventos de entrada/salida originales siguen siendo la evidencia auditable.
+ * Se obtiene su complemento dentro de la sesión y se descuentan los descansos
+ * oficiales de la ausencia y del tiempo exigible, sin contabilizarlos dos veces.
  */
 export type TimeWindow = { startAt: string; endAt: string | null };
 
@@ -10,8 +13,9 @@ export type PermanenciaResult = {
   scheduledMinutes: number;
   officialBreakMinutes: number;
   requiredMinutes: number;
-  presentMinutes: number;
   absentMinutes: number;
+  presentMinutes: number;
+  exitCount: number;
   percentage: number | null;
 };
 
@@ -41,10 +45,10 @@ function normalize(windows: TimeWindow[], start: number, end: number, now: numbe
 }
 
 function total(windows: MillisWindow[]): number {
-  return windows.reduce((sum, w) => sum + w.end - w.start, 0);
+  return windows.reduce((sum, window) => sum + window.end - window.start, 0);
 }
 
-function intersectionMinutes(a: MillisWindow[], b: MillisWindow[]): number {
+function intersectionMilliseconds(a: MillisWindow[], b: MillisWindow[]): number {
   let i = 0;
   let j = 0;
   let milliseconds = 0;
@@ -56,6 +60,18 @@ function intersectionMinutes(a: MillisWindow[], b: MillisWindow[]): number {
     else j++;
   }
   return milliseconds;
+}
+
+/** Complemento de la presencia dentro de la clase, incluido retardo y salida final. */
+function absenceGaps(presence: MillisWindow[], start: number, end: number): MillisWindow[] {
+  const gaps: MillisWindow[] = [];
+  let cursor = start;
+  for (const interval of presence) {
+    if (interval.start > cursor) gaps.push({ start: cursor, end: interval.start });
+    cursor = Math.max(cursor, interval.end);
+  }
+  if (cursor < end) gaps.push({ start: cursor, end });
+  return gaps;
 }
 
 export function calculatePermanencia(args: {
@@ -71,17 +87,27 @@ export function calculatePermanencia(args: {
   const now = args.now === undefined ? Date.now() : parseTime(args.now);
   const breaks = normalize(args.officialBreaks, start, end, now);
   const presence = normalize(args.presence, start, end, now);
+
   const duration = end - start;
   const breakDuration = total(breaks);
   const required = duration - breakDuration;
-  const actual = Math.max(0, Math.min(required, total(presence) - intersectionMinutes(presence, breaks)));
-  const minute = (ms: number) => Math.round(ms / 60000 * 10) / 10;
+  const gaps = absenceGaps(presence, start, end);
+  const absent = Math.min(required, Math.max(0,
+    total(gaps) - intersectionMilliseconds(gaps, breaks),
+  ));
+  const present = required - absent;
+  const minutes = (ms: number) => Math.round(ms / 60000 * 10) / 10;
+
   return {
-    scheduledMinutes: minute(duration),
-    officialBreakMinutes: minute(breakDuration),
-    requiredMinutes: minute(required),
-    presentMinutes: minute(actual),
-    absentMinutes: minute(required - actual),
-    percentage: required === 0 ? null : Math.round(actual / required * 1000) / 10,
+    scheduledMinutes: minutes(duration),
+    officialBreakMinutes: minutes(breakDuration),
+    requiredMinutes: minutes(required),
+    absentMinutes: minutes(absent),
+    presentMinutes: minutes(present),
+    // La ausencia inicial por retardo NO es una salida registrada.
+    // El cierre automático de presencia exactamente al terminar la clase
+    // tampoco se interpreta como salida anticipada.
+    exitCount: gaps.filter((gap) => gap.start > start && gap.start < end).length,
+    percentage: required === 0 ? null : Math.round(present / required * 1000) / 10,
   };
 }

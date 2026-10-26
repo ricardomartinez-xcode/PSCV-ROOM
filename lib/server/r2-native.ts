@@ -76,6 +76,7 @@ export async function listNativeR2FolderPrefixes(prefix = "", limit = 50000) {
 
   if (root) folders.add(root);
   for (const object of objects) {
+    if (object.key.startsWith("__pscv_media__/")) continue;
     const parts = object.key.split("/").filter(Boolean);
     parts.pop();
     let current = "";

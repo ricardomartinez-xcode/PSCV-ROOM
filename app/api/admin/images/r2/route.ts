@@ -12,7 +12,8 @@ export async function POST(request: Request) {
     await requirePermission(request, category === "announcement" ? "notifications:manage" : "tasks:edit");
     const file = data.get("file");
     if (!(file instanceof File)) throw new HttpError(400, "Selecciona una imagen válida.");
-    const image = await saveTaskImage(file);
+    const stored = await saveTaskImage(file);
+    const image = { ...stored, url: new URL(stored.url, request.url).toString() };
     return NextResponse.json({ ok: true, image }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return errorResponse(error);

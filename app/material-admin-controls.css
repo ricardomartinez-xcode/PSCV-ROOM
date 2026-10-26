@@ -1,0 +1,49 @@
+
+/* Scoped material administration editor. */
+.adminMaterialsModule .adminMaterialActions button {
+  display: inline-flex; min-height: 40px; gap: 6px; align-items: center;
+  padding: 0 10px; border: 1px solid #cbd6e2; border-radius: 8px;
+  color: #1f4f86; background: #fff; font-size: 12px; font-weight: 850; cursor: pointer;
+}
+.adminMaterialsModule .adminMaterialActions button:hover { background: #eff6fd; }
+.adminMaterialsModule .adminMaterialEditor {
+  display: grid; gap: 12px; padding: 16px; margin-top: 12px;
+  border: 1px solid #adcbe9; border-radius: 14px; background: #f7fbff;
+}
+.adminMaterialsModule .adminMaterialEditorForm {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px;
+}
+.adminMaterialsModule .adminMaterialEditorForm label,
+.adminMaterialsModule .adminMaterialDeleteConfirmation label {
+  display: grid; gap: 6px; min-width: 0; color: #40556d;
+  font-size: 12px; font-weight: 800;
+}
+.adminMaterialsModule .adminMaterialEditorForm input,
+.adminMaterialsModule .adminMaterialEditorForm select,
+.adminMaterialsModule .adminMaterialDeleteConfirmation input {
+  box-sizing: border-box; width: 100%; min-height: 40px; min-width: 0;
+  border: 1px solid #cbd9e8; border-radius: 10px;
+  padding: 8px 11px; background: #fff; color: #233e5c; font: inherit;
+}
+.adminMaterialsModule .adminMaterialEditorForm label small { color: #71829a; font-weight: 600; line-height: 1.45; }
+.adminMaterialsModule .adminMaterialEditorForm > .primaryAction { align-self: end; min-height: 41px; }
+.adminMaterialsModule .adminMaterialDanger { display: grid; gap: 9px; padding-top: 12px; border-top: 1px solid #d8e1ef; }
+.adminMaterialsModule .adminMaterialDanger > button,
+.adminMaterialsModule .adminMaterialDeleteConfirmation > button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  justify-self: start; min-height: 40px; border-radius: 10px; padding: 9px 14px;
+  border: 1px solid #e4b6b6; color: #9d2929; background: #fff7f7;
+  font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.adminMaterialsModule .adminMaterialDeleteConfirmation {
+  display: grid; gap: 10px; max-width: 540px;
+  padding: 13px; border: 1px solid #f2cdcd; border-radius: 11px; background: #fff;
+}
+.adminMaterialsModule .adminMaterialDeleteConfirmation p { color: #922d2d; font-size: 12px; margin: 0; line-height: 1.5; }
+.adminMaterialsModule .adminMaterialDeleteConfirmation > button { background: #aa2929; color: #fff; }
+.adminMaterialsModule .adminMaterialDeleteConfirmation > button:disabled { background: #f2e7e7; border-color: #e5d7d7; color: #9f8b8b; cursor: not-allowed; }
+@media (max-width: 720px) {
+  .adminMaterialsModule .adminMaterialEditorForm { grid-template-columns: minmax(0,1fr); }
+  .adminMaterialsModule .adminMaterialResult { grid-template-columns: 38px minmax(0,1fr); }
+  .adminMaterialsModule .adminMaterialActions { grid-column: 1 / -1; justify-content: flex-start; }
+}

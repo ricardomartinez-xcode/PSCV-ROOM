@@ -33,6 +33,8 @@ import {
   Search,
   ShieldCheck,
   Upload,
+  Pencil,
+  Trash2,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -109,6 +111,10 @@ type AdminLibraryMaterial = {
   title: string;
   material_type: string | null;
   provider: string | null;
+  file_name: string | null;
+  visibility: "visible" | "hidden";
+  observations: string | null;
+  r2_missing_at: string | null;
   source_url: string | null;
   preview_url: string | null;
   download_url: string | null;
@@ -396,7 +402,7 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
         {activeTab === "calendar" ? <AdminCalendarPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
         {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
         {activeTab === "sections" ? <SectionsPanel sections={sections} onUpdate={(id, patch) => void updateSection(id, patch)} /> : null}
-        {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+        {activeTab === "materials" ? <MaterialUploadPanel canManageR2={capabilities.canManageR2} canManageMaterials={capabilities.canManageMaterials} d1Client={d1Client} reload={reload} onError={onError} /> : null}
         {activeTab === "users" ? <UsersPanel profiles={profiles} loading={loadingUsers} canManagePermissions={profile?.role === "owner"} onCreate={(input) => createStudent(input)} onReload={() => void loadProfiles()} onUpdate={(id, patch) => updateProfile(id, patch)} onDelete={(id) => deleteProfile(id)} /> : null}
         {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
         {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
@@ -1065,7 +1071,7 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
 
 function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><span className="iconSelectField"><UiIcon name={section.icon} size={18} /><select aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
 
-function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canManageR2: boolean; d1Client: D1Browser | null; reload: () => Promise<void>; onError: (error: string | null) => void }) {
+function MaterialUploadPanel({ canManageR2, canManageMaterials, d1Client, reload, onError }: { canManageR2: boolean; canManageMaterials: boolean; d1Client: D1Browser | null; reload: () => Promise<void>; onError: (error: string | null) => void }) {
   const [destinations, setDestinations] = useState<UploadDestination[]>([]);
   const [destinationId, setDestinationId] = useState("");
   const [title, setTitle] = useState("");
@@ -1082,6 +1088,15 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
   const [uploadResult, setUploadResult] = useState<string | null>(null);
   const [bucketSyncBusy, setBucketSyncBusy] = useState(false);
   const [bucketSyncResult, setBucketSyncResult] = useState<string | null>(null);
+  const [editingMaterial, setEditingMaterial] = useState<AdminLibraryMaterial | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editSectionId, setEditSectionId] = useState("");
+  const [editVisibility, setEditVisibility] = useState<"visible" | "hidden">("visible");
+  const [replacementFile, setReplacementFile] = useState<File | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [manageBusy, setManageBusy] = useState(false);
+  const [manageMessage, setManageMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1124,7 +1139,7 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
     setLoadingLibrary(true);
     setLibraryError(null);
     try {
-      const response = await fetch("/api/materials/library?limit=500", { credentials: "include", cache: "no-store" });
+      const response = await fetch("/api/admin/materials", { credentials: "include", cache: "no-store" });
       const payload = await response.json().catch(() => ({})) as AdminLibraryPayload;
       if (!response.ok || payload.error) throw new Error(payload.error ?? "No se pudo cargar la biblioteca del bucket.");
       setLibraryMaterials(payload.materials ?? []);
@@ -1169,6 +1184,74 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
       .filter((material) => !normalizedQuery || [material.title, material.material_type ?? "", material.provider ?? "", material.section?.name ?? "", material.section?.path ?? ""].some((value) => value.toLocaleLowerCase("es").includes(normalizedQuery)))
       .sort((firstMaterial, secondMaterial) => compareAdminMaterials(firstMaterial, secondMaterial, librarySort));
   }, [libraryMaterials, libraryQuery, librarySection, librarySort]);
+
+  function startEditing(material: AdminLibraryMaterial) {
+    setEditingMaterial(material);
+    setEditTitle(material.title);
+    setEditSectionId(material.section_id ?? "");
+    setEditVisibility(material.visibility);
+    setReplacementFile(null);
+    setDeleteConfirmation("");
+    setDeleting(false);
+    setManageMessage(null);
+  }
+
+  async function editMaterial(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingMaterial || !canManageMaterials || manageBusy) return;
+    setManageBusy(true);
+    setManageMessage(null);
+    onError(null);
+    try {
+      const base = "/api/admin/materials/" + encodeURIComponent(editingMaterial.id);
+      const response = await fetch(base, {
+        method: "PATCH", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle.trim(), sectionId: editSectionId || null, visibility: editVisibility }),
+      });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo guardar el material.");
+      if (replacementFile) {
+        if (!canManageR2) throw new Error("Tu perfil no puede reemplazar archivos R2.");
+        const form = new FormData();
+        form.set("file", replacementFile);
+        const replaced = await fetch(base + "/file", { method: "PUT", credentials: "include", body: form });
+        const result = await replaced.json() as { error?: string };
+        if (!replaced.ok) throw new Error(result.error ?? "Los datos se guardaron, pero no se pudo reemplazar el archivo.");
+      }
+      setManageMessage("Recurso actualizado correctamente.");
+      setEditingMaterial(null);
+      await loadMaterialLibrary();
+      await reload();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "No se pudo editar el material.");
+    } finally { setManageBusy(false); }
+  }
+
+  async function deleteMaterial() {
+    if (!editingMaterial || !canManageMaterials || !canManageR2 ||
+        !deleting || deleteConfirmation !== "ELIMINAR_RECURSO" || manageBusy) return;
+    setManageBusy(true);
+    onError(null);
+    try {
+      const response = await fetch("/api/admin/materials/" + encodeURIComponent(editingMaterial.id), {
+        method: "DELETE", credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope: "r2-and-d1", confirm: deleteConfirmation }),
+      });
+      const payload = await response.json() as { error?: string; unlinkedTasks?: number };
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo eliminar el recurso.");
+      setManageMessage("Archivo eliminado de R2 e índice D1. Vínculos con tareas retirados: " + (payload.unlinkedTasks ?? 0) + ".");
+      setEditingMaterial(null);
+      setDeleteConfirmation("");
+      setDeleting(false);
+      await loadMaterialLibrary();
+      await reload();
+    } catch (error) {
+      onError(error instanceof Error ? error.message : "No se pudo eliminar el recurso.");
+    } finally { setManageBusy(false); }
+  }
+
   const bucketMaterials = libraryMaterials.filter((material) => material.provider === "r2").length;
   const libraryBytes = libraryMaterials.reduce((total, material) => total + (material.size_bytes ?? 0), 0);
 
@@ -1253,9 +1336,10 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
       </article>
 
       <article className="adminCard adminMaterialLibraryCard">
-        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Biblioteca conectada</p><h3 className="adminWorkspaceTitle"><FolderOpen size={19} aria-hidden="true" />Materiales del bucket</h3><p>Consulta, filtra y abre cada material indexado de forma independiente.</p></div><div className="adminCardHeadActions"><button type="button" onClick={() => void loadMaterialLibrary()} disabled={loadingLibrary || bucketSyncBusy}><RefreshCw className={loadingLibrary ? "isSpinning" : ""} size={16} aria-hidden="true" />{loadingLibrary ? "Cargando..." : "Recargar"}</button>{canManageR2 ? <button className="primaryAction" type="button" onClick={() => void synchronizeBucket()} disabled={bucketSyncBusy || loadingLibrary}><FolderSync className={bucketSyncBusy ? "isSpinning" : ""} size={16} aria-hidden="true" />{bucketSyncBusy ? "Sincronizando..." : "Sincronizar bucket"}</button> : null}</div></div>
+        <div className="adminCardHead"><div><p className="adminModuleEyebrow">Biblioteca conectada</p><h3 className="adminWorkspaceTitle"><FolderOpen size={19} aria-hidden="true" />Gestión de materiales R2 y D1</h3><p>Consulta, edita nombres y visibilidad, reemplaza archivos o elimina ambos registros con confirmación.</p></div><div className="adminCardHeadActions"><button type="button" onClick={() => void loadMaterialLibrary()} disabled={loadingLibrary || bucketSyncBusy}><RefreshCw className={loadingLibrary ? "isSpinning" : ""} size={16} aria-hidden="true" />{loadingLibrary ? "Cargando..." : "Recargar"}</button>{canManageR2 ? <button className="primaryAction" type="button" onClick={() => void synchronizeBucket()} disabled={bucketSyncBusy || loadingLibrary}><FolderSync className={bucketSyncBusy ? "isSpinning" : ""} size={16} aria-hidden="true" />{bucketSyncBusy ? "Sincronizando..." : "Sincronizar bucket"}</button> : null}</div></div>
         {libraryError ? <p className="adminWorkspaceError" role="alert"><CircleAlert size={16} aria-hidden="true" />{libraryError}</p> : null}
         {bucketSyncResult ? <p className="adminWorkspaceResult" role="status" aria-live="polite">{bucketSyncResult}</p> : null}
+        {manageMessage ? <p className="adminWorkspaceResult" role="status" aria-live="polite">{manageMessage}</p> : null}
         <div className="adminInsightGrid" aria-label="Resumen de materiales">
           <AdminInsightCard icon={FileText} label="Materiales" value={libraryMaterials.length} help="indexados" />
           <AdminInsightCard icon={FolderTree} label="Secciones" value={librarySections.length} help="disponibles" />
@@ -1275,13 +1359,60 @@ function MaterialUploadPanel({ canManageR2, d1Client, reload, onError }: { canMa
             return (
               <article className="adminMaterialResult" style={{ borderLeftColor: material.section?.color ?? "#2a79a6" }} key={material.id}>
                 <span className="adminMaterialResultIcon"><FileText size={18} aria-hidden="true" /></span>
-                <div><strong>{materialDisplayName(material.title)}</strong><small>{material.section?.name ?? "Sin sección"} · {material.material_type ?? "Archivo"} · {formatByteCount(material.size_bytes ?? 0)}</small></div>
-                <div className="adminMaterialActions">{previewHref ? <a href={previewHref} target="_blank" rel="noreferrer"><Eye size={15} aria-hidden="true" />Vista previa</a> : null}{downloadHref ? <a href={downloadHref}><Download size={15} aria-hidden="true" />Descargar</a> : null}</div>
+                <div><strong>{materialDisplayName(material.title)}</strong><small>{material.section?.name ?? "Sin sección"} · {material.material_type ?? "Archivo"} · {formatByteCount(material.size_bytes ?? 0)}{material.visibility === "hidden" ? " · Oculto" : ""}{material.r2_missing_at ? " · No encontrado en R2" : ""}</small></div>
+                <div className="adminMaterialActions">{previewHref ? <a href={previewHref} target="_blank" rel="noreferrer"><Eye size={15} aria-hidden="true" />Vista previa</a> : null}{downloadHref ? <a href={downloadHref}><Download size={15} aria-hidden="true" />Descargar</a> : null}
+                  {canManageMaterials ? <button type="button" onClick={() => startEditing(material)} disabled={manageBusy}><Pencil size={15} aria-hidden="true" />Editar</button> : null}
+                </div>
               </article>
             );
           })}
           {!visibleMaterials.length && !loadingLibrary ? <p className="adminWorkspaceEmpty">No hay materiales para los filtros actuales. Si el bucket ya tiene archivos, usa “Sincronizar bucket” una vez para indexarlos en D1.</p> : null}
         </div>
+        {editingMaterial && canManageMaterials ? (
+          <div className="adminMaterialEditor" aria-label="Editar recurso seleccionado">
+            <div className="adminCardHead"><div><h3>Editar recurso</h3><p>{editingMaterial.file_name ?? editingMaterial.title}</p></div>
+              <button type="button" onClick={() => setEditingMaterial(null)} disabled={manageBusy}>Cancelar</button>
+            </div>
+            <form className="adminMaterialEditorForm" onSubmit={(event) => void editMaterial(event)}>
+              <label>Título<input required maxLength={240} value={editTitle} onChange={(event) => setEditTitle(event.target.value)} /></label>
+              <label>Sección<select value={editSectionId} onChange={(event) => setEditSectionId(event.target.value)}>
+                <option value="">Sin sección</option>
+                {librarySections.map((section) => <option key={section.id} value={section.id}>{section.path}</option>)}
+              </select></label>
+              <label>Visibilidad<select value={editVisibility} onChange={(event) => setEditVisibility(event.target.value as "visible" | "hidden")}>
+                <option value="visible">Visible</option><option value="hidden">Oculto</option>
+              </select></label>
+              {canManageR2 && editingMaterial.provider === "r2" ? (
+                <label>Reemplazar archivo en R2 (opcional)
+                  <input type="file" accept={MATERIAL_UPLOAD_ACCEPT} onChange={(event) => setReplacementFile(event.target.files?.[0] ?? null)} />
+                  <small>Debe conservar la extensión del archivo original; máximo 50 MB. Se mantiene el enlace a tareas.</small>
+                </label>
+              ) : null}
+              <button className="primaryAction" type="submit" disabled={manageBusy || !editTitle.trim()}>
+                {manageBusy ? "Guardando..." : "Guardar cambios"}
+              </button>
+            </form>
+            {canManageR2 && editingMaterial.provider === "r2" ? (
+              <div className="adminMaterialDanger">
+                <button type="button" onClick={() => setDeleting((current) => !current)} disabled={manageBusy}>
+                  <Trash2 size={15} aria-hidden="true" /> Eliminar definitivamente
+                </button>
+                {deleting ? (
+                  <div className="adminMaterialDeleteConfirmation">
+                    <p>Se borrará el archivo de R2, el registro en D1 y sus vínculos con tareas. Esta acción es irreversible.</p>
+                    <label>Escribe ELIMINAR_RECURSO para confirmar
+                      <input value={deleteConfirmation} onChange={(event) => setDeleteConfirmation(event.target.value)}
+                        autoComplete="off" placeholder="ELIMINAR_RECURSO" />
+                    </label>
+                    <button type="button" disabled={manageBusy || deleteConfirmation !== "ELIMINAR_RECURSO"} onClick={() => void deleteMaterial()}>
+                      Confirmar eliminación de R2 y D1
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </article>
     </section>
   );

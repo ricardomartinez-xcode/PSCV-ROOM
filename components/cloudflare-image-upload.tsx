@@ -40,43 +40,23 @@ export function CloudflareImageUpload({ value, category, label = "Imagen", onCha
 
     setBusy(true);
     try {
-      const createResponse = await fetch("/api/admin/images", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category }),
-      });
-      const created = await createResponse.json() as { id?: string; uploadURL?: string; error?: string };
-      if (!createResponse.ok || !created.id || !created.uploadURL) {
-        throw new Error(created.error ?? "No se pudo preparar la subida.");
-      }
-
+      // The existing R2 binding keeps image uploads operational even when Cloudflare
+      // Images billing/permissions or Worker Images secrets are not configured.
       const form = new FormData();
       form.set("file", file);
-      const uploadResponse = await fetch(created.uploadURL, { method: "POST", body: form });
-      if (!uploadResponse.ok) {
-        await removePendingImage(created.id);
-        throw new Error("Cloudflare no pudo recibir la imagen.");
+      form.set("category", category);
+      const response = await fetch("/api/admin/images/r2", {
+        method: "POST",
+        credentials: "include",
+        body: form,
+      });
+      const result = await response.json() as { image?: UploadedImage; error?: string };
+      if (!response.ok || !result.image) {
+        throw new Error(result.error ?? "No se pudo subir la imagen al almacenamiento.");
       }
-
-      let uploaded: UploadedImage | null = null;
-      for (let attempt = 0; attempt < 12; attempt += 1) {
-        await new Promise((resolve) => setTimeout(resolve, attempt < 3 ? 500 : 1000));
-        const statusResponse = await fetch(`/api/admin/images/${encodeURIComponent(created.id)}?category=${category}`, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const status = await statusResponse.json() as { image?: { draft?: boolean; url?: string | null }; error?: string };
-        if (statusResponse.ok && status.image?.draft === false && status.image.url) {
-          uploaded = { id: created.id, url: status.image.url };
-          break;
-        }
-      }
-      if (!uploaded) throw new Error("La imagen se subió, pero aún no está disponible. Intenta nuevamente en unos segundos.");
-
-      if (pendingImageId && pendingImageId !== uploaded.id) await removePendingImage(pendingImageId);
-      setPendingImageId(uploaded.id);
-      onChange(uploaded);
+      if (pendingImageId && pendingImageId !== result.image.id) await removePendingImage(pendingImageId);
+      setPendingImageId(result.image.id);
+      onChange(result.image);
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "No se pudo subir la imagen.");
     } finally {

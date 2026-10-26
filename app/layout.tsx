@@ -5,6 +5,7 @@ import "./pscv.css";
 import "./relnets-refresh.css";
 import "./materials-explorer.css";
 import "./calendar-responsive.css";
+import "./material-admin-controls.css";
 import "./schedule-grid.css";
 
 export const metadata: Metadata = {

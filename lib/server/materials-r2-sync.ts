@@ -18,7 +18,7 @@ type SectionRow = { id: string; path: string };
 
 function isDocument(key: string) {
   const fileName = key.split("/").pop() ?? "";
-  return fileName.includes(".") && !SKIP_FILE_RE.test(key);
+  return fileName.includes(".") && !key.startsWith("__pscv_media__/") && !SKIP_FILE_RE.test(key);
 }
 
 export async function readCompleteR2Inventory(bucket: R2Bucket): Promise<BucketFile[]> {

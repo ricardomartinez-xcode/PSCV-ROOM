@@ -63,7 +63,7 @@ test("tasks and calendar expose interactive summaries, filters and editable view
 });
 
 test("materials connect the indexed library to an explicit bucket sync", () => {
-  assert.match(hub, /\/api\/materials\/library\?limit=500/);
+  assert.ok(hub.includes("/api/admin/materials"));
   assert.match(hub, /\/api\/admin\/r2\/import-materials/);
   assert.match(hub, /JSON\.stringify\(\{ dryRun: false, maxItems: 10000 \}\)/);
   assert.match(hub, /if \(!canManageR2\) return/);

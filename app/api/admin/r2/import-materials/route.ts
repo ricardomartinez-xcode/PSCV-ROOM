@@ -111,7 +111,7 @@ function inferMaterialType(fileName: string) {
 
 function isImportableObject(object: NativeR2ListedObject) {
   const fileName = basename(object.key);
-  return Boolean(fileName && fileName.includes(".") && !SKIP_FILE_RE.test(object.key));
+  return Boolean(fileName && fileName.includes(".") && !object.key.startsWith("__pscv_media__/") && !SKIP_FILE_RE.test(object.key));
 }
 
 function toImportable(object: NativeR2ListedObject): ImportableObject {
@@ -315,27 +315,8 @@ async function runImport(request: Request, fallbackBody: ImportRequest) {
         const existingId = existingMaterials.get(object.key);
         if (existingId) {
           await d1Run(
-            `UPDATE materials SET section_id = ?, title = ?, material_type = ?, visibility = ?, provider = ?,
-              source_url = ?, preview_url = ?, r2_bucket = ?, r2_key = ?, file_name = ?, content_type = ?,
-              size_bytes = ?, observations = ?, updated_at = ?, r2_missing_at = NULL
-             WHERE id = ?`,
-            [
-              payload.section_id,
-              payload.title,
-              payload.material_type,
-              payload.visibility,
-              payload.provider,
-              payload.source_url,
-              payload.preview_url,
-              payload.r2_bucket,
-              payload.r2_key,
-              payload.file_name,
-              payload.content_type,
-              payload.size_bytes,
-              payload.observations,
-              payload.updated_at,
-              existingId,
-            ],
+            `UPDATE materials SET size_bytes = ?, r2_missing_at = NULL, updated_at = ? WHERE id = ?`,
+            [payload.size_bytes, payload.updated_at, existingId],
           );
           updated += 1;
         } else {

@@ -18,7 +18,7 @@ test("Cloudflare Images uploads use guarded direct-upload endpoints", () => {
   assert.doesNotMatch(createRoute, /CLOUDFLARE_IMAGES_API_TOKEN/);
 });
 
-test("image upload UI validates format and size before direct upload", () => {
+test("image upload UI validates format and size before R2 upload", () => {
   const component = source("components/cloudflare-image-upload.tsx");
 
   assert.match(component, /10 \* 1024 \* 1024/);
@@ -26,7 +26,7 @@ test("image upload UI validates format and size before direct upload", () => {
   assert.match(component, /image\/png/);
   assert.match(component, /image\/webp/);
   assert.match(component, /image\/avif/);
-  assert.match(component, /created\.uploadURL/);
+  assert.ok(component.includes("/api/admin/images/r2"));
   assert.match(component, /Vista previa de la imagen/);
 });
 

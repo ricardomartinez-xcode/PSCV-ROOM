@@ -49,6 +49,12 @@ async function checkProtectedOperationsRoutes() {
     { path: "/api/reports/operations", method: "GET" },
     { path: "/api/admin/notifications", method: "GET" },
     { path: "/api/admin/r2/status", method: "GET" },
+    { path: "/api/admin/materials", method: "GET" },
+    { path: "/api/admin/materials/test-id", method: "PATCH", body: { title: "Test", sectionId: null, visibility: "hidden" } },
+    { path: "/api/admin/materials/test-id", method: "DELETE", body: { scope: "r2-and-d1", confirm: "ELIMINAR_RECURSO" } },
+    { path: "/api/admin/materials/test-id/file", method: "PUT" },
+    { path: "/api/admin/images/r2", method: "POST" },
+    { path: "/api/media/images/r2_00000000-0000-0000-0000-000000000000.png", method: "GET" },
     { path: "/api/uploads/presign", method: "POST", body: { fileName: "smoke.txt", contentType: "text/plain" } },
     { path: "/api/uploads/direct", method: "POST", body: { fileName: "smoke.txt", contentType: "text/plain" } },
   ]) {

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
-import { errorResponse, HttpError, requirePermission } from "@/lib/server/authz";
+import { errorResponse, HttpError, requirePermission, requireProfile } from "@/lib/server/authz";
 import { saveTaskImage } from "@/lib/server/task-image-r2";
 
 export async function POST(request: Request) {
   try {
+    // Reject anonymous calls before parsing any multipart body.
+    await requireProfile(request);
     const data = await request.formData();
     const category = data.get("category");
     if (category !== "task" && category !== "event" && category !== "announcement") {

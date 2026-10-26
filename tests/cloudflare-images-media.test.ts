@@ -26,7 +26,7 @@ test("image upload UI validates format and size before R2 upload", () => {
   assert.match(component, /image\/png/);
   assert.match(component, /image\/webp/);
   assert.match(component, /image\/avif/);
-  assert.match(component, /admin\\/images\\/r2/);
+  assert.ok(component.includes("/api/admin/images/r2"));
   assert.match(component, /Vista previa de la imagen/);
 });
 

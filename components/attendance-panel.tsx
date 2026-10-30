@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
 import { suggestedPermanenceSchedule, type BreakMode } from "@/lib/permanencia-config";
 import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
+import { AttendanceHistoryChart } from "./attendance-history-chart";
 import "./attendance-panel.css";
 
 type Course = { id: string; name: string; short_name: string | null };
@@ -104,7 +105,7 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
 export function AttendancePanel() {
   const [date, setDate] = useState(todayInMexicoCity);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [period, setPeriod] = useState<AttendancePeriod>("day");
+  const [period, setPeriod] = useState<AttendancePeriod>("week");
   const [summarySnapshot, setSummarySnapshot] = useState<Snapshot | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -310,20 +311,11 @@ export function AttendancePanel() {
       : summaryOrder === "low"
         ? (a.percentage ?? 101) - (b.percentage ?? 101)
         : (b.percentage ?? -1) - (a.percentage ?? -1)) })), [courseSummaries, summaryCourseId, summaryQuery, summaryOrder]);
-  const detailCourse = detail ? activeSummary?.courses.find((row) => row.id === detail.courseId) : null;
-  const detailStudent = detail ? activeSummary?.students.find((row) => row.id === detail.studentId) : null;
-  const foundDetail = detail ? courseSummaries.find((group) => group.course.id === detail.courseId)
-    ?.rows.find((row) => row.student.id === detail.studentId) : null;
-  const detailRow: StudentCourseSummary | null = detailCourse && detailStudent
-    ? foundDetail ?? { student: detailStudent, course: detailCourse, markedCount: 0,
-        observedCount: 0, required: 0, attended: 0, absent: 0, exits: 0,
-        percentage: null, provisional: false, records: [] }
-    : null;
-  const detailRecords = detailRow && activeSummary
-    ? activeSummary.sessions.filter((session) => session.course_id === detailRow.course.id && session.status !== "cancelled")
-      .map((session) => detailRow.records.find((item) => item.session.id === session.id) ??
-        { session, status: null, stats: null })
-    : [];
+  const historySessions = useMemo(() => [...(activeSummary?.sessions ?? [])]
+    .filter((session) => session.status !== "cancelled")
+    .sort((a, b) => b.session_date.localeCompare(a.session_date) ||
+      b.scheduled_start_at.localeCompare(a.scheduled_start_at)), [activeSummary]);
+  const historyDates = Array.from(new Set(historySessions.map((session) => session.session_date)));
 
   function exportCsv() {
     if (!activeSummary) return;
@@ -376,6 +368,43 @@ export function AttendancePanel() {
               ))}
               {snapshot.sessions.length === 0 && <p>Aún no hay clases registradas para este día.</p>}
             </div>
+          </section>
+
+          <section className="attendanceSection" aria-label="Historial de clases registradas">
+            <div className="attendanceSectionTitle">
+              <div><h3>Historial de clases registradas</h3>
+                <p>Consulta las clases de diferentes fechas sin perder el control diario. Selecciona una clase para abrir su pase de lista.</p></div>
+            </div>
+            <div className="attendanceAnalysisFilters">
+              <fieldset className="attendancePeriodTabs">
+                <legend>Periodo del historial</legend>
+                {(["day", "week", "month"] as const).map((value) =>
+                  <button type="button" key={value} aria-pressed={period === value}
+                    onClick={() => setPeriod(value)}>{periodLabels[value]}</button>)}
+              </fieldset>
+              <span className="attendanceHint">Fecha de referencia: {date}</span>
+            </div>
+            <div className="attendanceHistoryList">
+              {historyDates.map((day) => <section className="attendanceHistoryDay" key={day}>
+                <h4>{dayLabel(day)}</h4>
+                <div className="attendanceHistorySessions">
+                  {historySessions.filter((session) => session.session_date === day).map((session) => <button
+                    type="button" key={session.id} onClick={() => {
+                      setSelectedSessionId(session.id);
+                      setDate(session.session_date);
+                    }}>
+                    <strong>{activeSummary?.courses.find((course) => course.id === session.course_id)?.name ?? "Materia"}</strong>
+                    <span>{formatClock(session.scheduled_start_at)}–{formatClock(session.scheduled_end_at)}</span>
+                    <small>{session.status === "closed" ? "Clase finalizada" : "Clase abierta"} · Ver pase de lista</small>
+                  </button>)}
+                </div>
+              </section>)}
+            </div>
+            {summaryLoading && <p role="status">Cargando historial de clases…</p>}
+            {summaryError && <p role="alert" className="attendanceError">{summaryError}</p>}
+            {!summaryLoading && activeSummary && historySessions.length === 0 &&
+              <p>No se encontraron clases registradas dentro del periodo seleccionado.</p>}
+            <p className="attendanceHint">El historial muestra la semana completa de forma predeterminada; «Mensual» permite consultar todas las clases del mes.</p>
           </section>
 
           <section className="attendanceSection">
@@ -475,7 +504,7 @@ export function AttendancePanel() {
                   <tbody>{studentStats.map((row) => (
                     <tr key={row.id}>
                       <td><button type="button" className="attendanceStudentLink"
-                        onClick={() => { setPeriod("day"); setDetail({ studentId: row.id, courseId: selected.course_id }); }}>
+                        onClick={() => setDetail({ studentId: row.id, courseId: selected.course_id })}>
                         {row.full_name}</button><small>{row.control_number ?? "Sin número de control"}</small></td>
                       <td><div className="attendanceStatusButtons">
                         {(["present", "late", "absent", "excused"] as Attendance["status"][]).map((status) =>
@@ -580,35 +609,10 @@ export function AttendancePanel() {
           </section>
         </>
       )}
-      {detailRow && (
-        <div className="attendanceModalBackdrop" role="presentation">
-          <div className="attendanceModal attendanceDetailModal" role="dialog" aria-modal="true"
-            aria-labelledby="attendanceDetailTitle" onKeyDown={(event) => { if (event.key === "Escape") setDetail(null); }}>
-            <div className="attendanceSectionTitle">
-              <div><h3 id="attendanceDetailTitle">{detailRow.student.full_name}</h3><p>{detailRow.course.name} · {periodLabels[period]}</p></div>
-              <button type="button" autoFocus onClick={() => setDetail(null)}>Cerrar</button>
-            </div>
-            <div className="attendanceDetailTotals">
-              <span><strong>{percentLabel(detailRow.percentage)}</strong>Asistencia</span>
-              <span><strong>{detailRow.markedCount}</strong>Clases con pase de lista</span>
-              <span><strong>{detailRow.absent.toFixed(1)} min</strong>Ausencias</span>
-            </div>
-            <div className="attendanceTableScroll">
-              <table className="attendanceTable attendanceInsightsTable">
-                <thead><tr><th>Fecha</th><th>Clase</th><th>Registro</th><th>Ausencia</th><th>Asistencia</th></tr></thead>
-                <tbody>{detailRecords.map(({ session, status, stats }) => <tr key={session.id}>
-                  <td data-label="Fecha">{session.session_date}</td>
-                  <td data-label="Clase">{formatClock(session.scheduled_start_at)}–{formatClock(session.scheduled_end_at)}{session.status === "open" ? " · Abierta" : ""}</td>
-                  <td data-label="Registro">{status ? statusLabels[status] : "Sin pase de lista (sin evidencia de ausencia)"}</td>
-                  <td data-label="Ausencia">{stats ? stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
-                  <td data-label="Asistencia">{stats ? percentLabel(stats.percentage) : "—"}</td>
-                </tr>)}</tbody>
-              </table>
-            </div>
-            <p className="attendanceHint">Se muestran todas las clases registradas de la materia en el periodo. Sin marcar no equivale a ausencia.</p>
-          </div>
-        </div>
-      )}
+      {detail && <StudentHistoryDialog
+        studentId={detail.studentId} monthDate={date}
+        onClose={() => setDetail(null)}
+      />}
       {lateDialog && (
         <div className="attendanceModalBackdrop" role="presentation">
           <div className="attendanceModal" role="dialog" aria-modal="true" aria-labelledby="lateArrivalTitle" onKeyDown={(event) => {
@@ -637,4 +641,137 @@ export function AttendancePanel() {
       )}
     </div>
   );
+}
+
+
+// Historical details are queried independently of the daily class editor.
+// This avoids silently restricting the chart to the selected day's session.
+function StudentHistoryDialog({ studentId, monthDate, onClose }: {
+  studentId: string; monthDate: string; onClose: () => void;
+}) {
+  const [month, setMonth] = useState(monthDate.slice(0, 7));
+  const [courseFilter, setCourseFilter] = useState("all");
+  const [history, setHistory] = useState<Snapshot | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = async () => {
+      setLoading(true);
+      setLoadError(null);
+      setHistory(null);
+      try {
+        const response = await fetch(basePath + "?date=" + encodeURIComponent(month + "-01") + "&period=month", {
+          cache: "no-store", signal: controller.signal,
+        });
+        const result = await response.json() as Snapshot & { error?: string };
+        if (!response.ok) throw new Error(result.error ?? "No se pudo consultar el historial.");
+        if (!controller.signal.aborted) setHistory(result);
+      } catch (cause) {
+        if (!controller.signal.aborted) setLoadError(cause instanceof Error ? cause.message : "Error al consultar historial.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [month]);
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, []);
+
+  const student = history?.students.find((entry) => entry.id === studentId);
+  const studentSessions = useMemo(() => {
+    if (!history) return [];
+    return history.sessions.filter((session) => session.status !== "cancelled")
+      .map((session) => {
+        const status = history.attendance.find((row) => row.session_id === session.id && row.profile_id === studentId)?.status ?? null;
+        return {
+          session, status,
+          course: history.courses.find((course) => course.id === session.course_id),
+          stats: calculateForStudent(history, session, studentId),
+        };
+      })
+      .filter((entry) => entry.course !== undefined)
+      .sort((a, b) => a.session.session_date.localeCompare(b.session.session_date) ||
+        a.session.scheduled_start_at.localeCompare(b.session.scheduled_start_at));
+  }, [history, studentId]);
+  const courses = Array.from(new Map(studentSessions.filter((entry) => entry.course)
+    .map((entry) => [entry.course!.id, entry.course!])).values());
+  const visibleSessions = studentSessions.filter((entry) => courseFilter === "all" || entry.course?.id === courseFilter);
+  const recorded = visibleSessions.filter((entry) => entry.status !== null).length;
+  const observed = visibleSessions.filter((entry) => entry.stats !== null);
+  const required = observed.reduce((total, entry) => total + (entry.stats?.requiredMinutes ?? 0), 0);
+  const available = observed.reduce((total, entry) => total + (entry.stats?.remainingMinutes ?? 0), 0);
+  const absent = observed.reduce((total, entry) => total + (entry.stats?.absentMinutes ?? 0), 0);
+  const percentage = required > 0 ? 100 * available / required : null;
+
+  return <div className="attendanceModalBackdrop" role="presentation">
+    <section className="attendanceModal attendanceDetailModal" role="dialog" aria-modal="true"
+      aria-labelledby="attendanceHistoryDialogTitle" onKeyDown={(event) => {
+        if (event.key === "Escape") onClose();
+      }}>
+      <div className="attendanceSectionTitle">
+        <div>
+          <h3 id="attendanceHistoryDialogTitle">Historial de asistencia de {student?.full_name ?? "alumno"}</h3>
+          <p>Evolución por materia, clase y fecha · {month}</p>
+        </div>
+        <button type="button" autoFocus onClick={onClose}>Cerrar</button>
+      </div>
+      <div className="attendanceDetailFilters">
+        <label>Mes del historial
+          <input type="month" value={month} onChange={(event) => { if (event.target.value) { setMonth(event.target.value); setCourseFilter("all"); } }} />
+        </label>
+        <label>Materia
+          <select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+            <option value="all">Todas las materias</option>
+            {courses.map((course) => <option key={course.id} value={course.id}>{course.name}</option>)}
+          </select>
+        </label>
+      </div>
+      {loading && <p role="status">Consultando clases y preparando las gráficas…</p>}
+      {loadError && <p role="alert" className="attendanceError">{loadError}</p>}
+      {history && <>
+        <div className="attendanceDetailTotals">
+          <span><strong>{percentLabel(percentage)}</strong>Permanencia registrada</span>
+          <span><strong>{recorded} de {visibleSessions.length}</strong>Clases con pase de lista</span>
+          <span><strong>{absent.toFixed(1)} min</strong>Ausencias registradas</span>
+        </div>
+        {visibleSessions.length > 0 &&
+          <AttendanceHistoryChart title="Evolución general por fecha y clase"
+            points={visibleSessions.map(({ session, course, stats }) => ({
+              id: session.id, date: session.session_date,
+              label: course?.short_name || course?.name || "Materia",
+              percentage: stats?.percentage ?? null, provisional: session.status === "open",
+            }))} />}
+        {!visibleSessions.length && <p>No hay clases registradas para este alumno y periodo.</p>}
+        {courses.filter((course) => courseFilter === "all" || courseFilter === course.id).map((course) => {
+          const entries = visibleSessions.filter((entry) => entry.course?.id === course.id);
+          return <AttendanceHistoryChart key={course.id} title={course.name}
+            points={entries.map(({ session, stats }) => ({
+              id: session.id, date: session.session_date, label: formatClock(session.scheduled_start_at),
+              percentage: stats?.percentage ?? null, provisional: session.status === "open",
+            }))} />;
+        })}
+        <div className="attendanceTableScroll">
+          <table className="attendanceTable attendanceInsightsTable">
+            <thead><tr><th>Fecha</th><th>Materia</th><th>Clase</th><th>Pase de lista</th><th>Ausencia</th><th>Permanencia</th></tr></thead>
+            <tbody>{visibleSessions.map(({ session, course, status, stats }) => <tr key={session.id}>
+              <td data-label="Fecha">{session.session_date}</td>
+              <td data-label="Materia">{course?.name}</td>
+              <td data-label="Clase">{formatClock(session.scheduled_start_at)}–{formatClock(session.scheduled_end_at)}</td>
+              <td data-label="Pase de lista">{status ? statusLabels[status] : "Sin registrar"}</td>
+              <td data-label="Ausencia">{stats ? stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
+              <td data-label="Permanencia">{stats ? percentLabel(stats.percentage) : "—"}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <p className="attendanceHint">Cada barra corresponde a una clase registrada. Las barras sombreadas sin porcentaje significan falta de datos, no una ausencia confirmada. Los porcentajes de clases abiertas son provisionales.</p>
+      </>}
+    </section>
+  </div>;
 }

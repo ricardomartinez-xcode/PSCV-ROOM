@@ -40,9 +40,11 @@ test("mobile agenda is usable and month mode remains available", () => {
   assert.match(css, /\.adaptiveCalendar\.showMobileAgenda \.calendarMonthSurface\s*\{\s*display:\s*none/);
 });
 
-test("floating back-to-top control does not obscure month entries", () => {
-  assert.match(source, /<ScrollToTopButton compact=\{tab === "calendar"\} \/>/);
-  assert.match(source, /aria-label="Volver arriba"/);
-  assert.match(css, /\.calendarScrollToTop\s*\{/);
-  assert.match(css, /bottom:\s*calc\(80px \+ env\(safe-area-inset-bottom\)\)/);
+test("back-to-top navigation stays in the header without covering month entries", () => {
+  const start = source.indexOf('<header className="topAppBar"');
+  const end = source.indexOf("</header>", start);
+  assert.ok(start >= 0 && end > start);
+  assert.ok(source.slice(start, end).includes("<ScrollToTopButton />"));
+  assert.ok(source.includes('aria-label="Volver arriba"'));
+  assert.ok(!css.includes(".calendarScrollToTop"));
 });

@@ -759,11 +759,14 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         <button className="iconButton" aria-label="Abrir navegación" title="Navegación" onClick={() => setDrawerOpen(true)} type="button"><Menu size={23} /></button>
         <img src="/icon.svg" className="appLogo" alt="PSCV" />
         <div className="barTitle">
-          {searchOpen ? (
-            <input className="barSearch" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar" />
-          ) : (
-            titleFor(tab)
-          )}
+          <span className="barTitleContent">
+            {searchOpen ? (
+              <input className="barSearch" autoFocus value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar" />
+            ) : (
+              titleFor(tab)
+            )}
+          </span>
+          <ScrollToTopButton />
         </div>
         <button className="iconButton" aria-label="Buscar" title="Buscar" onClick={() => setSearchOpen((value) => !value)} type="button"><Search size={22} /></button>
         <button
@@ -875,8 +878,6 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
         onSubmit={(form) => void createTask(form)}
       />
 
-      <ScrollToTopButton compact={tab === "calendar"} />
-
       <nav className={`bottomNav ${capabilities.canAccessAdmin ? "adminBottomNav" : ""}`} aria-label="Navegación principal" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button aria-current={activeNavTab === "calendar" ? "page" : undefined} className={activeNavTab === "calendar" ? "active" : ""} onClick={() => go("calendar")} type="button"><CalendarDays size={22} />Calendario</button>
         <button aria-current={activeNavTab === "tasks" ? "page" : undefined} className={activeNavTab === "tasks" ? "active" : ""} onClick={() => go("tasks")} type="button"><ListTodo size={22} />Tareas</button>
@@ -892,7 +893,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   );
 }
 
-function ScrollToTopButton({ compact = false }: { compact?: boolean }) {
+function ScrollToTopButton() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -914,13 +915,13 @@ function ScrollToTopButton({ compact = false }: { compact?: boolean }) {
 
   return (
     <button
-      className={["scrollToTop", compact ? "calendarScrollToTop" : ""].join(" ")}
+      className="scrollTopHeaderButton"
       aria-label="Volver arriba"
+      title="Volver arriba"
       type="button"
       onClick={returnToTop}
     >
       <ArrowUp size={17} aria-hidden="true" />
-      <span>Volver arriba</span>
     </button>
   );
 }

@@ -365,15 +365,6 @@
 .adaptiveCalendar .calendarDayDialog .calendarAgendaItem strong { font-size: 12px; overflow-wrap: anywhere; }
 .adaptiveCalendar .calendarDayDialog .calendarAgendaItem span { color: #536e88; font-size: 11px; }
 .adaptiveCalendar .calendarDayDialog .calendarAgendaKind { font-size: 10px; }
-.calendarScrollToTop {
-  right: max(14px, env(safe-area-inset-right)) !important;
-  bottom: calc(80px + env(safe-area-inset-bottom)) !important;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  font-size: 0;
-}
-.calendarScrollToTop span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 @media (max-width: 410px) {
   .adaptiveCalendar .calendarPane .dayCell { height: 76px; min-height: 76px; max-height: 76px; }
   .adaptiveCalendar .calendarAgendaItem { grid-template-columns: 44px minmax(0,1fr); }

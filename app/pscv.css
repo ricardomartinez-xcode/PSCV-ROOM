@@ -5768,52 +5768,55 @@ body {
   color: #9a4c0c;
 }
 
-.scrollToTop {
-  position: fixed;
-  right: max(18px, calc((100vw - 1080px) / 2 + 18px));
-  bottom: 86px;
-  z-index: 24;
-  display: inline-flex;
-  min-width: 44px;
-  min-height: 44px;
+/* The back-to-top action lives within the existing sticky header.
+   No fixed overlay is allowed over tables or selectable page content. */
+.barTitle {
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border: 1px solid #b9c9d9;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #184f7c;
-  box-shadow: 0 10px 26px rgba(15, 23, 42, 0.16);
-  font-size: 12px;
-  font-weight: 850;
-  cursor: pointer;
-  backdrop-filter: blur(8px);
+  gap: 6px;
+  min-width: 0;
 }
 
-.scrollToTop span {
+.barTitleContent {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-@media (max-width: 620px) {
-  html {
-    scroll-padding-top: 66px;
-  }
+.scrollTopHeaderButton {
+  position: static;
+  flex: 0 0 36px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #b9c9d9;
+  border-radius: 10px;
+  background: #f4f8fc;
+  color: #184f7c;
+  font-size: 12px;
+  cursor: pointer;
+}
 
-  .scrollToTop {
-    right: max(12px, env(safe-area-inset-right));
-    bottom: calc(102px + env(safe-area-inset-bottom));
-    width: 44px;
-    padding: 0;
-  }
+.scrollTopHeaderButton:hover {
+  background: #e7f1fb;
+}
 
-  .scrollToTop span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
+.scrollTopHeaderButton:focus-visible {
+  outline: 3px solid #337dcc;
+  outline-offset: 2px;
+}
+
+@media (max-width: 540px) {
+  .barTitle { gap: 3px; }
+  .scrollTopHeaderButton {
+    flex-basis: 32px;
+    width: 32px;
+    height: 34px;
   }
 }
 

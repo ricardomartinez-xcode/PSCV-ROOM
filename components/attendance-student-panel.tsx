@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
+import { AttendanceHistoryChart } from "./attendance-history-chart";
 import "./attendance-panel.css";
 
 type Entry = {
@@ -30,7 +31,7 @@ function showPercent(value: number | null) {
 
 export function AttendanceStudentPanel() {
   const [date, setDate] = useState(localDate);
-  const [period, setPeriod] = useState<AttendancePeriod>("day");
+  const [period, setPeriod] = useState<AttendancePeriod>("week");
   const [courseFilter, setCourseFilter] = useState("all");
   const [data, setData] = useState<MyAttendance | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +99,12 @@ export function AttendanceStudentPanel() {
       </section>
       <section className="attendanceSection">
         <h3>Detalle por materia</h3>
+        {visibleEntries.length > 0 &&
+          <AttendanceHistoryChart title="Evolución general de mi asistencia"
+            points={visibleEntries.map((entry) => ({
+              id: entry.id, date: entry.date, label: entry.course,
+              percentage: entry.percentage, provisional: entry.provisional,
+            }))} />}
         <div className="attendanceCourseGrid">
           {Array.from(courseOverview.entries()).filter(([name]) => courseFilter === "all" || courseFilter === name)
             .map(([name, row]) => <div className="attendanceCourseCard" key={name}>
@@ -105,6 +112,12 @@ export function AttendanceStudentPanel() {
                 <strong>{showPercent(row.required ? row.attended / row.required * 100 : null)}</strong></div>
               <progress max={100} value={row.required ? row.attended / row.required * 100 : 0}
                 className="attendanceProgress" aria-label={"Permanencia en " + name} />
+              <AttendanceHistoryChart title={"Historial de " + name} points={data.entries
+                .filter((entry) => entry.course === name)
+                .map((entry) => ({
+                  id: entry.id, date: entry.date, label: entry.status ? labels[entry.status] : "Sin registrar",
+                  percentage: entry.percentage, provisional: entry.provisional,
+                }))} />
               {row.provisional && <small>Hay clases abiertas; la cifra es provisional.</small>}
             </div>)}
         </div>

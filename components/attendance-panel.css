@@ -61,3 +61,39 @@
 .attendanceModalActions button{padding:.7rem .9rem;border:1px solid #b6c8d6;border-radius:9px;background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer}
 .attendanceModalActions button:disabled{opacity:.5;cursor:not-allowed}
 .attendanceModal input:focus-visible,.attendanceModal button:focus-visible{outline:3px solid #55abc2;outline-offset:2px}
+
+/* Reports by subject and date range */
+.attendanceAnalysisFilters{display:flex;align-items:end;flex-wrap:wrap;gap:.65rem}
+.attendanceAnalysisFilters>label{display:grid;gap:.3rem;flex:1 1 175px;font-size:.79rem;font-weight:700}
+.attendanceAnalysisFilters input,.attendanceAnalysisFilters select{width:100%;min-height:42px;border:1px solid #b9cad8;border-radius:9px;background:var(--card,#fff);color:inherit;padding:.5rem}
+.attendancePeriodTabs{display:flex;flex-wrap:wrap;gap:3px;border:0;padding:0;margin:0;min-width:0}
+.attendancePeriodTabs legend{font-size:.79rem;font-weight:700;margin-bottom:.3rem}
+.attendancePeriodTabs button{padding:.6rem .75rem;border:1px solid #bbcbda;border-radius:8px;background:var(--card,#fff);color:inherit;cursor:pointer}
+.attendancePeriodTabs button[aria-pressed=true]{background:#0a697c;color:#fff;border-color:#0a697c;font-weight:800}
+.attendanceCourseGrid{display:grid;gap:1rem}
+.attendanceCourseCard{border:1px solid var(--border,#d9e1e9);border-radius:12px;padding:.85rem;display:grid;gap:.65rem;min-width:0}
+.attendanceCourseHead{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.attendanceCourseHead h4{font-size:1rem;margin:0 0 .2rem}
+.attendanceCourseHead span{font-size:.75rem;color:var(--muted,#67788a)}
+.attendanceCourseHead strong{font-size:1.25rem;white-space:nowrap}
+.attendanceProgress{width:100%;height:10px;accent-color:#16878a}
+.attendanceRowProgress{display:flex;align-items:center;gap:.55rem;min-width:150px}
+.attendanceRowProgress .attendanceProgress{flex:1}
+.attendanceRowProgress small{font-size:.65rem}
+.attendanceStudentLink{border:0;background:transparent;color:#106a98;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px;padding:2px 0;font:inherit;font-weight:750;white-space:normal}
+.attendanceDetailModal{width:min(100%,900px);display:grid;gap:1rem}
+.attendanceDetailModal .attendanceSectionTitle button{padding:.5rem .7rem;background:var(--card,#fff);color:inherit;border:1px solid #bdcddd;border-radius:9px;cursor:pointer}
+.attendanceDetailTotals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.6rem}
+.attendanceDetailTotals span{display:grid;gap:.25rem;padding:.7rem;border-radius:10px;background:var(--surface-secondary,#f2f6f9);font-size:.75rem}
+.attendanceDetailTotals strong{font-size:1.05rem}
+@media(max-width:700px){
+ .attendanceInsightsTable{white-space:normal}
+ .attendanceInsightsTable thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .attendanceInsightsTable,.attendanceInsightsTable tbody{display:block;width:100%}
+ .attendanceInsightsTable tr{display:grid;padding:.5rem;border-bottom:1px solid var(--border,#d9e1e9)}
+ .attendanceInsightsTable td{display:grid;grid-template-columns:minmax(90px,36%) minmax(0,1fr);align-items:center;gap:.5rem;white-space:normal;overflow-wrap:anywhere;padding:.55rem .3rem}
+ .attendanceInsightsTable td::before{content:attr(data-label);font-weight:750;color:var(--muted,#4e6579);font-size:.7rem}
+ .attendanceInsightsTable td:first-child{min-width:0}
+ .attendanceDetailTotals{grid-template-columns:1fr 1fr}
+ .attendanceCourseCard{padding:.65rem}
+}

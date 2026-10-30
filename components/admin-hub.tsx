@@ -537,6 +537,7 @@ function ReportsPanel({ onError }: { onError: (error: string | null) => void }) 
   const [loadError, setLoadError] = useState<string | null>(null);
   const [datasetId, setDatasetId] = useState<ReportDatasetId>("tasks");
   const [query, setQuery] = useState("");
+  const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("ascending");
 
@@ -571,14 +572,18 @@ function ReportsPanel({ onError }: { onError: (error: string | null) => void }) 
   const selectedDataset = datasets.find((dataset) => dataset.id === datasetId) ?? datasets[0];
   const columns = selectedDataset.rows[0] ? Object.keys(selectedDataset.rows[0]) : [];
   const displayedRows = useMemo(
-    () => filterAndSortReportRows(selectedDataset.rows, query, sortColumn, sortDirection),
-    [query, selectedDataset.rows, sortColumn, sortDirection],
+    () => filterAndSortReportRows(selectedDataset.rows.filter((row) =>
+      Object.entries(columnFilters).every(([key, value]) => !value.trim() ||
+        formatReportValue(row[key], key).toLocaleLowerCase("es").includes(value.trim().toLocaleLowerCase("es")))),
+      query, sortColumn, sortDirection),
+    [query, selectedDataset.rows, sortColumn, sortDirection, columnFilters],
   );
   const summary = useMemo(() => reportSummary(payload), [payload]);
 
   function selectDataset(nextDataset: ReportDatasetId) {
     setDatasetId(nextDataset);
     setQuery("");
+    setColumnFilters({});
     setSortColumn(null);
     setSortDirection("ascending");
   }
@@ -614,6 +619,17 @@ function ReportsPanel({ onError }: { onError: (error: string | null) => void }) 
             <span>Buscar</span>
             <span className="reportSearchField"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Buscar en ${selectedDataset.label.toLowerCase()}`} /></span>
           </label>
+          <details className="reportColumnFilter">
+            <summary>Filtrar columnas</summary>
+            <div className="reportColumnFilterFields">
+              {columns.map((column) => <label key={column}>{reportColumnLabel(column)}
+                <input type="search" value={columnFilters[column] ?? ""} placeholder="Contiene…"
+                  onChange={(event) => setColumnFilters((old) => ({ ...old, [column]: event.target.value }))} />
+              </label>)}
+            </div>
+          </details>
+          {Object.values(columnFilters).some(Boolean) &&
+            <button type="button" onClick={() => setColumnFilters({})}>Limpiar filtros</button>}
           <button className="reportExportButton" type="button" disabled={!displayedRows.length} onClick={() => exportReportCsv(selectedDataset.label, columns, displayedRows)}><Download size={16} aria-hidden="true" />Exportar CSV</button>
         </div>
         <div className="reportDatasetHead">
@@ -992,6 +1008,12 @@ function AdminCalendarPanel({ tasks, loading, onReload, onUpdate }: { tasks: Adm
 function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]; onCreate: (input: CourseDraft) => Promise<boolean>; onUpdate: (id: string, patch: Partial<CourseConfig>) => Promise<boolean> }) {
   const [draft, setDraft] = useState<CourseDraft>(() => emptyCourseDraft());
   const [busy, setBusy] = useState(false);
+  const [courseQuery, setCourseQuery] = useState("");
+  const [courseStatusFilter, setCourseStatusFilter] = useState("all");
+  const visibleCourses = courses.filter((course) =>
+    (courseStatusFilter === "all" || String(Boolean(course.active)) === courseStatusFilter) &&
+    [course.name, course.shortName, course.professorName, course.professorEmail, course.classroom]
+      .some((field) => field.toLocaleLowerCase("es").includes(courseQuery.trim().toLocaleLowerCase("es"))));
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1016,9 +1038,17 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
         <label className="wide">Salón de clases<input value={draft.classroom} onChange={(event) => setDraft((current) => ({ ...current, classroom: event.target.value }))} placeholder="Ej. 19" /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.name.trim()}>{busy ? "Agregando..." : "Agregar materia"}</button>
       </form>
+      <div className="adminListFilters">
+        <label>Buscar materia o profesor<input type="search" value={courseQuery}
+          onChange={(event) => setCourseQuery(event.target.value)} placeholder="Materia, profesor, salón…" /></label>
+        <label>Estado<select value={courseStatusFilter} onChange={(event) => setCourseStatusFilter(event.target.value)}>
+          <option value="all">Todas</option><option value="true">Activas</option><option value="false">Inactivas</option>
+        </select></label>
+        <span role="status">{visibleCourses.length} de {courses.length} materias</span>
+      </div>
       <div className="adminRows">
-        {courses.map((course) => <CourseAdminRow key={course.id} course={course} onUpdate={onUpdate} />)}
-        {!courses.length ? <p className="muted">No hay materias cargadas.</p> : null}
+        {visibleCourses.map((course) => <CourseAdminRow key={course.id} course={course} onUpdate={onUpdate} />)}
+        {!visibleCourses.length ? <p className="muted">No hay materias con estos filtros.</p> : null}
       </div>
     </section>
   );
@@ -1421,6 +1451,15 @@ function MaterialUploadPanel({ canManageR2, canManageMaterials, d1Client, reload
 function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReload, onUpdate, onDelete }: { profiles: AppProfileRow[]; loading: boolean; canManagePermissions: boolean; onCreate: (input: StudentDraft) => Promise<boolean>; onReload: () => void; onUpdate: (id: string, patch: Partial<AppProfileRow>) => Promise<boolean>; onDelete: (id: string) => Promise<boolean> }) {
   const [draft, setDraft] = useState<StudentDraft>(() => emptyStudentDraft());
   const [busy, setBusy] = useState(false);
+  const [userQuery, setUserQuery] = useState("");
+  const [userRoleFilter, setUserRoleFilter] = useState("all");
+  const [userStatusFilter, setUserStatusFilter] = useState("all");
+  const filteredProfiles = profiles.filter((profile) => (
+    (userRoleFilter === "all" || profile.profile_role === userRoleFilter) &&
+    (userStatusFilter === "all" || String(Boolean(profile.active)) === userStatusFilter) &&
+    [profile.full_name ?? "", profile.email, profile.control_number ?? ""]
+      .some((value) => value.toLocaleLowerCase("es").includes(userQuery.trim().toLocaleLowerCase("es")))
+  ));
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1439,11 +1478,23 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
         <label className="wide">Nombre completo<input value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} placeholder="Nombre completo" required /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.email.trim() || !draft.fullName.trim()}>{busy ? "Agregando..." : "Agregar alumno"}</button>
       </form>
+      <div className="adminListFilters">
+        <label>Buscar usuario<input type="search" value={userQuery}
+          onChange={(event) => setUserQuery(event.target.value)} placeholder="Nombre, correo o control" /></label>
+        <label>Rol<select value={userRoleFilter} onChange={(event) => setUserRoleFilter(event.target.value)}>
+          <option value="all">Todos</option><option value="administrator">Administrador</option>
+          <option value="professor">Profesor</option><option value="student">Alumno</option>
+        </select></label>
+        <label>Estado<select value={userStatusFilter} onChange={(event) => setUserStatusFilter(event.target.value)}>
+          <option value="all">Todos</option><option value="true">Activos</option><option value="false">Inactivos</option>
+        </select></label>
+        <span role="status">{filteredProfiles.length} de {profiles.length} usuarios</span>
+      </div>
       <div className="adminUserList">
-        {profiles.map((profile) => (
+        {filteredProfiles.map((profile) => (
           <UserAdminRow key={profile.id} profile={profile} canManagePermissions={canManagePermissions} onUpdate={onUpdate} onDelete={onDelete} />
         ))}
-        {!profiles.length && !loading ? <p className="muted">No se pudieron cargar usuarios o no hay permisos RLS para leerlos.</p> : null}
+        {!filteredProfiles.length && !loading ? <p className="muted">No hay usuarios disponibles con estos filtros.</p> : null}
       </div>
     </section>
   );

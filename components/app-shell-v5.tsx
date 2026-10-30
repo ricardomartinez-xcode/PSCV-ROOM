@@ -1668,10 +1668,31 @@ function TaskList({
   onDone: (id: string) => void;
   onCreate?: () => void;
 }) {
-  const grouped = groupTasks(tasks);
+  const [taskQuery, setTaskQuery] = useState("");
+  const [taskCourse, setTaskCourse] = useState("all");
+  const [taskType, setTaskType] = useState("all");
+  const courseNames = Array.from(new Set(tasks.map((task) => task.course))).sort((a,b) => a.localeCompare(b,"es"));
+  const filteredTasks = tasks.filter((task) => (
+    (taskCourse === "all" || task.course === taskCourse) &&
+    (taskType === "all" || task.itemKind === taskType) &&
+    [task.title, task.course, task.deliveryType]
+      .some((value) => value.toLocaleLowerCase("es").includes(taskQuery.trim().toLocaleLowerCase("es")))
+  ));
+  const grouped = groupTasks(filteredTasks);
   return (
     <div className={`taskListWorkspace ${completedOnly ? "completedOnly" : ""}`}>
       <div className="listScreen">
+        <div className="adminListFilters taskListFilters">
+          <label>Buscar actividad<input type="search" value={taskQuery} onChange={(event) => setTaskQuery(event.target.value)}
+            placeholder="Nombre o materia" /></label>
+          <label>Materia<select value={taskCourse} onChange={(event) => setTaskCourse(event.target.value)}>
+            <option value="all">Todas</option>{courseNames.map((course) => <option value={course} key={course}>{course}</option>)}
+          </select></label>
+          <label>Tipo<select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
+            <option value="all">Todas</option><option value="task">Tareas</option><option value="event">Eventos</option>
+          </select></label>
+          <span role="status">{filteredTasks.length} de {tasks.length} actividades</span>
+        </div>
         {deliveryTypes.map((type) => {
           const rows = grouped.get(type) ?? [];
           if (!rows.length) return null;
@@ -1694,7 +1715,7 @@ function TaskList({
             </section>
           );
         })}
-        {!tasks.length ? <section className="emptyLibrary"><strong>{completedOnly ? "Sin tareas entregadas" : "Sin tareas activas"}</strong><p>{completedOnly ? "Cuando marques una tarea como entregada aparecerá aquí." : "Las tareas entregadas se muestran solamente en Entregadas."}</p></section> : null}
+        {!filteredTasks.length ? <section className="emptyLibrary"><strong>{completedOnly ? "Sin tareas entregadas" : "Sin tareas activas"}</strong><p>{completedOnly ? "Cuando marques una tarea como entregada aparecerá aquí." : "Las tareas entregadas se muestran solamente en Entregadas."}</p></section> : null}
       </div>
       {onCreate ? (
         <button className="taskCreateDock" onClick={onCreate} type="button">
@@ -1777,6 +1798,10 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
   const [memberForm, setMemberForm] = useState({ id: "", fullName: "", email: "", controlNumber: "", active: true });
   const [memberBusy, setMemberBusy] = useState(false);
   const [memberMessage, setMemberMessage] = useState<string | null>(null);
+  const [groupSearch, setGroupSearch] = useState("");
+  const [groupFilters, setGroupFilters] = useState<Record<string, string>>({});
+  const [groupSort, setGroupSort] = useState<"fullName"|"email"|"controlNumber">("fullName");
+  const [groupDescending, setGroupDescending] = useState(false);
   const [columns, setColumns] = useState<BooleanGroupColumn[]>(fixedBooleanColumns);
   const [values, setValues] = useState<GroupValueStore>({});
   const [newColumnLabel, setNewColumnLabel] = useState("");
@@ -2023,6 +2048,22 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
     }
   }
 
+  const filteredMembers = memberRows.filter((member) => {
+    const query = groupSearch.trim().toLocaleLowerCase("es");
+    if (query && ![member.fullName, member.email, member.controlNumber].some((value) =>
+      value.toLocaleLowerCase("es").includes(query))) return false;
+    return Object.entries(groupFilters).every(([key, value]) => {
+      if (!value.trim()) return true;
+      if (key === "fullName" || key === "controlNumber" || key === "email") {
+        return member[key].toLocaleLowerCase("es").includes(value.toLocaleLowerCase("es"));
+      }
+      const column = columns.find((item) => item.id === key);
+      if (!column) return true;
+      return (cellValue(member, column) ? "yes" : "no") === value;
+    });
+  }).sort((a, b) => (groupDescending ? -1 : 1) *
+    a[groupSort].localeCompare(b[groupSort], "es", { numeric: true }));
+
   return (
     <div className="groupScreen">
       <section className="groupToolbar">
@@ -2048,7 +2089,30 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
           {memberMessage ? <p className="groupMemberMessage" role="status">{memberMessage}</p> : null}
         </form>
       ) : null}
-      <div className="tableWrap groupTableWrap">
+      <div className="groupFilterToolbar">
+        <label>Buscar en la lista<input type="search" placeholder="Alumno, correo o control" value={groupSearch}
+          onChange={(event) => setGroupSearch(event.target.value)} /></label>
+        <label>Ordenar por<select value={groupSort} onChange={(event) => setGroupSort(event.target.value as typeof groupSort)}>
+          <option value="fullName">Nombre</option><option value="controlNumber">No. Control</option>
+          <option value="email">Correo</option></select></label>
+        <label>Orden<select value={groupDescending ? "desc" : "asc"} onChange={(event) => setGroupDescending(event.target.value === "desc")}>
+          <option value="asc">A–Z</option><option value="desc">Z–A</option></select></label>
+        <details className="groupColumnFilters"><summary>Filtros por columna</summary>
+          <div className="groupFilterFields">
+            {([["controlNumber","No. Control"],["email","Correo"],["fullName","Nombre"]] as const).map(([key,label]) =>
+              <label key={key}>{label}<input type="search" value={groupFilters[key] ?? ""}
+                onChange={(event) => setGroupFilters((old) => ({ ...old, [key]: event.target.value }))} /></label>)}
+            {columns.map((column) => <label key={column.id}>{column.label}
+              <select value={groupFilters[column.id] ?? ""} onChange={(event) =>
+                setGroupFilters((old) => ({ ...old, [column.id]: event.target.value }))}>
+                <option value="">Todos</option><option value="yes">Sí</option><option value="no">No</option>
+              </select></label>)}
+          </div>
+        </details>
+        <button type="button" onClick={() => { setGroupSearch(""); setGroupFilters({}); }}>Limpiar filtros</button>
+        <span role="status">{filteredMembers.length} de {memberRows.length} alumnos</span>
+      </div>
+      <div className="tableWrap groupTableWrap" role="region" aria-label="Lista de grupo" tabIndex={0}>
         <table className="appTable memberTable">
           <thead>
             <tr>
@@ -2078,16 +2142,16 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
             </tr>
           </thead>
           <tbody>
-            {memberRows.map((member) => (
+            {filteredMembers.map((member) => (
               <tr key={member.controlNumber}>
-                <td>{member.controlNumber}</td>
-                <td>{member.email}</td>
-                <td>{member.fullName}</td>
-                {canManageMembers ? <td className="memberActionsCell"><button type="button" onClick={() => editMember(member)} aria-label={`Editar ${member.fullName}`}><Edit3 size={14} /></button><button type="button" onClick={() => void removeMember(member)} aria-label={`Eliminar ${member.fullName}`} disabled={memberBusy}><Trash2 size={14} /></button></td> : null}
+                <td data-label="No. Control">{member.controlNumber}</td>
+                <td data-label="Correo electrónico">{member.email}</td>
+                <td data-label="Nombre completo">{member.fullName}</td>
+                {canManageMembers ? <td data-label="Acciones" className="memberActionsCell"><button type="button" onClick={() => editMember(member)} aria-label={`Editar ${member.fullName}`}><Edit3 size={14} /></button><button type="button" onClick={() => void removeMember(member)} aria-label={`Eliminar ${member.fullName}`} disabled={memberBusy}><Trash2 size={14} /></button></td> : null}
                 {columns.map((column) => {
                   const checked = cellValue(member, column);
                   return (
-                    <td className="booleanCell" key={column.id}>
+                    <td data-label={column.label} className="booleanCell" key={column.id}>
                       <button className={`boolToggle ${checked ? "on" : ""}`} aria-pressed={checked} onClick={() => void toggleCell(member, column)} type="button">
                         {checked ? <Check size={14} /> : <X size={14} />}
                         <span>{checked ? "Sí" : "No"}</span>

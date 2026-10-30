@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
 import { suggestedPermanenceSchedule, type BreakMode } from "@/lib/permanencia-config";
+import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
 import "./attendance-panel.css";
 
 type Course = { id: string; name: string; short_name: string | null };
@@ -18,7 +19,16 @@ type Break = { id: string; session_id: string; kind: "fixed" | "variable"; start
 type Snapshot = {
   courses: Course[]; students: Student[]; sessions: Session[];
   attendance: Attendance[]; presence: Presence[]; breaks: Break[]; serverNow: string;
+  period?: AttendancePeriod; periodStart?: string; periodEnd?: string;
 };
+type StudentCourseSummary = {
+  student: Student; course: Course; markedCount: number; observedCount: number;
+  required: number; attended: number; absent: number; exits: number;
+  percentage: number | null; provisional: boolean;
+  records: Array<{ session: Session; status: Attendance["status"] | null; stats: ReturnType<typeof calculateForStudent> }>;
+};
+type CourseSummary = { course: Course; rows: StudentCourseSummary[]; count: number; percentage: number | null; recorded: number; };
+const periodLabels: Record<AttendancePeriod, string> = { day: "Diario", week: "Semanal", month: "Mensual" };
 type Command =
   | { action: "create_session"; courseId: string; date: string; startLocal: string; endLocal: string }
   | { action: "mark_attendance"; sessionId: string; profileId: string; status: Attendance["status"]; arrivalLocal?: string }
@@ -94,6 +104,14 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
 export function AttendancePanel() {
   const [date, setDate] = useState(todayInMexicoCity);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [period, setPeriod] = useState<AttendancePeriod>("day");
+  const [summarySnapshot, setSummarySnapshot] = useState<Snapshot | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [summaryQuery, setSummaryQuery] = useState("");
+  const [summaryCourseId, setSummaryCourseId] = useState("all");
+  const [summaryOrder, setSummaryOrder] = useState<"name" | "low" | "high">("name");
+  const [detail, setDetail] = useState<{ studentId: string; courseId: string } | null>(null);
   const [selectedSessionId, setSelectedSessionId] = useState("");
   const [courseId, setCourseId] = useState("");
   const [startLocal, setStartLocal] = useState("18:00");
@@ -135,6 +153,31 @@ export function AttendancePanel() {
     void task();
     return () => { mounted = false; };
   }, [date]);
+
+  // Keep daily CRUD operations independent of historical reporting requests.
+  useEffect(() => {
+    if (period === "day") return;
+    const controller = new AbortController();
+    const load = async () => {
+      setSummarySnapshot(null);
+      setSummaryError(null);
+      setSummaryLoading(true);
+      try {
+        const response = await fetch(basePath + "?date=" + encodeURIComponent(date) + "&period=" + period, {
+          cache: "no-store", signal: controller.signal,
+        });
+        const data = await response.json() as Snapshot & { error?: string };
+        if (!response.ok) throw new Error(data.error ?? "No fue posible cargar el periodo.");
+        if (!controller.signal.aborted) setSummarySnapshot(data);
+      } catch (cause) {
+        if (!controller.signal.aborted) setSummaryError(cause instanceof Error ? cause.message : "Error al cargar el periodo.");
+      } finally {
+        if (!controller.signal.aborted) setSummaryLoading(false);
+      }
+    };
+    void load();
+    return () => controller.abort();
+  }, [period, date, snapshot]);
 
   async function command(body: Command): Promise<boolean> {
     setBusy(true);
@@ -205,33 +248,102 @@ export function AttendancePanel() {
   const marked = studentStats.filter((s) => s.attendance).length;
   const present = studentStats.filter((s) => s.attendance?.status === "present" || s.attendance?.status === "late").length;
 
-  const dailyStats = useMemo(() => {
-    if (!snapshot) return [];
-    return snapshot.students.map((student) => {
-      let required = 0; let attended = 0; let absent = 0; let exits = 0; let markedCount = 0;
-      for (const session of snapshot.sessions) {
-        const stats = calculateForStudent(snapshot, session, student.id);
-        if (stats) { required += stats.requiredMinutes; attended += stats.remainingMinutes; absent += stats.absentMinutes; exits += stats.exitCount; }
-        if (snapshot.attendance.some((a) => a.session_id === session.id && a.profile_id === student.id)) markedCount++;
+  const activeSummary = period === "day" ? snapshot : summarySnapshot;
+  const bounds = attendancePeriodBounds(date, period);
+  const courseSummaries = useMemo<CourseSummary[]>(() => {
+    if (!activeSummary) return [];
+    const activeCourses = activeSummary.courses.filter((course) =>
+      activeSummary.sessions.some((session) => session.course_id === course.id && session.status !== "cancelled"));
+    const groups = new Map<string, Map<string, StudentCourseSummary>>();
+    for (const course of activeCourses) groups.set(course.id, new Map());
+    const studentsById = new Map(activeSummary.students.map((student) => [student.id, student]));
+    for (const session of activeSummary.sessions) {
+      if (session.status === "cancelled") continue;
+      const sessionAttendance = activeSummary.attendance.filter((row) => row.session_id === session.id);
+      const sessionPresence = activeSummary.presence.filter((row) => row.session_id === session.id);
+      const sessionBreaks = activeSummary.breaks.filter((row) => row.session_id === session.id);
+      const localSnapshot = { ...activeSummary, attendance: sessionAttendance, presence: sessionPresence, breaks: sessionBreaks };
+      const observedIds = new Set([...sessionAttendance.map((row) => row.profile_id), ...sessionPresence.map((row) => row.profile_id)]);
+      for (const studentId of observedIds) {
+        const student = studentsById.get(studentId);
+        const course = activeCourses.find((item) => item.id === session.course_id);
+        const rows = groups.get(session.course_id);
+        if (!student || !course || !rows) continue;
+        const stats = calculateForStudent(localSnapshot, session, studentId);
+        const status = sessionAttendance.find((row) => row.profile_id === studentId)?.status ?? null;
+        let entry = rows.get(studentId);
+        if (!entry) {
+          entry = { student, course, markedCount: 0, observedCount: 0, required: 0, attended: 0,
+            absent: 0, exits: 0, percentage: null, provisional: false, records: [] };
+          rows.set(studentId, entry);
+        }
+        entry.records.push({ session, status, stats });
+        if (status !== null) entry.markedCount++;
+        if (stats) {
+          entry.observedCount++;
+          entry.required += stats.requiredMinutes;
+          entry.attended += stats.remainingMinutes;
+          entry.absent += stats.absentMinutes;
+          entry.exits += stats.exitCount;
+          if (session.status === "open") entry.provisional = true;
+        }
       }
-      return { student, required, attended, absent, exits, markedCount,
-        percentage: required > 0 ? Math.round(attended / required * 1000) / 10 : null };
+    }
+    return activeCourses.map((course) => {
+      const rows = Array.from(groups.get(course.id)?.values() ?? []);
+      for (const row of rows) row.percentage = row.required > 0 ? row.attended / row.required * 100 : null;
+      const required = rows.reduce((sum, row) => sum + row.required, 0);
+      const attended = rows.reduce((sum, row) => sum + row.attended, 0);
+      return { course, rows, count: activeSummary.sessions.filter((session) =>
+        session.course_id === course.id && session.status !== "cancelled").length,
+        recorded: rows.length, percentage: required > 0 ? attended / required * 100 : null };
     });
-  }, [snapshot]);
+  }, [activeSummary]);
+  const visibleCourses = useMemo(() => courseSummaries
+    .filter((group) => summaryCourseId === "all" || summaryCourseId === group.course.id)
+    .map((group) => ({ ...group, rows: group.rows.filter((row) => {
+      const query = normalizeName(summaryQuery);
+      return !query || normalizeName([row.student.full_name, row.student.control_number ?? "",
+        row.course.name].join(" ")).includes(query);
+    }).sort((a, b) => summaryOrder === "name"
+      ? a.student.full_name.localeCompare(b.student.full_name, "es")
+      : summaryOrder === "low"
+        ? (a.percentage ?? 101) - (b.percentage ?? 101)
+        : (b.percentage ?? -1) - (a.percentage ?? -1)) })), [courseSummaries, summaryCourseId, summaryQuery, summaryOrder]);
+  const detailCourse = detail ? activeSummary?.courses.find((row) => row.id === detail.courseId) : null;
+  const detailStudent = detail ? activeSummary?.students.find((row) => row.id === detail.studentId) : null;
+  const foundDetail = detail ? courseSummaries.find((group) => group.course.id === detail.courseId)
+    ?.rows.find((row) => row.student.id === detail.studentId) : null;
+  const detailRow: StudentCourseSummary | null = detailCourse && detailStudent
+    ? foundDetail ?? { student: detailStudent, course: detailCourse, markedCount: 0,
+        observedCount: 0, required: 0, attended: 0, absent: 0, exits: 0,
+        percentage: null, provisional: false, records: [] }
+    : null;
+  const detailRecords = detailRow && activeSummary
+    ? activeSummary.sessions.filter((session) => session.course_id === detailRow.course.id && session.status !== "cancelled")
+      .map((session) => detailRow.records.find((item) => item.session.id === session.id) ??
+        { session, status: null, stats: null })
+    : [];
 
   function exportCsv() {
-    const header = ["Alumno", "Número de control", "Fecha", "Sesiones marcadas", "Salidas", "Minutos ausentes", "Saldo de minutos (provisional si sesión abierta)", "Minutos exigibles", "Permanencia máxima/final %"];
-    const quote = (value: string | number) => '"' + String(value).replaceAll('"', '""') + '"';
-    const lines = [header.map(quote).join(","), ...dailyStats.map((s) => [
-      s.student.full_name, s.student.control_number ?? "", date, s.markedCount,
-      s.exits, s.required > 0 ? s.absent.toFixed(1) : "",
-      s.required > 0 ? s.attended.toFixed(1) : "", s.required > 0 ? s.required.toFixed(1) : "", s.percentage ?? "",
-    ].map(quote).join(","))];
-    const csv = "\uFEFF" + lines.join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    if (!activeSummary) return;
+    const header = ["Materia", "Alumno", "Número de control", "Inicio", "Fin", "Sesiones marcadas", "Sesiones con registro", "Salidas",
+      "Minutos ausentes", "Saldo o minutos presentes", "Minutos exigibles", "Máximo posible / Final %"];
+    const quote = (value: string | number) => {
+      const text = String(value);
+      // Prevent formula execution when CSV is opened in a spreadsheet.
+      const safe = /^[=+@\\t\\r]/.test(text) || /^-(?!\\d)/.test(text) ? "'" + text : text;
+      return '"' + safe.replaceAll('"', '""') + '"';
+    };
+    const lines = [header, ...visibleCourses.flatMap((group) => group.rows.map((row) => [
+      group.course.name, row.student.full_name, row.student.control_number ?? "", bounds.start, bounds.end,
+      row.markedCount, row.observedCount, row.exits, row.absent.toFixed(1), row.attended.toFixed(1),
+      row.required.toFixed(1), row.percentage === null ? "" : row.percentage.toFixed(1),
+    ]))].map((values) => values.map(quote).join(","));
+    const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
     const href = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = href; link.download = "asistencia-" + date + ".csv";
+    link.href = href; link.download = "asistencia-" + period + "-" + date + ".csv";
     document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(href);
   }
 
@@ -362,7 +474,9 @@ export function AttendancePanel() {
                   <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>{selected.status === "open" ? "Saldo de minutos" : "Minutos presentes"}</th><th>{selected.status === "open" ? "Máximo posible" : "Permanencia"}</th></tr></thead>
                   <tbody>{studentStats.map((row) => (
                     <tr key={row.id}>
-                      <td><strong>{row.full_name}</strong><small>{row.control_number ?? "Sin número de control"}</small></td>
+                      <td><button type="button" className="attendanceStudentLink"
+                        onClick={() => { setPeriod("day"); setDetail({ studentId: row.id, courseId: selected.course_id }); }}>
+                        {row.full_name}</button><small>{row.control_number ?? "Sin número de control"}</small></td>
                       <td><div className="attendanceStatusButtons">
                         {(["present", "late", "absent", "excused"] as Attendance["status"][]).map((status) =>
                           <button type="button" key={status}
@@ -392,29 +506,108 @@ export function AttendancePanel() {
             </section>
           )}
 
-          <section className="attendanceSection">
+          <section className="attendanceSection attendanceAnalytics" aria-label="Análisis de asistencia">
             <div className="attendanceSectionTitle">
-              <div><h3>Resumen diario</h3><p>Saldo disponible = minutos exigibles de las clases registradas menos ausencias transcurridas. Es provisional mientras existan clases abiertas.</p></div>
-              <button type="button" onClick={exportCsv} disabled={snapshot.sessions.length === 0}>Exportar CSV</button>
+              <div><h3>Resumen de asistencia por materia</h3>
+                <p>Asistencia medida por minutos exigibles y registrados. Elige día, semana o mes; las clases sin registro no se consideran ausencias confirmadas.</p></div>
+              <button type="button" onClick={exportCsv} disabled={!activeSummary || !visibleCourses.some((group) => group.rows.length)}>Exportar CSV</button>
             </div>
-            <div className="attendanceTableScroll">
-              <table className="attendanceTable">
-                <thead><tr><th>Alumno</th><th>Sesiones con pase de lista</th><th>Salidas</th><th>Minutos ausentes</th><th>Saldo de minutos</th><th>Minutos exigibles</th><th>Máximo diario / Final</th></tr></thead>
-                <tbody>{dailyStats.map((row) => (
-                  <tr key={row.student.id}>
-                    <td>{row.student.full_name}</td>
-                    <td>{row.markedCount} de {snapshot.sessions.length}</td>
-                    <td>{row.required > 0 ? row.exits : "—"}</td>
-                    <td>{row.required > 0 ? row.absent.toFixed(1) : "—"}</td>
-                    <td>{row.required > 0 ? row.attended.toFixed(1) : "—"}</td><td>{row.required > 0 ? row.required.toFixed(1) : "—"}</td>
-                    <td><strong>{percentLabel(row.percentage)}</strong></td>
-                  </tr>
-                ))}</tbody>
-              </table>
+            <div className="attendanceAnalysisFilters">
+              <fieldset className="attendancePeriodTabs">
+                <legend>Periodo</legend>
+                {(["day", "week", "month"] as const).map((value) => <button type="button" key={value}
+                  aria-pressed={period === value} onClick={() => { setPeriod(value); setDetail(null); }}>
+                  {periodLabels[value]}</button>)}
+              </fieldset>
+              <label>Materia
+                <select value={summaryCourseId} onChange={(event) => setSummaryCourseId(event.target.value)}>
+                  <option value="all">Todas las materias</option>
+                  {snapshot.courses.map((course) => <option value={course.id} key={course.id}>{course.name}</option>)}
+                </select>
+              </label>
+              <label>Buscar alumno
+                <input type="search" value={summaryQuery} onChange={(event) => setSummaryQuery(event.target.value)}
+                  placeholder="Nombre o número de control" />
+              </label>
+              <label>Ordenar alumnos
+                <select value={summaryOrder} onChange={(event) => setSummaryOrder(event.target.value as typeof summaryOrder)}>
+                  <option value="name">Nombre (A–Z)</option>
+                  <option value="low">Menor asistencia</option>
+                  <option value="high">Mayor asistencia</option>
+                </select>
+              </label>
             </div>
-            <p className="attendanceHint">«Sin marcar» no significa falta confirmada. Puede haber minutos ausentes con 0 salidas si el estado es «Retardo» o «Ausente»; «Presente» no genera retardo por registrar el pase de lista después del comienzo. El saldo abierto es provisional. Este registro no sustituye la asistencia oficial.</p>
+            <p className="attendanceHint" role="status">
+              {bounds.start === bounds.end ? dayLabel(bounds.start) : bounds.start + " a " + bounds.end}
+              {" · "}Porcentaje = minutos disponibles o presentes / minutos exigibles
+            </p>
+            {summaryLoading && <p role="status">Cargando registros del periodo…</p>}
+            {summaryError && <p className="attendanceError" role="alert">{summaryError}</p>}
+            {activeSummary && visibleCourses.length === 0 && <p>No hay clases registradas para esta selección.</p>}
+            {activeSummary && <div className="attendanceCourseGrid">
+              {visibleCourses.map((group) => <section className="attendanceCourseCard" key={group.course.id}>
+                <div className="attendanceCourseHead">
+                  <div><h4>{group.course.name}</h4><span>{group.count} clase(s) · {group.recorded} alumno(s) con registros</span></div>
+                  <strong>{percentLabel(group.percentage)}</strong>
+                </div>
+                <progress className="attendanceProgress" max={100} value={group.percentage ?? 0}
+                  aria-label={"Permanencia registrada en " + group.course.name} />
+                <div className="attendanceTableScroll">
+                  <table className="attendanceTable attendanceInsightsTable">
+                    <thead><tr><th>Alumno</th><th>Clases registradas</th><th>Salidas</th><th>Minutos exigibles</th><th>Ausencia</th><th>Asistencia</th></tr></thead>
+                    <tbody>{group.rows.map((row) => <tr key={row.student.id}>
+                      <td data-label="Alumno"><button type="button" className="attendanceStudentLink"
+                        onClick={() => setDetail({ studentId: row.student.id, courseId: group.course.id })}
+                        aria-label={"Ver asistencia de " + row.student.full_name + " en " + group.course.name}>
+                        {row.student.full_name}</button><small>{row.student.control_number ?? "Sin número de control"}</small></td>
+                      <td data-label="Clases registradas">{row.markedCount} pase(s) de lista · {row.observedCount} con registro de permanencia</td>
+                      <td data-label="Salidas">{row.exits}</td>
+                      <td data-label="Minutos exigibles">{row.required.toFixed(1)} min</td>
+                      <td data-label="Ausencia">{row.absent.toFixed(1)} min</td>
+                      <td data-label="Asistencia"><div className="attendanceRowProgress">
+                        <progress className="attendanceProgress" max={100} value={row.percentage ?? 0}
+                          aria-label={"Asistencia de " + row.student.full_name} />
+                        <strong>{percentLabel(row.percentage)}</strong>
+                        {row.provisional && <small>Provisional</small>}
+                      </div></td>
+                    </tr>)}</tbody>
+                  </table>
+                </div>
+                {group.rows.length === 0 && <p className="attendanceHint">Sin registros individuales para estos filtros. No se asignan faltas automáticamente.</p>}
+              </section>)}
+            </div>}
+            <p className="attendanceHint">Selecciona un alumno para ver su asistencia clase por clase y fecha. Los porcentajes de clases abiertas son máximos provisionales, no tiempo futuro acreditado.</p>
           </section>
         </>
+      )}
+      {detailRow && (
+        <div className="attendanceModalBackdrop" role="presentation">
+          <div className="attendanceModal attendanceDetailModal" role="dialog" aria-modal="true"
+            aria-labelledby="attendanceDetailTitle" onKeyDown={(event) => { if (event.key === "Escape") setDetail(null); }}>
+            <div className="attendanceSectionTitle">
+              <div><h3 id="attendanceDetailTitle">{detailRow.student.full_name}</h3><p>{detailRow.course.name} · {periodLabels[period]}</p></div>
+              <button type="button" autoFocus onClick={() => setDetail(null)}>Cerrar</button>
+            </div>
+            <div className="attendanceDetailTotals">
+              <span><strong>{percentLabel(detailRow.percentage)}</strong>Asistencia</span>
+              <span><strong>{detailRow.markedCount}</strong>Clases con pase de lista</span>
+              <span><strong>{detailRow.absent.toFixed(1)} min</strong>Ausencias</span>
+            </div>
+            <div className="attendanceTableScroll">
+              <table className="attendanceTable attendanceInsightsTable">
+                <thead><tr><th>Fecha</th><th>Clase</th><th>Registro</th><th>Ausencia</th><th>Asistencia</th></tr></thead>
+                <tbody>{detailRecords.map(({ session, status, stats }) => <tr key={session.id}>
+                  <td data-label="Fecha">{session.session_date}</td>
+                  <td data-label="Clase">{formatClock(session.scheduled_start_at)}–{formatClock(session.scheduled_end_at)}{session.status === "open" ? " · Abierta" : ""}</td>
+                  <td data-label="Registro">{status ? statusLabels[status] : "Sin pase de lista (sin evidencia de ausencia)"}</td>
+                  <td data-label="Ausencia">{stats ? stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
+                  <td data-label="Asistencia">{stats ? percentLabel(stats.percentage) : "—"}</td>
+                </tr>)}</tbody>
+              </table>
+            </div>
+            <p className="attendanceHint">Se muestran todas las clases registradas de la materia en el periodo. Sin marcar no equivale a ausencia.</p>
+          </div>
+        </div>
       )}
       {lateDialog && (
         <div className="attendanceModalBackdrop" role="presentation">

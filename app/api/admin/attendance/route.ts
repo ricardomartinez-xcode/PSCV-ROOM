@@ -4,6 +4,7 @@ import { errorResponse, HttpError, requireProfile, type ServerProfile } from "@/
 import { getD1 } from "@/lib/server/cloudflare";
 import { defaultBreakMode, validateFixedBreaks } from "@/lib/permanencia-config";
 import { resolveLateArrival } from "@/lib/permanencia-arrival";
+import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
 
 export const dynamic = "force-dynamic";
 
@@ -137,6 +138,12 @@ export async function GET(request: Request) {
     const parsedDate = dateSchema.safeParse(day);
     if (!parsedDate.success) throw new HttpError(400, "Selecciona una fecha YYYY-MM-DD.");
     validateDate(day);
+    const parsedPeriod = z.enum(["day", "week", "month"]).safeParse(
+      new URL(request.url).searchParams.get("period") ?? "day"
+    );
+    if (!parsedPeriod.success) throw new HttpError(400, "Periodo no válido.");
+    const period: AttendancePeriod = parsedPeriod.data;
+    const bounds = attendancePeriodBounds(day, period);
     const db = await getD1();
     const [courses, students, sessions] = await Promise.all([
       isProfessor(actor)
@@ -144,30 +151,33 @@ export async function GET(request: Request) {
         : db.prepare("SELECT id,name,short_name FROM courses WHERE active = 1 ORDER BY sort_order,name").all(),
       db.prepare("SELECT id,full_name,control_number FROM app_profiles WHERE active = 1 AND role = 'student' ORDER BY full_name LIMIT 500").all(),
       isProfessor(actor)
-        ? db.prepare("SELECT s.id,s.course_id,s.session_date,s.scheduled_start_at,s.scheduled_end_at,s.actual_end_at,s.status,s.break_mode FROM permanence_sessions s JOIN courses c ON c.id = s.course_id WHERE s.session_date = ? AND c.active = 1 AND lower(trim(c.professor_email)) = lower(trim(?)) ORDER BY s.scheduled_start_at")
-          .bind(day, actor.email).all<SessionRow>()
+        ? db.prepare("SELECT s.id,s.course_id,s.session_date,s.scheduled_start_at,s.scheduled_end_at,s.actual_end_at,s.status,s.break_mode FROM permanence_sessions s JOIN courses c ON c.id = s.course_id WHERE s.session_date BETWEEN ? AND ? AND c.active = 1 AND lower(trim(c.professor_email)) = lower(trim(?)) ORDER BY s.scheduled_start_at")
+          .bind(bounds.start, bounds.end, actor.email).all<SessionRow>()
         : db.prepare(
-            "SELECT id,course_id,session_date,scheduled_start_at,scheduled_end_at,actual_end_at,status,break_mode FROM permanence_sessions WHERE session_date = ? ORDER BY scheduled_start_at"
-          ).bind(day).all<SessionRow>(),
+            "SELECT id,course_id,session_date,scheduled_start_at,scheduled_end_at,actual_end_at,status,break_mode FROM permanence_sessions WHERE session_date BETWEEN ? AND ? ORDER BY scheduled_start_at"
+          ).bind(bounds.start, bounds.end).all<SessionRow>(),
     ]);
     const ids = (sessions.results ?? []).map((s) => s.id);
-    let attendance: AttendanceRow[] = [];
-    let presence: PresenceRow[] = [];
-    let breaks: BreakRow[] = [];
-    if (ids.length > 0) {
-      const marks = ids.map(() => "?").join(",");
+    const attendance: AttendanceRow[] = [];
+    const presence: PresenceRow[] = [];
+    const breaks: BreakRow[] = [];
+    // D1 has a finite SQL bind limit: batch long months without interpolating IDs.
+    for (let start = 0; start < ids.length; start += 70) {
+      const batch = ids.slice(start, start + 70);
+      const marks = batch.map(() => "?").join(",");
       const [att, pre, bre] = await Promise.all([
-        db.prepare("SELECT session_id,profile_id,status,note FROM permanence_attendance WHERE session_id IN (" + marks + ")").bind(...ids).all<AttendanceRow>(),
-        db.prepare("SELECT id,session_id,profile_id,start_at,end_at FROM permanence_presence WHERE session_id IN (" + marks + ") ORDER BY start_at").bind(...ids).all<PresenceRow>(),
-        db.prepare("SELECT id,session_id,kind,start_at,end_at FROM permanence_breaks WHERE session_id IN (" + marks + ") ORDER BY start_at").bind(...ids).all<BreakRow>(),
+        db.prepare("SELECT session_id,profile_id,status,note FROM permanence_attendance WHERE session_id IN (" + marks + ")").bind(...batch).all<AttendanceRow>(),
+        db.prepare("SELECT id,session_id,profile_id,start_at,end_at FROM permanence_presence WHERE session_id IN (" + marks + ") ORDER BY start_at").bind(...batch).all<PresenceRow>(),
+        db.prepare("SELECT id,session_id,kind,start_at,end_at FROM permanence_breaks WHERE session_id IN (" + marks + ") ORDER BY start_at").bind(...batch).all<BreakRow>(),
       ]);
-      attendance = att.results ?? [];
-      presence = pre.results ?? [];
-      breaks = bre.results ?? [];
+      attendance.push(...(att.results ?? []));
+      presence.push(...(pre.results ?? []));
+      breaks.push(...(bre.results ?? []));
     }
     return json({
       courses: courses.results ?? [], students: students.results ?? [],
       sessions: sessions.results ?? [], attendance, presence, breaks,
+      period, periodStart: bounds.start, periodEnd: bounds.end,
       serverNow: new Date().toISOString(),
     });
   } catch (error) {

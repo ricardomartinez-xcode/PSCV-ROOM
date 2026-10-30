@@ -31,6 +31,7 @@ import {
   ListTodo,
   RefreshCw,
   Search,
+  Settings2,
   ShieldCheck,
   Upload,
   Pencil,
@@ -140,15 +141,51 @@ const tabs: Array<{ id: AdminTab; label: string; icon: LucideIcon }> = [
   { id: "diagnostics", label: "Diagnóstico", icon: Activity },
 ];
 
+type AdminNavigationGroup = { label: string; items: AdminTab[] };
+const adminNavigationGroups: AdminNavigationGroup[] = [
+  { label: "Panel principal", items: ["general", "tasks", "calendar"] },
+  { label: "Organización académica", items: ["courses", "sections", "materials"] },
+  { label: "Personas y comunicación", items: ["users", "notifications"] },
+  { label: "Análisis y sistema", items: ["reports", "diagnostics"] },
+];
+const adminTabDescriptions: Record<AdminTab, string> = {
+  general: "Indicadores, accesos rápidos y estado de tu espacio académico.",
+  tasks: "Seguimiento de actividades, entregas y prioridades.",
+  calendar: "Organización de las fechas y eventos académicos.",
+  courses: "Materias, horarios, profesores y salones.",
+  sections: "Organización y presentación de las secciones de materiales.",
+  materials: "Biblioteca, archivos y sincronización con R2.",
+  users: "Directorio, cuentas, roles y permisos de acceso.",
+  notifications: "Comunicaciones y avisos enviados a la comunidad.",
+  reports: "Datos, filtros, análisis y exportaciones.",
+  diagnostics: "Salud del sistema, almacenamiento e integraciones.",
+};
+
 export function AdminHub({ courses, sections, profile = null, d1Client, reload, onCourses, onSections, onError, initialTab = "general" }: AdminHubProps) {
   const [activeTab, setActiveTab] = useState<AdminTab>(initialTab);
   const [profiles, setProfiles] = useState<AppProfileRow[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [adminTasks, setAdminTasks] = useState<AdminTaskRow[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [navigationQuery, setNavigationQuery] = useState("");
+  const tabPanelRef = useRef<HTMLDivElement | null>(null);
   const tabRefs = useRef<Partial<Record<AdminTab, HTMLButtonElement | null>>>({});
   const capabilities = useMemo(() => getSessionCapabilities(profile), [profile]);
   const visibleTabs = useMemo(() => tabs.filter((tab) => canAccessAdminTab(capabilities, tab.id === "calendar" ? "tasks" : tab.id)), [capabilities]);
+  const activeModule = visibleTabs.find((tab) => tab.id === activeTab) ?? visibleTabs[0];
+  const ActiveModuleIcon = activeModule?.icon ?? LayoutDashboard;
+  const filteredNavigation = visibleTabs.filter((tab) => !navigationQuery ||
+    (tab.label + " " + adminTabDescriptions[tab.id]).toLocaleLowerCase("es")
+      .includes(navigationQuery.trim().toLocaleLowerCase("es")) || tab.id === activeTab);
+
+  function navigateToAdminTab(tab: AdminTab) {
+    if (!visibleTabs.some((entry) => entry.id === tab)) return;
+    setActiveTab(tab);
+    window.requestAnimationFrame(() => tabPanelRef.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    }));
+  }
 
   useEffect(() => {
     if (!visibleTabs.some((tab) => tab.id === activeTab)) setActiveTab("general");
@@ -163,7 +200,8 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   }, [activeTab]);
 
   function moveAdminTab(event: KeyboardEvent<HTMLButtonElement>, currentTab: AdminTab) {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)
+      && !["ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
     const currentIndex = visibleTabs.findIndex((tab) => tab.id === currentTab);
     if (currentIndex < 0) return;
@@ -171,8 +209,9 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
       ? 0
       : event.key === "End"
         ? visibleTabs.length - 1
-        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
+        : (currentIndex + (event.key === "ArrowRight" || event.key === "ArrowDown" ? 1 : -1) + visibleTabs.length) % visibleTabs.length;
     const nextTab = visibleTabs[nextIndex];
+    if (navigationQuery) setNavigationQuery("");
     setActiveTab(nextTab.id);
     window.requestAnimationFrame(() => tabRefs.current[nextTab.id]?.focus());
   }
@@ -364,40 +403,99 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
   const stats = useMemo(() => ({ courses: courses.length, sections: sections.length, activeSections: sections.filter((section) => section.active).length, tasks: adminTasks.length }), [courses, sections, adminTasks]);
 
   return (
-    <div className="adminHub">
-      <section className="adminHero"><div><p className="eyebrow">Admin 2.0</p><h2>Centro de configuración</h2><p>Administra tareas, materiales, usuarios y estructura sin tocar código.</p></div><button type="button" onClick={() => void reload()}>Actualizar datos</button></section>
-      <nav className="adminTabs" aria-label="Módulos de administración" role="tablist">
-        {visibleTabs.map((tab) => {
-          const Icon = tab.icon;
-          const selected = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              ref={(node) => { tabRefs.current[tab.id] = node; }}
-              id={`admin-tab-${tab.id}`}
-              type="button"
-              role="tab"
-              aria-selected={selected}
-              aria-controls={`admin-panel-${tab.id}`}
-              tabIndex={selected ? 0 : -1}
-              className={selected ? "active" : ""}
-              onClick={() => setActiveTab(tab.id)}
-              onKeyDown={(event) => moveAdminTab(event, tab.id)}
-            >
-              <Icon size={16} aria-hidden="true" />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
-      <div
-        className="adminTabPanel"
-        id={`admin-panel-${activeTab}`}
-        role="tabpanel"
-        aria-labelledby={`admin-tab-${activeTab}`}
-        tabIndex={0}
-      >
-        {activeTab === "general" ? <GeneralPanel stats={stats} onNavigate={setActiveTab} /> : null}
+    <div className="adminHub adminExperience">
+      <header className="adminHero adminExperienceHero">
+        <div className="adminHeroIdentity">
+          <span className="adminBrandMark" aria-hidden="true"><Settings2 size={22} /></span>
+          <div><p className="adminHeroEyebrow">PSCV ROOM · Panel de control</p>
+            <h2>Administración</h2>
+            <p>Un solo espacio para organizar la actividad académica, las personas y los recursos.</p>
+          </div>
+        </div>
+        <div className="adminHeroActions">
+          <span className="adminRoleLabel"><ShieldCheck size={15} aria-hidden="true" />
+            {capabilities.isOwner ? "Propietario" : capabilities.isProfessor ? "Profesor" : "Administrador"}
+          </span>
+          <button type="button" className="adminRefreshAction" onClick={() => void reload()}>
+            <RefreshCw size={16} aria-hidden="true" /> Actualizar datos
+          </button>
+        </div>
+      </header>
+
+      <div className="adminMobileNavigation">
+        <label htmlFor="adminModuleSelect">Ir a una sección</label>
+        <select id="adminModuleSelect" value={activeTab} onChange={(event) => navigateToAdminTab(event.target.value as AdminTab)}>
+          {adminNavigationGroups.map((group) => {
+            const items = group.items.filter((id) => visibleTabs.some((tab) => tab.id === id));
+            return items.length ? <optgroup key={group.label} label={group.label}>
+              {items.map((id) => <option key={id} value={id}>{tabs.find((tab) => tab.id === id)?.label}</option>)}
+            </optgroup> : null;
+          })}
+        </select>
+      </div>
+
+      <div className="adminExperienceLayout">
+        <nav className="adminSidebar" aria-label="Módulos de administración">
+          <div className="adminSidebarHeading"><span>Explorar</span><small>{visibleTabs.length} módulos disponibles</small></div>
+          <label className="adminNavigationSearch">
+            <Search size={17} aria-hidden="true" />
+            <span className="adminSrOnly">Buscar módulo</span>
+            <input type="search" placeholder="Buscar sección" value={navigationQuery}
+              onChange={(event) => setNavigationQuery(event.target.value)} />
+          </label>
+          <div className="adminTabs" role="tablist" aria-label="Secciones del panel" aria-orientation="vertical">
+            {adminNavigationGroups.map((group) => {
+              const items = filteredNavigation.filter((tab) => group.items.includes(tab.id));
+              if (!items.length) return null;
+              return <div key={group.label} className="adminNavigationGroup" role="presentation">
+                <p className="adminNavigationGroupTitle">{group.label}</p>
+                {items.map((tab) => {
+                  const Icon = tab.icon;
+                  const selected = activeTab === tab.id;
+                  return <button
+                    key={tab.id}
+                    ref={(node) => { tabRefs.current[tab.id] = node; }}
+                    id={`admin-tab-${tab.id}`}
+                    type="button"
+                    role="tab"
+                    aria-selected={selected}
+                    aria-controls={`admin-panel-${tab.id}`}
+                    tabIndex={selected ? 0 : -1}
+                    className={selected ? "active" : ""}
+                    onClick={() => navigateToAdminTab(tab.id)}
+                    onKeyDown={(event) => moveAdminTab(event, tab.id)}
+                  >
+                    <Icon size={18} aria-hidden="true" />
+                    <span>{tab.label}</span>
+                    <ChevronRight className="adminNavigationChevron" size={16} aria-hidden="true" />
+                  </button>;
+                })}
+              </div>;
+            })}
+            {filteredNavigation.length === 0 && <p className="adminNavigationEmpty">Sin módulos coincidentes.</p>}
+          </div>
+          <div className="adminSidebarFooter"><ShieldCheck size={17} aria-hidden="true" />
+            Las opciones disponibles dependen de tus permisos.</div>
+        </nav>
+        <div className="adminExperienceMain">
+          <div className="adminContextBar" ref={tabPanelRef}>
+            <div className="adminContextIcon"><ActiveModuleIcon size={23} aria-hidden="true" /></div>
+            <div className="adminContextText">
+              <p className="adminContextBreadcrumb">Administración <ChevronRight size={13} aria-hidden="true" /> {activeModule?.label}</p>
+              <h3>{activeModule?.label ?? "General"}</h3>
+              <p>{adminTabDescriptions[activeTab]}</p>
+            </div>
+          </div>
+          <div
+            className="adminTabPanel"
+            id={`admin-panel-${activeTab}`}
+            role="tabpanel"
+            aria-labelledby={`admin-tab-${activeTab}`}
+            tabIndex={0}
+          >
+        {activeTab === "general" ? <GeneralPanel stats={stats} onNavigate={setActiveTab}
+          accessibleTabs={visibleTabs.map((tab) => tab.id)} tasks={adminTasks} courses={courses}
+          loadingTasks={loadingTasks} /> : null}
         {activeTab === "tasks" ? <TasksPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
         {activeTab === "calendar" ? <AdminCalendarPanel tasks={adminTasks} loading={loadingTasks} onReload={() => void loadTaskAdminData()} onUpdate={(id, patch) => void updateTask(id, patch)} /> : null}
         {activeTab === "courses" ? <CoursesPanel courses={courses} onCreate={(input) => createCourse(input)} onUpdate={(id, patch) => updateCourse(id, patch)} /> : null}
@@ -407,13 +505,84 @@ export function AdminHub({ courses, sections, profile = null, d1Client, reload, 
         {activeTab === "notifications" ? <NotificationsPanel onError={onError} /> : null}
         {activeTab === "reports" ? <ReportsPanel onError={onError} /> : null}
         {activeTab === "diagnostics" ? <DiagnosticsPanel canManageR2={capabilities.canManageR2} d1Client={d1Client} reload={reload} onError={onError} /> : null}
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-function GeneralPanel({ stats, onNavigate }: { stats: { courses: number; sections: number; activeSections: number; tasks: number }; onNavigate: (tab: AdminTab) => void }) {
-  return <section className="adminPanelGrid" aria-label="Accesos rápidos de administración"><MetricCard icon={ListTodo} label="Tareas" value={stats.tasks} help="Entregas operativas" onClick={() => onNavigate("tasks")} /><MetricCard icon={BookOpen} label="Materias" value={stats.courses} help="Catálogo visual" onClick={() => onNavigate("courses")} /><MetricCard icon={FolderTree} label="Secciones" value={stats.sections} help={`${stats.activeSections} visibles`} onClick={() => onNavigate("sections")} /><MetricCard icon={HardDrive} label="Storage" value="R2" help="Subidas directas" onClick={() => onNavigate("materials")} /></section>;
+function GeneralPanel({ stats, onNavigate, accessibleTabs, tasks, courses, loadingTasks }: {
+  stats: { courses: number; sections: number; activeSections: number; tasks: number };
+  onNavigate: (tab: AdminTab) => void;
+  accessibleTabs: AdminTab[];
+  tasks: AdminTaskRow[];
+  courses: CourseConfig[];
+  loadingTasks: boolean;
+}) {
+  const today = adminTodayKey();
+  const openTasks = tasks.filter((task) => !isTerminalAdminTask(task));
+  const overdueTasks = openTasks.filter((task) => task.due_date < today);
+  const configuredCourses = courses.filter((course) => course.active && course.professorEmail.trim());
+  const shortcuts: Array<{ id: AdminTab; label: string; detail: string; icon: LucideIcon }> = [
+    { id: "tasks", label: "Gestionar tareas", detail: "Revisar entregas y prioridades", icon: ListTodo },
+    { id: "courses", label: "Materias y horarios", detail: "Editar docentes y salones", icon: BookOpen },
+    { id: "materials", label: "Biblioteca", detail: "Administrar materiales y R2", icon: FolderOpen },
+    { id: "users", label: "Usuarios y permisos", detail: "Administrar personas y roles", icon: Users },
+    { id: "notifications", label: "Enviar avisos", detail: "Comunicación con el grupo", icon: Bell },
+    { id: "reports", label: "Consultar reportes", detail: "Filtrar y exportar información", icon: BarChart3 },
+    { id: "diagnostics", label: "Diagnóstico", detail: "Verificar los servicios", icon: Activity },
+  ];
+  return <div className="adminOverview">
+    <section className="adminOverviewIntro">
+      <p className="adminModuleEyebrow">Vista general</p>
+      <h3>Tu espacio académico, en un vistazo</h3>
+      <p>Consulta los indicadores disponibles y entra directamente al módulo que necesites.</p>
+    </section>
+    <section className="adminPanelGrid" aria-label="Accesos rápidos de administración">
+      {accessibleTabs.includes("tasks") &&
+        <MetricCard icon={ListTodo} label="Tareas cargadas" value={loadingTasks ? "…" : stats.tasks}
+          help="Hasta 80 actividades recientes" onClick={() => onNavigate("tasks")} />}
+      {accessibleTabs.includes("courses") &&
+        <MetricCard icon={BookOpen} label="Materias activas" value={courses.filter((course) => course.active).length}
+          help={stats.courses + " materias en catálogo"} onClick={() => onNavigate("courses")} />}
+      {accessibleTabs.includes("sections") &&
+        <MetricCard icon={FolderTree} label="Secciones" value={stats.sections}
+          help={stats.activeSections + " visibles"} onClick={() => onNavigate("sections")} />}
+      {accessibleTabs.includes("materials") &&
+        <MetricCard icon={HardDrive} label="Storage" value="R2"
+          help="Biblioteca de archivos" onClick={() => onNavigate("materials")} />}
+    </section>
+    <div className="adminOverviewColumns">
+      <section className="adminOverviewCard">
+        <div className="adminOverviewCardHeading"><span><Gauge size={18} /> Indicadores de operación</span>
+          <small>Datos cargados en esta sesión</small></div>
+        <div className="adminHealthRows">
+          {accessibleTabs.includes("tasks") && <div><span>Actividades pendientes</span>
+            <strong>{loadingTasks ? "…" : openTasks.length} <small>de hasta 80 cargadas</small></strong></div>}
+          {accessibleTabs.includes("tasks") && <div><span>Entregas vencidas</span>
+            <strong>{loadingTasks ? "…" : overdueTasks.length}</strong></div>}
+          {accessibleTabs.includes("courses") && <div><span>Materias activas con docente asignado</span>
+            <strong>{configuredCourses.length} <small>de {courses.filter((course) => course.active).length}</small></strong></div>}
+          {accessibleTabs.includes("sections") && <div><span>Secciones publicadas</span>
+            <strong>{stats.activeSections} <small>de {stats.sections}</small></strong></div>}
+        </div>
+        <p className="adminOverviewFootnote">Los indicadores reflejan los registros cargados, no una auditoría histórica de toda la base de datos.</p>
+      </section>
+      <section className="adminOverviewCard">
+        <div className="adminOverviewCardHeading"><span><Layers3 size={18} /> Acciones rápidas</span>
+          <small>Ir a una sección</small></div>
+        <div className="adminQuickActions">
+          {shortcuts.filter((shortcut) => accessibleTabs.includes(shortcut.id)).map(({ id, label, detail, icon: Icon }) =>
+            <button key={id} type="button" onClick={() => onNavigate(id)}>
+              <span className="adminQuickActionIcon"><Icon size={19} aria-hidden="true" /></span>
+              <span><strong>{label}</strong><small>{detail}</small></span>
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>)}
+        </div>
+      </section>
+    </div>
+  </div>;
 }
 
 function MetricCard({ icon: Icon, label, value, help, onClick }: { icon: LucideIcon; label: string; value: string | number; help: string; onClick: () => void }) { return <button type="button" className="metricCard" aria-label={`Abrir ${label}`} onClick={onClick}><span className="metricCardIcon"><Icon size={18} aria-hidden="true" /></span><span>{label}</span><strong>{value}</strong><small>{help}</small><ChevronRight className="metricCardChevron" size={18} aria-hidden="true" /></button>; }
@@ -1026,7 +1195,9 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
   return (
     <section className="adminCard adminModule adminCoursesModule">
       <div className="adminCardHead"><div><p className="adminModuleEyebrow">Catálogo académico</p><h3>Materias</h3><p>Agrega materias y controla cuáles aparecen para alumnos.</p></div></div>
-      <form className="adminInlineForm courseCreateForm" onSubmit={submit}>
+      <details className="adminCreateDisclosure">
+        <summary><BookOpen size={17} aria-hidden="true" /> Agregar una materia <ChevronDown size={18} aria-hidden="true" /></summary>
+        <form className="adminInlineForm courseCreateForm" onSubmit={submit}>
         <label className="wide">Nombre<input value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} placeholder="Nombre de la materia" required /></label>
         <label>Nombre corto<input value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} placeholder="Corto" /></label>
         <label>Color<input type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
@@ -1037,7 +1208,8 @@ function CoursesPanel({ courses, onCreate, onUpdate }: { courses: CourseConfig[]
         <label className="wide">Horario semanal<input value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 15:00-18:00; Miércoles: 16:00-18:00" /></label>
         <label className="wide">Salón de clases<input value={draft.classroom} onChange={(event) => setDraft((current) => ({ ...current, classroom: event.target.value }))} placeholder="Ej. 19" /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.name.trim()}>{busy ? "Agregando..." : "Agregar materia"}</button>
-      </form>
+        </form>
+      </details>
       <div className="adminListFilters">
         <label>Buscar materia o profesor<input type="search" value={courseQuery}
           onChange={(event) => setCourseQuery(event.target.value)} placeholder="Materia, profesor, salón…" /></label>
@@ -1082,24 +1254,105 @@ function CourseAdminRow({ course, onUpdate }: { course: CourseConfig; onUpdate: 
   }
 
   return (
-    <div className={`adminEditRow course ${course.active ? "" : "inactive"}`}>
-      <span className="swatch" style={{ background: draft.color }} />
-      <input aria-label="Nombre de materia" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} />
-      <input aria-label="Nombre corto" value={draft.shortName} onChange={(event) => setDraft((current) => ({ ...current, shortName: event.target.value }))} />
-      <input aria-label="Color" type="color" value={draft.color} onChange={(event) => setDraft((current) => ({ ...current, color: event.target.value }))} />
-      <span className="iconSelectField"><UiIcon name={draft.icon} size={18} /><select aria-label="Icono" value={draft.icon} onChange={(event) => setDraft((current) => ({ ...current, icon: event.target.value }))}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span>
-      <select aria-label="Tamaño" value={draft.cardSize} onChange={(event) => setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select>
-      <input aria-label="Profesor" value={draft.professorName} onChange={(event) => setDraft((current) => ({ ...current, professorName: event.target.value }))} placeholder="Profesor" />
-      <input aria-label="Correo del profesor" type="email" value={draft.professorEmail} onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} placeholder="Correo profesor" />
-      <input className="courseScheduleInput" aria-label="Horario semanal" value={draft.scheduleText} onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))} placeholder="Lunes: 15:00-18:00; Miércoles: 16:00-18:00" />
-      <input aria-label="Salón de clases" value={draft.classroom} onChange={(event) => setDraft((current) => ({ ...current, classroom: event.target.value }))} placeholder="Salón" />
-      <button type="button" onClick={() => void save()} disabled={saving || !dirty || !draft.name.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
-      <button type="button" onClick={() => void onUpdate(course.id, { active: !course.active })}>{course.active ? "Desactivar" : "Activar"}</button>
-    </div>
+    <article className={"adminCourseRecord" + (course.active ? "" : " inactive")}>
+      <div className="adminRecordHeading">
+        <span className="adminRecordSwatch" style={{ background: draft.color }} aria-hidden="true" />
+        <div className="adminRecordIdentity">
+          <strong>{course.name}</strong>
+          <small>{course.professorName || "Sin profesor"} · {course.classroom ? "Salón " + course.classroom : "Sin salón"}</small>
+        </div>
+        <span className={course.active ? "adminRecordStatus active" : "adminRecordStatus"}>
+          {course.active ? "Activa" : "Inactiva"}
+        </span>
+        <button type="button" className="adminRecordToggle"
+          onClick={() => void onUpdate(course.id, { active: !course.active })}>
+          {course.active ? "Desactivar" : "Activar"}
+        </button>
+      </div>
+      <details className="adminRecordDisclosure">
+        <summary><Pencil size={16} aria-hidden="true" /> Editar configuración de materia
+          <ChevronDown size={17} aria-hidden="true" /></summary>
+        <div className="adminRecordFields">
+          <label>Nombre de materia<input value={draft.name} onChange={(event) =>
+            setDraft((current) => ({ ...current, name: event.target.value }))} /></label>
+          <label>Nombre corto<input value={draft.shortName} onChange={(event) =>
+            setDraft((current) => ({ ...current, shortName: event.target.value }))} /></label>
+          <label>Color<input type="color" value={draft.color} onChange={(event) =>
+            setDraft((current) => ({ ...current, color: event.target.value }))} /></label>
+          <label>Icono <span className="iconSelectField"><UiIcon name={draft.icon} size={18} />
+            <select value={draft.icon} onChange={(event) =>
+              setDraft((current) => ({ ...current, icon: event.target.value }))}>
+              {UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}
+            </select></span></label>
+          <label>Tamaño <select value={draft.cardSize} onChange={(event) =>
+            setDraft((current) => ({ ...current, cardSize: event.target.value as CardSize }))}>
+            <option value="compact">Compacta</option><option value="medium">Media</option>
+            <option value="large">Grande</option>
+          </select></label>
+          <label>Profesor<input value={draft.professorName} onChange={(event) =>
+            setDraft((current) => ({ ...current, professorName: event.target.value }))} /></label>
+          <label>Correo del profesor<input type="email" value={draft.professorEmail}
+            onChange={(event) => setDraft((current) => ({ ...current, professorEmail: event.target.value }))} /></label>
+          <label>Horario semanal<input className="courseScheduleInput" value={draft.scheduleText}
+            onChange={(event) => setDraft((current) => ({ ...current, scheduleText: event.target.value }))}
+            placeholder="Lunes: 15:00-18:00; Miércoles: 16:00-18:00" /></label>
+          <label>Salón de clases<input value={draft.classroom} onChange={(event) =>
+            setDraft((current) => ({ ...current, classroom: event.target.value }))} /></label>
+          <button type="button" className="adminRecordSave" onClick={() => void save()}
+            disabled={saving || !dirty || !draft.name.trim()}>
+            {saving ? "Guardando..." : "Guardar cambios"}
+          </button>
+        </div>
+      </details>
+    </article>
   );
 }
 
-function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) { return <section className="adminCard"><div className="adminCardHead"><div><h3>Secciones de materiales</h3><p>Personaliza carpetas y subsecciones del asset R2.</p></div></div><div className="adminRows">{sections.map((section) => <div className="adminEditRow section" key={section.id}><span className="swatch" style={{ background: section.color }} /><div className="adminNameBlock"><strong>{section.name}</strong><small>{section.path}</small></div><input aria-label="Color" type="color" value={section.color} onChange={(event) => onUpdate(section.id, { color: event.target.value })} /><span className="iconSelectField"><UiIcon name={section.icon} size={18} /><select aria-label="Icono" value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })}>{UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}</select></span><select aria-label="Preview" value={section.previewStyle} onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}><option value="none">Sin preview</option><option value="icon">Icono</option><option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option></select></div>)}</div></section>; }
+function SectionsPanel({ sections, onUpdate }: { sections: SectionConfig[]; onUpdate: (id: string, patch: Partial<SectionConfig>) => void }) {
+  const [query, setQuery] = useState("");
+  const filtered = sections.filter((section) =>
+    [section.name, section.path].some((value) =>
+      value.toLocaleLowerCase("es").includes(query.trim().toLocaleLowerCase("es"))));
+  return <section className="adminCard adminModule adminSectionsModule">
+    <div className="adminCardHead"><div>
+      <p className="adminModuleEyebrow">Biblioteca académica</p>
+      <h3>Secciones de materiales</h3>
+      <p>Personaliza los iconos, colores y vistas previas de cada sección.</p>
+    </div></div>
+    <div className="adminListFilters"><label>Buscar sección
+      <input type="search" placeholder="Nombre o ruta" value={query}
+        onChange={(event) => setQuery(event.target.value)} />
+    </label><span role="status">{filtered.length} de {sections.length} secciones</span></div>
+    <div className="adminRows">{filtered.map((section) =>
+      <article className="adminCourseRecord" key={section.id}>
+        <div className="adminRecordHeading">
+          <span className="adminRecordSwatch" style={{ background: section.color }} aria-hidden="true" />
+          <div className="adminRecordIdentity"><strong>{section.name}</strong><small>{section.path}</small></div>
+          <span className={section.active ? "adminRecordStatus active" : "adminRecordStatus"}>
+            {section.active ? "Visible" : "Oculta"}</span>
+        </div>
+        <details className="adminRecordDisclosure">
+          <summary><Pencil size={16} aria-hidden="true" /> Personalizar sección
+            <ChevronDown size={17} aria-hidden="true" /></summary>
+          <div className="adminRecordFields">
+            <label>Color<input type="color" value={section.color}
+              onChange={(event) => onUpdate(section.id, { color: event.target.value })} /></label>
+            <label>Icono<span className="iconSelectField"><UiIcon name={section.icon} size={18} />
+              <select value={section.icon} onChange={(event) => onUpdate(section.id, { icon: event.target.value })}>
+                {UI_ICON_OPTIONS.map((icon) => <option value={icon} key={icon}>{icon}</option>)}
+              </select></span></label>
+            <label>Vista previa<select value={section.previewStyle}
+              onChange={(event) => onUpdate(section.id, { previewStyle: event.target.value })}>
+              <option value="none">Sin preview</option><option value="icon">Icono</option>
+              <option value="thumbnail">Miniatura</option><option value="embedded">Embebido</option>
+            </select></label>
+          </div>
+        </details>
+      </article>)}
+      {!filtered.length && <p className="adminWorkspaceEmpty">No se encontraron secciones.</p>}
+    </div>
+  </section>;
+}
 
 function MaterialUploadPanel({ canManageR2, canManageMaterials, d1Client, reload, onError }: { canManageR2: boolean; canManageMaterials: boolean; d1Client: D1Browser | null; reload: () => Promise<void>; onError: (error: string | null) => void }) {
   const [destinations, setDestinations] = useState<UploadDestination[]>([]);
@@ -1472,12 +1725,15 @@ function UsersPanel({ profiles, loading, canManagePermissions, onCreate, onReloa
   return (
     <section className="adminCard adminModule adminUsersModule">
       <div className="adminCardHead"><div><p className="adminModuleEyebrow">Accesos y permisos</p><h3>Usuarios y roles</h3><p>Roles disponibles: Administrador, Profesor y Alumno. Las personas se crean inicialmente como alumnos y el administrador principal puede asignarles otro rol.</p></div><button type="button" onClick={onReload}>{loading ? "Cargando..." : "Recargar"}</button></div>
-      <form className="adminInlineForm studentCreateForm" onSubmit={submit}>
+      <details className="adminCreateDisclosure">
+        <summary><Users size={17} aria-hidden="true" /> Agregar un alumno <ChevronDown size={18} aria-hidden="true" /></summary>
+        <form className="adminInlineForm studentCreateForm" onSubmit={submit}>
         <label>No. Control<input value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="28699" /></label>
         <label>Correo<input type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} placeholder="alumno@univdep.edu.mx" required /></label>
         <label className="wide">Nombre completo<input value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} placeholder="Nombre completo" required /></label>
         <button className="primaryAction" type="submit" disabled={busy || !draft.email.trim() || !draft.fullName.trim()}>{busy ? "Agregando..." : "Agregar alumno"}</button>
-      </form>
+        </form>
+      </details>
       <div className="adminListFilters">
         <label>Buscar usuario<input type="search" value={userQuery}
           onChange={(event) => setUserQuery(event.target.value)} placeholder="Nombre, correo o control" /></label>
@@ -1525,14 +1781,21 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
 
   return (
     <article className={`adminUserRow permissions ${profile.active ? "" : "inactive"}`}>
-      <div className="adminUserFields">
-        <input aria-label="Nombre completo" disabled={!canManageThisProfile} value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} />
-        <input aria-label="Correo" type="email" disabled={!canManageThisProfile} value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} />
-        <input aria-label="No. Control" disabled={!canManageThisProfile} value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="sin control" />
+      <div className="adminUserIdentity">
+        <strong>{profile.full_name ?? profile.email}</strong>
+        <small>{profile.email} · {profile.control_number ?? "Sin número de control"}</small>
+        <span className={profile.active ? "adminRecordStatus active" : "adminRecordStatus"}>
+          {profile.active ? "Activo" : "Inactivo"}</span>
       </div>
+      <div className="adminUserFields">
+        <label>Nombre completo<input aria-label="Nombre completo" disabled={!canManageThisProfile} value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} /></label>
+        <label>Correo electrónico<input aria-label="Correo" type="email" disabled={!canManageThisProfile} value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} /></label>
+        <label>Número de control<input aria-label="No. Control" disabled={!canManageThisProfile} value={draft.controlNumber} onChange={(event) => setDraft((current) => ({ ...current, controlNumber: event.target.value }))} placeholder="sin control" /></label>
+      </div>
+      <label className="adminUserRoleField">Rol de acceso
       <select aria-label={`Rol de ${profile.full_name ?? profile.email}`} value={profile.profile_role} disabled={!canManagePermissions || profile.role === "owner"} onChange={(event) => void onUpdate(profile.id, { profile_role: event.target.value as AppProfileRow["profile_role"] })}>
         <option value="administrator">Administrador</option><option value="professor">Profesor</option><option value="student">Alumno</option>
-      </select>
+      </select></label>
       <div className="adminUserActions">
         <button type="button" onClick={() => void save()} disabled={!canManageThisProfile || saving || !dirty || !draft.email.trim() || !draft.fullName.trim()}>{saving ? "Guardando..." : "Guardar"}</button>
         <button type="button" disabled={!canManageThisProfile} onClick={() => void onUpdate(profile.id, { active: !profile.active })}>{profile.active ? "Desactivar" : "Activar"}</button>
@@ -1546,7 +1809,9 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
           }}
         >{deleting ? "Eliminando..." : "Eliminar"}</button>
       </div>
-      <div className="adminPermissionGrid">
+      <details className="adminPermissionsDisclosure">
+        <summary><ShieldCheck size={17} aria-hidden="true" /> Permisos avanzados <ChevronDown size={17} aria-hidden="true" /></summary>
+        <div className="adminPermissionGrid">
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_edit_tasks} onChange={(event) => void onUpdate(profile.id, { can_edit_tasks: event.target.checked })} />Tareas</label>
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_delete_tasks} onChange={(event) => void onUpdate(profile.id, { can_delete_tasks: event.target.checked })} />Eliminar</label>
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_materials} onChange={(event) => void onUpdate(profile.id, { can_manage_materials: event.target.checked })} />Materiales</label>
@@ -1556,7 +1821,8 @@ function UserAdminRow({ profile, canManagePermissions, onUpdate, onDelete }: { p
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_notifications} onChange={(event) => void onUpdate(profile.id, { can_manage_notifications: event.target.checked })} />Avisos</label>
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_view_reports} onChange={(event) => void onUpdate(profile.id, { can_view_reports: event.target.checked })} />Reportes</label>
         <label><input type="checkbox" disabled={!canManagePermissions || profile.profile_role !== "administrator"} checked={profile.can_manage_r2} onChange={(event) => void onUpdate(profile.id, { can_manage_r2: event.target.checked })} />R2</label>
-      </div>
+        </div>
+      </details>
     </article>
   );
 }

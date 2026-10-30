@@ -1,0 +1,223 @@
+/* RelNets Administration — cohesive desktop workspace and mobile native navigation */
+.adminExperience {
+  --admin-bg: #f4f8fc;
+  --admin-ink: #172b42;
+  --admin-secondary: #51657d;
+  --admin-line: #dce6f0;
+  --admin-blue: #176c99;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  padding: clamp(12px, 2vw, 24px);
+  background: var(--admin-bg);
+}
+.adminExperience * { box-sizing: border-box; }
+.adminExperienceHero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: clamp(18px, 2.5vw, 28px);
+  border: 1px solid #dbe7f2;
+  border-radius: 20px;
+  background: linear-gradient(110deg, #ffffff 0%, #f6fafd 75%, #ebf5fb 100%);
+  box-shadow: 0 10px 28px rgba(20, 55, 90, .04);
+}
+.adminHeroIdentity { display: flex; gap: 17px; align-items: flex-start; min-width: 0; flex: 1 1 370px; }
+.adminBrandMark { display: grid; place-items: center; flex: 0 0 48px; height: 48px; border-radius: 15px;
+ background: #dff0f8; color: #116d99; }
+.adminExperienceHero .adminHeroEyebrow { margin: 0 0 4px; color: #286a92; font-size: 11px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.adminExperienceHero h2 { margin: 0 0 6px; font-size: clamp(24px, 3vw, 30px); letter-spacing: -.035em; color: #142c48; }
+.adminExperienceHero p:not(.adminHeroEyebrow) { margin: 0; max-width: 540px; font-size: 13px; line-height: 1.5; color: var(--admin-secondary); }
+.adminHeroActions { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+.adminRoleLabel { display: inline-flex; gap: 6px; align-items: center; border: 1px solid #c5dae9; color: #285875;
+ background: #eaf5fc; font-size: 12px; font-weight: 750; border-radius: 999px; padding: 10px 12px; }
+.adminExperienceHero .adminRefreshAction { display: inline-flex; align-items: center; gap: 8px; min-height: 44px;
+ border-radius: 11px; background: #fff; border: 1px solid #c8d9e8; font-size: 12px; font-weight: 800; color: #245b83; cursor: pointer; }
+.adminRefreshAction:hover { background: #eaf5ff; }
+.adminExperienceLayout { display: grid; grid-template-columns: minmax(194px, 226px) minmax(0,1fr); align-items: start; gap: 18px; min-width: 0; }
+.adminSidebar { min-width: 0; border: 1px solid var(--admin-line); background: #fff; border-radius: 17px;
+ padding: 15px 12px; display: grid; gap: 16px; position: sticky; top: 77px; max-height: calc(100dvh - 95px); overflow-y: auto;
+ overscroll-behavior: contain; scrollbar-width: thin; box-shadow: 0 5px 18px rgba(20,46,70,.04); }
+.adminSidebarHeading { display: grid; gap: 3px; padding: 3px 7px 0; }
+.adminSidebarHeading span { font-size: 15px; font-weight: 850; color: var(--admin-ink); }
+.adminSidebarHeading small { font-size: 11px; color: var(--admin-secondary); }
+.adminNavigationSearch { display: flex; gap: 6px; align-items: center; color: #6d8091; background: #f5f8fb;
+ border: 1px solid #d8e4ef; padding: 0 10px; border-radius: 10px; min-width: 0; min-height: 41px; }
+.adminNavigationSearch:focus-within { border-color: #3589be; }
+.adminNavigationSearch input { border: 0; outline: 0; background: transparent; padding: 8px 0; width: 100%; min-width: 0; font-size: 12px; color: #1c3c54; }
+.adminSrOnly { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; }
+.adminExperience .adminTabs { display: grid; align-content: start; gap: 15px; padding: 0; overflow: visible; max-width: unset;
+ scroll-snap-type: none; width: 100%; }
+.adminNavigationGroup { display: grid; align-content: start; gap: 3px; }
+.adminNavigationGroupTitle { margin: 0 0 5px; padding: 4px 9px; color: #7b8da0; font-size: 10px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+.adminExperience .adminTabs button { width: 100%; min-height: 42px; padding: 9px 11px; display: flex; gap: 10px; align-items: center;
+ border: 1px solid transparent; border-radius: 10px; color: #425875; background: transparent; font-size: 12px; font-weight: 730;
+ text-align: left; white-space: normal; cursor: pointer; scroll-snap-align: none; transition: background .15s ease, color .15s ease; }
+.adminExperience .adminTabs button:hover:not(.active) { background: #f1f6fb; color: #17577c; }
+.adminExperience .adminTabs button.active { border-color: #cee4ef; background: #eaf5fb; color: #125f87; box-shadow: inset 3px 0 0 #1b89ad; font-weight: 850; }
+.adminExperience .adminTabs button .adminNavigationChevron { margin-left: auto; opacity: 0; }
+.adminExperience .adminTabs button.active .adminNavigationChevron { opacity: 1; }
+.adminNavigationEmpty { padding: 10px; color: var(--admin-secondary); font-size: 12px; }
+.adminSidebarFooter { display: flex; gap: 8px; align-items: flex-start; padding: 12px 8px 3px; border-top: 1px solid #ebf0f5;
+ color: #667b91; font-size: 11px; line-height: 1.5; }
+.adminSidebarFooter svg { flex: 0 0 auto; }
+.adminMobileNavigation { display: none; }
+.adminExperienceMain { display: grid; align-content: start; min-width: 0; gap: 14px; }
+.adminContextBar { display: flex; align-items: center; gap: 14px; background: #fff; border: 1px solid var(--admin-line);
+ border-radius: 16px; padding: 16px 18px; min-width: 0; scroll-margin-top: 77px; }
+.adminContextIcon { display: grid; flex: 0 0 45px; place-items: center; height: 45px; border-radius: 13px; background: #e8f4fc; color: #126b99; }
+.adminContextText { min-width: 0; display: grid; gap: 4px; }
+.adminContextText .adminContextBreadcrumb { display: flex; align-items: center; gap: 3px; margin: 0; font-size: 11px; color: #6f849a; font-weight: 750; }
+.adminContextText h3 { margin: 0; font-size: clamp(20px, 2vw, 25px); letter-spacing: -.035em; color: var(--admin-ink); }
+.adminContextText p:last-child { margin: 0; font-size: 12px; color: var(--admin-secondary); line-height: 1.45; }
+.adminExperience .adminTabPanel { min-width: 0; }
+.adminExperience .adminCard { min-width: 0; border-radius: 16px; padding: clamp(13px, 2vw, 21px); border: 1px solid #dce5ef;
+ box-shadow: 0 5px 18px rgba(26,55,78,.045); }
+.adminExperience .adminCardHead h3 { font-size: 19px; }
+.adminExperience .adminCardHead p { line-height: 1.5; }
+.adminExperience .adminPanelGrid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+.adminOverview { display: grid; gap: 14px; }
+.adminOverviewIntro { padding: 12px 3px 2px; display: grid; gap: 5px; }
+.adminOverviewIntro h3 { margin: 0; font-size: clamp(19px, 2.5vw, 23px); color: var(--admin-ink); letter-spacing: -.03em; }
+.adminOverviewIntro p:last-child { margin: 0; color: #62768a; font-size: 13px; line-height: 1.5; }
+.adminExperience .metricCard { min-width: 0; position: relative; padding: 17px; border-radius: 15px; gap: 8px; text-align: left; }
+.adminExperience .metricCard span:not(.metricCardIcon) { font-size: 12px; color: #50647c; }
+.adminExperience .metricCard strong { color: #164c73; font-size: clamp(25px,3vw,32px); }
+.adminExperience .metricCard small { font-size: 11px; overflow-wrap: anywhere; }
+.adminExperience .metricCard:hover { border-color: #91c4e3; transform: translateY(-1px); }
+.adminExperience .metricCard:active { transform: none; }
+.adminOverviewColumns { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 12px; align-items: start; }
+.adminOverviewCard { background: #fff; border: 1px solid var(--admin-line); border-radius: 16px; padding: 17px; min-width: 0; box-shadow: 0 5px 18px rgba(26,55,78,.035); }
+.adminOverviewCardHeading { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: center; border-bottom: 1px solid #e7edf5; padding-bottom: 13px; }
+.adminOverviewCardHeading>span { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 830; color: #193c59; }
+.adminOverviewCardHeading svg { color: #1a78a6; }
+.adminOverviewCardHeading>small { font-size: 10px; color: #708299; }
+.adminHealthRows { display: grid; }
+.adminHealthRows>div { padding: 13px 0; display: flex; justify-content: space-between; gap: 12px; align-items: center; border-bottom: 1px solid #edf2f6; }
+.adminHealthRows>div>span { font-size: 12px; color: #52667c; line-height: 1.4; }
+.adminHealthRows strong { flex: 0 0 auto; font-size: 19px; color: #164967; text-align: right; white-space: nowrap; }
+.adminHealthRows strong small { display: block; font-size: 10px; font-weight: 600; color: #8190a1; }
+.adminOverviewFootnote { margin: 13px 0 0; color: #7c8ba1; font-size: 11px; line-height: 1.4; }
+.adminQuickActions { display: grid; padding-top: 4px; }
+.adminQuickActions button { display: flex; gap: 10px; align-items: center; text-align: left; width: 100%; border: 0;
+ border-bottom: 1px solid #edf2f6; padding: 12px 2px; background: transparent; color: #1c496b; cursor: pointer; }
+.adminQuickActions button:last-child { border-bottom: 0; }
+.adminQuickActions button:hover { background: #f4f9fd; }
+.adminQuickActionIcon { display: grid; place-items: center; flex: 0 0 36px; height: 36px; border-radius: 10px; background: #ecf6fc; color: #19769e; }
+.adminQuickActions button>span:nth-child(2) { flex: 1; display: grid; min-width: 0; gap: 3px; }
+.adminQuickActions strong { font-size: 12px; }
+.adminQuickActions small { font-size: 11px; color: #728399; line-height: 1.4; }
+/* Form organization in editable catalogs */
+.adminExperience .adminCreateDisclosure { margin: 2px 0 13px; border: 1px solid #cddfec; border-radius: 12px; background: #f8fbfe; overflow: hidden; }
+.adminExperience .adminCreateDisclosure>summary,
+.adminExperience .adminRecordDisclosure>summary,
+.adminExperience .adminPermissionsDisclosure>summary {
+ display: flex; align-items: center; gap: 9px; cursor: pointer; list-style: none; min-height: 44px; font-size: 12px; font-weight: 820; padding: 12px 14px; color: #185879; }
+.adminExperience .adminCreateDisclosure>summary::-webkit-details-marker,
+.adminExperience .adminRecordDisclosure>summary::-webkit-details-marker,
+.adminExperience .adminPermissionsDisclosure>summary::-webkit-details-marker { display: none; }
+.adminExperience .adminCreateDisclosure>summary svg:last-child,
+.adminExperience .adminRecordDisclosure>summary svg:last-child,
+.adminExperience .adminPermissionsDisclosure>summary svg:last-child { margin-left: auto; transition: transform .15s ease; }
+.adminExperience details[open]>summary svg:last-child { transform: rotate(180deg); }
+.adminExperience .adminCreateDisclosure>form { margin: 0; border: 0; border-top: 1px solid #dce6ef; background: #fff; border-radius: 0; box-shadow: none; }
+.adminExperience .adminRecordDisclosure { border-top: 1px solid #e8eef4; }
+.adminExperience .adminRecordDisclosure>summary { padding: 9px 15px; }
+.adminExperience .adminCourseRecord { min-width: 0; border: 1px solid #dae5ee; border-radius: 12px; background: #fff; overflow: hidden; }
+.adminExperience .adminRecordHeading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px; }
+.adminExperience .adminRecordSwatch { flex: 0 0 5px; align-self: stretch; border-radius: 999px; background: #338bb9; min-height: 37px; }
+.adminExperience .adminRecordIdentity { flex: 1 1 190px; display: grid; min-width: 0; gap: 4px; }
+.adminExperience .adminRecordIdentity strong { font-size: 13px; overflow-wrap: anywhere; color: #20384d; }
+.adminExperience .adminRecordIdentity small { font-size: 11px; color: #687f92; overflow-wrap: anywhere; line-height: 1.4; }
+.adminExperience .adminRecordStatus { display: inline-block; font-size: 10px; font-weight: 850; color: #80602b; background: #fcf0da; border: 1px solid #efd3a4; border-radius: 999px; padding: 6px 9px; white-space: nowrap; }
+.adminExperience .adminRecordStatus.active { background: #e8f8ed; border-color: #b5dec3; color: #226b44; }
+.adminExperience .adminRecordToggle { border: 1px solid #c9d9e6; background: #fff; color: #295775; border-radius: 9px; min-height: 36px; padding: 7px 10px; font-size: 11px; cursor: pointer; }
+.adminExperience .adminRecordToggle:hover { background: #e9f5fd; }
+.adminExperience .adminRecordFields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px;
+ align-items: end; background: #f9fcff; padding: 13px 14px; border-top: 1px solid #edf2f8; }
+.adminExperience .adminRecordFields>label { display: grid; min-width: 0; gap: 5px; font-size: 11px; font-weight: 750; color: #496278; }
+.adminExperience .adminRecordFields>input,
+.adminExperience .adminRecordFields>select,
+.adminExperience .adminRecordFields>label>input,
+.adminExperience .adminRecordFields>label>select { box-sizing: border-box; min-width: 0; width: 100%; min-height: 39px; border: 1px solid #c7d7e5; border-radius: 9px; background: #fff; color: #1d344a; padding: 7px 9px; font: inherit; }
+.adminExperience .adminRecordFields>label>input[type=color],
+.adminExperience .adminRecordFields>input[type=color] { padding: 3px; }
+.adminExperience .adminRecordFields .iconSelectField select { min-height: 39px; border: 1px solid #c7d7e5; background: #fff; border-radius: 9px; }
+.adminExperience .adminRecordFields .courseScheduleInput { min-width: 0; }
+.adminExperience .adminRecordSave { grid-column: 1 / -1; justify-self: end; min-height: 40px; padding: 8px 14px; border: 0; background: #17658b; color: #fff; border-radius: 10px; font-size: 12px; font-weight: 800; cursor: pointer; }
+.adminExperience .adminRecordSave:disabled { opacity: .55; cursor: not-allowed; }
+/* User list: identities, distinct labels and disclosure of advanced permissions */
+.adminExperience .adminUsersModule .adminUserRow.permissions { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; border-radius: 12px; padding: 15px; }
+.adminExperience .adminUserIdentity { display: flex; flex-wrap: wrap; gap: 7px 12px; align-items: center; border-bottom: 1px solid #edf2f7; padding-bottom: 10px; }
+.adminExperience .adminUserIdentity strong { flex: 1 1 190px; font-size: 14px; color: #193951; overflow-wrap: anywhere; }
+.adminExperience .adminUserIdentity small { order: 3; flex: 1 1 100%; font-size: 11px; color: #7b8a9f; overflow-wrap: anywhere; }
+.adminExperience .adminUserFields { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.adminExperience .adminUserFields label,
+.adminExperience .adminUserRoleField { display: grid; gap: 5px; min-width: 0; font-size: 11px; color: #435a73; font-weight: 760; }
+.adminExperience .adminUserFields label input,
+.adminExperience .adminUserRoleField select { width: 100%; box-sizing: border-box; min-width: 0; min-height: 39px; border-radius: 9px; border: 1px solid #cbd9e5; padding: 7px 9px; background: #fff; color: #213d55; font: inherit; }
+.adminExperience .adminUserRoleField { width: min(300px,100%); }
+.adminExperience .adminUserActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.adminExperience .adminUserActions button { min-height: 40px; border: 1px solid #c8d8e6; border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 780; background: #fff; color: #285a78; cursor: pointer; }
+.adminExperience .adminUserActions button:hover:not(:disabled) { background: #eff7fc; }
+.adminExperience .adminUserActions button:last-child { color: #a43c3c; border-color: #e5c5c5; }
+.adminExperience .adminPermissionsDisclosure { border: 1px solid #dae5ef; border-radius: 11px; overflow: hidden; background: #f8fafc; }
+.adminExperience .adminPermissionsDisclosure .adminPermissionGrid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit,minmax(120px,1fr)); padding: 12px; border-top: 1px solid #e1e9f1; }
+.adminExperience .adminPermissionsDisclosure .adminPermissionGrid label { display: flex; align-items: center; padding: 8px; border: 1px solid #dce4ec; background: #fff; border-radius: 8px; min-height: 40px; overflow: visible; }
+/* Section-specific forms retain their existing operations */
+.adminExperience .adminListFilters { min-width: 0; }
+.adminExperience .adminReportsModule { min-width: 0; }
+.adminExperience .adminReportsModule .reportTableWrap { max-width: 100%; }
+.adminExperience .adminTaskList,.adminExperience .adminRows,.adminExperience .adminUserList { min-width: 0; }
+@media (max-width: 1050px) {
+ .adminExperienceLayout { grid-template-columns: 188px minmax(0,1fr); gap: 12px; }
+ .adminExperience .adminUserFields { grid-template-columns: minmax(0,1fr); }
+ .adminOverviewColumns { grid-template-columns: 1fr; }
+ .adminExperience .adminRecordFields { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 780px) {
+ .adminExperience { gap: 12px; padding: 12px; }
+ .adminExperienceHero { border-radius: 14px; padding: 15px; }
+ .adminBrandMark { flex-basis: 40px; height: 40px; border-radius: 12px; }
+ .adminHeroIdentity { gap: 11px; }
+ .adminHeroActions { width: 100%; justify-content: space-between; }
+ .adminMobileNavigation { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid #dce6f0; border-radius: 13px; background: #fff; }
+ .adminMobileNavigation>label { font-size: 11px; font-weight: 850; color: #4c6680; }
+ .adminMobileNavigation select { min-height: 46px; min-width: 0; max-width: 100%; background: #f6fafc;
+   border: 1px solid #c4d9e8; color: #174a6a; border-radius: 10px; padding: 9px 11px; font-weight: 800; font-size: 14px; }
+ .adminExperienceLayout { grid-template-columns: minmax(0,1fr); }
+ .adminSidebar { display: none; }
+ .adminExperienceMain { gap: 12px; }
+ .adminContextBar { padding: 13px; scroll-margin-top: 66px; }
+ .adminExperience .adminPanelGrid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .adminOverviewColumns { grid-template-columns: 1fr; }
+ .adminExperience .adminRecordFields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 480px) {
+ .adminExperienceHero h2 { font-size: 24px; }
+ .adminExperience .adminPanelGrid { grid-template-columns: minmax(0,1fr); }
+ .adminContextIcon { flex-basis: 39px; height: 39px; }
+ .adminExperience .adminRecordFields { grid-template-columns: minmax(0,1fr); }
+ .adminExperience .adminUserFields { grid-template-columns: minmax(0,1fr); }
+ .adminExperience .adminRecordHeading { gap: 8px; }
+ .adminExperience .adminRecordSave { width: 100%; }
+ .adminExperience .adminRecordToggle { margin-left: auto; }
+ .adminExperience .adminUserActions button { flex: 1 1 auto; }
+ .adminExperience .adminCard { padding: 12px; }
+ .adminExperience .adminOverviewCard { padding: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+ .adminExperience .metricCard,.adminExperience .adminTabs button,
+ .adminExperience .adminRecordDisclosure>summary svg:last-child { transition: none; }
+}
+@media (forced-colors: active) {
+ .adminSidebar,.adminContextBar,.adminExperienceHero,.adminExperience .adminCourseRecord,
+ .adminExperience .adminUserRow { border: 1px solid CanvasText; }
+ .adminExperience .adminTabs button.active { outline: 2px solid Highlight; }
+}

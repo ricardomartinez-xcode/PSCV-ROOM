@@ -21,6 +21,9 @@ test("rechaza llegada fuera de clase", () => {
   assert.throws(() => resolveLateArrival({ ...session, arrivalLocal: "17:50" }), /dentro/);
   assert.throws(() => resolveLateArrival({ ...session, arrivalLocal: "21:15", recordedAt: "2026-10-23T05:00:00.000Z" }), /dentro/);
 });
+test("no permite retardo exactamente al finalizar la sesión (intervalo de presencia vacío)", () => {
+  assert.throws(() => resolveLateArrival({ ...session, arrivalLocal: "21:00", recordedAt: "2026-10-23T05:00:00.000Z" }), /dentro/);
+});
 test("rechaza hora posterior a salida existente", () => {
   assert.throws(() => resolveLateArrival({ ...session, arrivalLocal: "19:15", firstPresenceEndAt: "2026-10-23T01:00:00.000Z" }), /salida/);
 });

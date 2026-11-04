@@ -10,6 +10,7 @@ type Entry = {
   note: string | null; provisional: boolean; minutes: number | null;
   absentMinutes: number | null; exits: number | null;
   required: number | null; percentage: number | null;
+  scheduled?: number | null; breaks?: number | null; creditedElapsed?: number | null;
 };
 type MyAttendance = {
   date: string; period: AttendancePeriod; bounds: { start: string; end: string }; entries: Entry[];
@@ -66,6 +67,8 @@ export function AttendanceStudentPanel() {
   const visibleEntries = (data?.entries ?? []).filter((entry) => courseFilter === "all" || entry.course === courseFilter);
   const bounds = attendancePeriodBounds(date, period);
   const visibleRequired = visibleEntries.reduce((sum, entry) => sum + (entry.required ?? 0), 0);
+  const visibleScheduled = visibleEntries.reduce((sum, entry) => sum + (entry.scheduled ?? 0), 0);
+  const visibleBreaks = visibleEntries.reduce((sum, entry) => sum + (entry.breaks ?? 0), 0);
   const visibleMinutes = visibleEntries.reduce((sum, entry) => sum + (entry.minutes ?? 0), 0);
   const visibleAbsent = visibleEntries.reduce((sum, entry) => sum + (entry.absentMinutes ?? 0), 0);
   const visibleExits = visibleEntries.reduce((sum, entry) => sum + (entry.exits ?? 0), 0);
@@ -96,6 +99,12 @@ export function AttendanceStudentPanel() {
         <div><strong>{visibleEntries.length}</strong><span>Sesiones del periodo</span></div>
         <div><strong>{visibleAbsent.toFixed(1)}</strong><span>Minutos ausentes ({visibleExits} salidas)</span></div>
         <div><strong>{showPercent(visibleRequired ? visibleMinutes / visibleRequired * 100 : null)}</strong><span>{visibleProvisional ? "Máximo posible del periodo" : "Permanencia del periodo"}</span></div>
+      </section>
+      <section className="attendanceTimeOverview" aria-label="Cómo se calcula mi tiempo exigible">
+        <div><span>Duración programada con pase de lista</span><strong>{visibleScheduled.toFixed(1)} min</strong></div>
+        <div><span>Descansos oficiales</span><strong>− {visibleBreaks.toFixed(1)} min</strong></div>
+        <div className="attendanceTimeTotal"><span>Minutos exigibles</span><strong>{visibleRequired.toFixed(1)} min</strong></div>
+        <p>Los minutos exigibles se calculan a partir del horario de cada materia, sin añadir tiempo por cierres administrativos tardíos. Se incluyen únicamente sesiones con registro individual.</p>
       </section>
       <section className="attendanceSection">
         <h3>Detalle por materia</h3>
@@ -135,7 +144,7 @@ export function AttendanceStudentPanel() {
           </tr>)}</tbody>
         </table></div>
         {data.entries.length === 0 ? <p>No hay sesiones registradas para el periodo seleccionado.</p> : null}
-        <p className="attendanceHint">Saldo = duración exigible de la clase − ausencia transcurrida. Mientras la clase está abierta, el saldo y el porcentaje indican lo máximo que todavía se podría alcanzar, no minutos ya asistidos. Los descansos oficiales no penalizan. La consulta no sustituye la asistencia oficial.</p>
+        <p className="attendanceHint">Saldo = duración programada − descansos oficiales − ausencia transcurrida. No se requiere un contador en pantalla: el sistema utiliza horarios, pases de lista y eventos registrados. Mientras la clase está abierta, el saldo y el porcentaje indican lo máximo que todavía se podría alcanzar, no minutos ya asistidos. Los descansos oficiales no penalizan. La consulta no sustituye la asistencia oficial.</p>
       </section>
     </>}
   </div>;

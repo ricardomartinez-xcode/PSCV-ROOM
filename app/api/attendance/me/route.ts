@@ -1,6 +1,7 @@
 import { HttpError, errorResponse, requireProfile } from "@/lib/server/authz";
 import { getD1 } from "@/lib/server/cloudflare";
 import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
+import { accountingWindow, accountingPresence } from "@/lib/permanencia-session";
 import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +67,12 @@ export async function GET(request: Request) {
     let requiredMinutes = 0;
     let exitCount = 0;
     const entries = sessions.map((session) => {
-      const sessionEnd = Date.parse(session.status === "open" ? session.scheduled_end_at : session.actual_end_at ?? session.scheduled_end_at);
+      const sessionEnd = Date.parse(accountingWindow({
+        scheduled_start_at: session.scheduled_start_at,
+        scheduled_end_at: session.scheduled_end_at,
+        actual_end_at: session.actual_end_at,
+        status: session.status as "open" | "closed" | "cancelled",
+      }).endAt);
       const cutoff = session.status === "open" ? Math.min(Date.parse(now), sessionEnd) : sessionEnd;
       const mark = markRows.find((item) => item.session_id === session.id);
       if (cutoff <= Date.parse(session.scheduled_start_at)) {
@@ -86,7 +92,12 @@ export async function GET(request: Request) {
       const stats = calculateSaldoPermanencia({
         classStartAt: session.scheduled_start_at,
         classEndAt: new Date(sessionEnd).toISOString(),
-        presence, officialBreaks, now,
+        presence: accountingPresence({
+          scheduled_start_at: session.scheduled_start_at,
+          scheduled_end_at: session.scheduled_end_at,
+          actual_end_at: session.actual_end_at,
+          status: session.status as "open" | "closed" | "cancelled",
+        }, presence), officialBreaks, now,
         closed: session.status !== "open",
         countInitialAbsence: mark?.status !== "present",
       });
@@ -97,7 +108,10 @@ export async function GET(request: Request) {
       return { id: session.id, date: session.session_date, course: session.course_name, status: mark?.status ?? null,
         note: mark?.note ?? null, provisional: session.status === "open",
         minutes: stats.remainingMinutes, absentMinutes: stats.absentMinutes,
-        exits: stats.exitCount, required: stats.requiredMinutes, percentage: stats.percentage };
+        exits: stats.exitCount, required: stats.requiredMinutes,
+        scheduled: stats.scheduledMinutes, breaks: stats.officialBreakMinutes,
+        creditedElapsed: stats.creditedElapsedMinutes,
+        percentage: stats.percentage };
     });
     return Response.json({
       date, period, bounds, entries,

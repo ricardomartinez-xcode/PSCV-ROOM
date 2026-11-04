@@ -280,16 +280,15 @@ export function AttendancePanel() {
   const weekday = new Date(date + "T12:00:00-06:00").getDay() || 7;
   const suggested = suggestedPermanenceSchedule.filter((slot) => slot.weekday === weekday);
 
-  const studentStats = useMemo(() => {
-    if (!snapshot || !selected) return [];
-    return snapshot.students.map((student) => {
-      const attendance = snapshot.attendance.find((a) => a.session_id === selected.id && a.profile_id === student.id);
-      const records = snapshot.presence.filter((p) => p.session_id === selected.id && p.profile_id === student.id);
-      const currentPresence = records.some((p) => p.end_at === null);
-      return { ...student, attendance, currentPresence, hasEntered: records.length > 0,
-        stats: calculateForStudent(snapshot, selected, student.id) };
-    });
-  }, [snapshot, selected]);
+  // The register is small; direct derivation avoids stale memoized attendance
+  // and lets React Compiler optimize without requiring a running timer.
+  const studentStats = !snapshot || !selected ? [] : snapshot.students.map((student) => {
+    const attendance = snapshot.attendance.find((a) => a.session_id === selected.id && a.profile_id === student.id);
+    const records = snapshot.presence.filter((p) => p.session_id === selected.id && p.profile_id === student.id);
+    const currentPresence = records.some((p) => p.end_at === null);
+    return { ...student, attendance, currentPresence, hasEntered: records.length > 0,
+      stats: calculateForStudent(snapshot, selected, student.id) };
+  });
 
   const visibleStudentStats = studentStats.filter((row) => {
     const query = normalizeName(registerQuery);
@@ -629,7 +628,7 @@ export function AttendancePanel() {
                   ))}</tbody>
                 </table>
               </div>
-              {selected.status === "open" && <p className="attendanceHint">No hay contador perpetuo: los intervalos se calculan en D1 al guardar un evento, regresar a la pestaña o pulsar «Actualizar saldos». Mientras la sesión está abierta, el saldo representa los minutos y porcentaje máximos que aún se pueden alcanzar; no acredita tiempo futuro como ya asistido. Pulsa «Actualizar saldos» para reflejar una salida todavía en curso. Al finalizar la clase se obtiene la permanencia real.</p>}
+              {selected.status === "open" && <p className="attendanceHint">No hay contador perpetuo: los eventos se guardan en D1 y los saldos se recalculan al registrar cambios, volver a la pestaña o pulsar «Actualizar saldos». Mientras la sesión está abierta, el saldo representa los minutos y porcentaje máximos que aún se pueden alcanzar; no acredita tiempo futuro como ya asistido. Pulsa «Actualizar saldos» para reflejar una salida todavía en curso. Al finalizar la clase se obtiene la permanencia real.</p>}
             </section>
           )}
 

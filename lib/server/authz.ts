@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, errors, jwtVerify } from "jose";
 import { getCloudflareEnv, getD1 } from "@/lib/server/cloudflare";
 import { readPersistentIdentity } from "@/lib/server/persistent-session";
 
@@ -147,7 +147,7 @@ export async function getAccessIdentity(request: Request): Promise<AccessIdentit
   } catch (error) {
     // Invalid credentials are authentication failures. Network/JWKS outages
     // remain transient server errors and must not look like a logout.
-    if (error instanceof Error && /^(JWT|JWS|JOSE)/.test(error.constructor.name)) {
+    if (error instanceof errors.JOSEError && /^ERR_(JWT|JWS|JOSE_)/.test(error.code)) {
       throw new HttpError(401, "La identidad institucional no es válida. Vuelve a iniciar sesión.");
     }
     throw error;

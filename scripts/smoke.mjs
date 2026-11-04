@@ -68,10 +68,26 @@ async function checkProtectedOperationsRoutes() {
   }
 }
 
+async function checkSessionBoundaries() {
+  const login = await request("/api/auth/login", {
+    headers: { "cf-access-jwt-assertion": "fake.jwt.value" },
+  });
+  assert.equal(login.status, 401, "a malformed Access assertion must be rejected as authentication failure in the compiled Worker");
+  const session = await request("/api/auth/session", {
+    headers: { "cf-access-jwt-assertion": "fake.jwt.value" },
+  });
+  assert.equal(session.status, 401, "Access assertions cannot replace the persistent app credential");
+  const logout = await request("/api/auth/logout", {
+    method: "POST", headers: { origin: "https://evil.example" },
+  });
+  assert.equal(logout.status, 403, "logout must reject another origin");
+}
+
 const checks = [
   ["home", checkHome],
   ["health", checkHealth],
   ["protected operations routes", checkProtectedOperationsRoutes],
+  ["persistent session boundaries", checkSessionBoundaries],
 ];
 
 console.log(`Running PSCV smoke tests against ${baseUrl.toString()}`);

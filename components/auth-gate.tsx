@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useAuthSession } from "@/components/auth-session-provider";
-import { ACCESS_LOGOUT_PATH } from "@/lib/auth-permissions";
+import { ACCESS_LOGIN_PATH } from "@/lib/auth-permissions";
 
 type AuthGateProps = {
   children: ReactNode;
@@ -16,7 +16,7 @@ function getSessionErrorMessage(status: number, payload: SessionErrorPayload) {
   if (payload.error) return payload.error;
 
   if (status === 401) {
-    return "Cloudflare Access no entregó una sesión para esta aplicación. Vuelve a iniciar el acceso institucional.";
+    return "Inicia sesión para acceder a PSCV Room.";
   }
 
   if (status === 403) {
@@ -39,9 +39,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   function restartAccess() {
-    // A reload preserves a rejected/stale Access cookie. End the Access session
-    // so the next visit starts a fresh identity-provider flow.
-    window.location.assign(ACCESS_LOGOUT_PATH);
+    window.location.assign(ACCESS_LOGIN_PATH);
   }
 
   if (loading) {

@@ -159,6 +159,8 @@ class D1BrowserClient {
       return { data: { user: session.data?.session?.user ?? null }, error: session.error };
     },
     async signOut() {
+      const response = await fetch("/api/auth/logout", { method: "POST", credentials: "include", cache: "no-store" });
+      if (!response.ok) throw new Error("No se pudo cerrar la sesión. Comprueba tu conexión e inténtalo de nuevo.");
       return { error: null };
     },
   };

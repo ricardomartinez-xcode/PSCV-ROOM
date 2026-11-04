@@ -2,6 +2,12 @@
 
 La app usa Cloudflare Access con Microsoft Entra ID. La autenticación ocurre en Access y la autorización interna ocurre en D1.
 
+La sesión de la app ahora es persistente y revocable. Access sólo interviene en
+`/api/auth/login`; la caducidad de su JWT no cierra una sesión propia existente.
+Consulta [el flujo y la operación actuales](PERSISTENT_SESSIONS.md). El cierre
+revoca primero la sesión en D1 y después navega al logout de Access. «Volver a
+iniciar acceso» abre el endpoint de login, sin ejecutar un logout automático.
+
 ## Producción vigente
 
 - Dominio protegido: `https://app.relnets.com`

@@ -398,19 +398,18 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   async function signOut() {
+    try {
+      await d1Client.auth.signOut();
+    } catch (logoutError) {
+      setError(logoutError instanceof Error ? logoutError.message : "No se pudo cerrar la sesión.");
+      return;
+    }
     clearSession();
     setProfileOverride(null);
     setNotifications([]);
     setNotificationOpen(false);
     setDrawerOpen(false);
-    try {
-      await d1Client.auth.signOut();
-    } catch {
-      // The browser adapter has no local auth token; Cloudflare Access owns the app session.
-    }
-
-    // Cloudflare Access owns the HttpOnly authorization cookie. Use a top-level
-    // navigation so the cookie is reliably cleared on desktop and mobile.
+    // The app credential is already revoked; also end the Access login session.
     window.location.assign(ACCESS_LOGOUT_PATH);
   }
 

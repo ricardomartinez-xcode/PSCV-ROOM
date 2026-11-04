@@ -19,7 +19,8 @@ type AuthSessionContextValue = {
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 const SESSION_TIMEOUT_MS = 12_000;
 const LAST_SESSION_KEY = "pscv:auth:last-session:v1";
-const SESSION_TIMEOUT_MESSAGE = "La comprobación de Cloudflare Access tardó demasiado. Confirma que app.relnets.com apunta al Worker pscv-room.";
+const LOGOUT_EVENT_KEY = "pscv:auth:logout";
+const SESSION_TIMEOUT_MESSAGE = "La conexión está tardando demasiado. Comprueba tu red y vuelve a intentarlo.";
 
 function readCachedSession(): CachedSession | null {
   if (typeof window === "undefined") return null;
@@ -39,7 +40,7 @@ function writeCachedSession(session: CachedSession | null) {
     if (session) window.sessionStorage.setItem(LAST_SESSION_KEY, JSON.stringify(session));
     else window.sessionStorage.removeItem(LAST_SESSION_KEY);
   } catch {
-    // Cache de resiliencia; Cloudflare Access sigue siendo la fuente de verdad.
+    // UI cache only; every API call validates the server session and permissions.
   }
 }
 
@@ -51,10 +52,12 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<number | null>(null);
   const profileRef = useRef<Profile | null>(initialSession?.profile ?? null);
+  const requestVersion = useRef(0);
 
   useEffect(() => { profileRef.current = profile; }, [profile]);
 
-  const clearSession = useCallback(() => {
+  const resetSession = useCallback(() => {
+    requestVersion.current += 1;
     writeCachedSession(null);
     profileRef.current = null;
     setProfile(null);
@@ -64,6 +67,11 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     setLoading(false);
   }, []);
 
+  const clearSession = useCallback(() => {
+    resetSession();
+    try { window.localStorage.setItem(LOGOUT_EVENT_KEY, crypto.randomUUID()); } catch { /* Optional cross-tab notification. */ }
+  }, [resetSession]);
+
   const keepExistingSession = useCallback((message?: string) => {
     if (!profileRef.current) return false;
     setLoading(false);
@@ -72,6 +80,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const refreshSession = useCallback(async () => {
+    const version = ++requestVersion.current;
     if (!profileRef.current) setLoading(true);
     setError(null);
     const controller = new AbortController();
@@ -79,7 +88,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     let settled = false;
 
     const timeout = window.setTimeout(() => {
-      if (settled) return;
+      if (settled || version !== requestVersion.current) return;
       timedOut = true;
       controller.abort();
       if (!keepExistingSession()) {
@@ -91,8 +100,9 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
 
     try {
       const response = await fetch("/api/auth/session", { credentials: "include", cache: "no-store", signal: controller.signal });
-      if (timedOut) return;
+      if (timedOut || version !== requestVersion.current) return;
       const payload = (await response.json().catch(() => ({}))) as SessionPayload;
+      if (timedOut || version !== requestVersion.current) return;
       setStatus(response.status);
 
       if (response.status === 401 || response.status === 403) {
@@ -122,7 +132,7 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
       writeCachedSession({ profile: nextProfile, identity: nextIdentity });
       setError(null);
     } catch (sessionError) {
-      if (timedOut) return;
+      if (timedOut || version !== requestVersion.current) return;
       if (!keepExistingSession()) {
         setStatus(null);
         setError(sessionError instanceof Error ? sessionError.message : "No se pudo validar tu sesión.");
@@ -130,11 +140,30 @@ export function AuthSessionProvider({ children }: { children: React.ReactNode })
     } finally {
       settled = true;
       window.clearTimeout(timeout);
-      if (!timedOut) setLoading(false);
+      if (!timedOut && version === requestVersion.current) setLoading(false);
     }
   }, [keepExistingSession]);
 
-  useEffect(() => { void refreshSession(); }, [refreshSession]);
+  useEffect(() => {
+    void refreshSession();
+    const checkVisibleSession = () => {
+      if (document.visibilityState === "visible") void refreshSession();
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === LOGOUT_EVENT_KEY) resetSession();
+    };
+    const interval = window.setInterval(checkVisibleSession, 5 * 60 * 1000);
+    document.addEventListener("visibilitychange", checkVisibleSession);
+    window.addEventListener("online", checkVisibleSession);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      requestVersion.current += 1;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", checkVisibleSession);
+      window.removeEventListener("online", checkVisibleSession);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [refreshSession, resetSession]);
 
   const value = useMemo<AuthSessionContextValue>(() => ({
     profile, identity, loading, error, status, refreshSession, clearSession,

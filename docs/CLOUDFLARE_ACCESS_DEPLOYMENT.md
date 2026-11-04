@@ -4,6 +4,12 @@
 
 La URL canónica es `https://app.relnets.com` y debe ejecutarse en el Worker `pscv-room`.
 
+Desde la implementación de sesiones persistentes, Access protege únicamente
+`/api/auth/login`. El Worker mantiene una sesión propia revocable y autoriza las
+APIs en D1. Consulta [sesiones persistentes](PERSISTENT_SESSIONS.md) para el orden
+de despliegue y la reversión. Las referencias al dominio completo más abajo
+describen la configuración anterior y no deben volver a aplicarse como destino.
+
 ```text
 Navegador
   -> Cloudflare Access

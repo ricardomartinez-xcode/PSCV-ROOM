@@ -47,6 +47,7 @@ export type SessionCapabilities = {
 };
 
 export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+export const ACCESS_LOGIN_PATH = "/api/auth/login";
 
 const EMPTY_CAPABILITIES: SessionCapabilities = {
   isStudent: false,

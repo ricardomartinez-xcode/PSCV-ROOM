@@ -1,5 +1,6 @@
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, errors, jwtVerify } from "jose";
 import { getCloudflareEnv, getD1 } from "@/lib/server/cloudflare";
+import { readPersistentIdentity } from "@/lib/server/persistent-session";
 
 export type Permission =
   | "tasks:edit"
@@ -109,6 +110,16 @@ function getAccessJwks(issuer: string) {
 
 export async function getCurrentIdentity(request: Request): Promise<AccessIdentity> {
   const env = await getCloudflareEnv();
+  if (env.AUTH_MODE === "development") return getAccessIdentity(request);
+  const identity = await readPersistentIdentity(await getD1(), request);
+  if (!identity) throw new HttpError(401, "Inicia sesión para acceder a PSCV Room.");
+  return identity;
+}
+
+// Access is used only at the protected login endpoint to establish identity.
+// Ordinary API calls must never recreate a revoked session from an Access JWT.
+export async function getAccessIdentity(request: Request): Promise<AccessIdentity> {
+  const env = await getCloudflareEnv();
 
   if (env.AUTH_MODE === "development") {
     if (process.env.NODE_ENV === "production" && env.ALLOW_DEV_AUTH !== "1") {
@@ -130,7 +141,17 @@ export async function getCurrentIdentity(request: Request): Promise<AccessIdenti
   }
 
   const issuer = `https://${teamDomain}`;
-  const { payload } = await jwtVerify(token, getAccessJwks(issuer), { issuer, audience });
+  let payload;
+  try {
+    ({ payload } = await jwtVerify(token, getAccessJwks(issuer), { issuer, audience }));
+  } catch (error) {
+    // Invalid credentials are authentication failures. Network/JWKS outages
+    // remain transient server errors and must not look like a logout.
+    if (error instanceof errors.JOSEError && /^ERR_(JWT|JWS|JOSE_)/.test(error.code)) {
+      throw new HttpError(401, "La identidad institucional no es válida. Vuelve a iniciar sesión.");
+    }
+    throw error;
+  }
   const email = normalizeEmail(payload.email);
   const subject = typeof payload.sub === "string" ? payload.sub : "";
 

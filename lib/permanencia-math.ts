@@ -122,6 +122,9 @@ export function calculatePermanencia(args: {
  * En una sesión cerrada, el saldo equivale a la permanencia real.
  */
 export type PermanenciaSaldoResult = {
+  scheduledMinutes: number;
+  officialBreakMinutes: number;
+  creditedElapsedMinutes: number;
   requiredMinutes: number;
   absentMinutes: number;
   remainingMinutes: number;
@@ -159,6 +162,9 @@ export function calculateSaldoPermanencia(args: {
   });
   const cutoff = args.closed ? end : Math.min(Math.max(start, asOf), end);
   if (cutoff <= start) return {
+    scheduledMinutes: full.scheduledMinutes,
+    officialBreakMinutes: full.officialBreakMinutes,
+    creditedElapsedMinutes: 0,
     requiredMinutes: full.requiredMinutes,
     absentMinutes: 0,
     remainingMinutes: full.requiredMinutes,
@@ -199,6 +205,9 @@ export function calculateSaldoPermanencia(args: {
     (full.requiredMinutes - elapsed.absentMinutes) * 10,
   ) / 10);
   return {
+    scheduledMinutes: full.scheduledMinutes,
+    officialBreakMinutes: full.officialBreakMinutes,
+    creditedElapsedMinutes: elapsed.presentMinutes,
     requiredMinutes: full.requiredMinutes,
     absentMinutes: elapsed.absentMinutes,
     remainingMinutes,

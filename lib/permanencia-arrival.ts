@@ -28,7 +28,7 @@ export function resolveLateArrival(args: {
   if (![arrival, start, end, now].every(Number.isFinite) || end <= start) {
     throw new Error("El horario de la sesión no es válido.");
   }
-  if (arrival < start || arrival > end) {
+  if (arrival < start || arrival >= end) {
     throw new Error("La hora de llegada debe estar dentro del horario de clase.");
   }
   if (arrival > now) {

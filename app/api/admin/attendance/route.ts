@@ -19,6 +19,8 @@ const commandSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("save_pattern"), sessionId: idSchema }),
   z.object({ action: z.literal("mark_attendance"), sessionId: idSchema, profileId: idSchema, status: statusSchema, arrivalLocal: clockSchema.optional(), note: z.string().trim().max(500).optional() }),
   z.object({ action: z.literal("toggle_presence"), sessionId: idSchema, profileId: idSchema }),
+  z.object({ action: z.literal("set_presence"), sessionId: idSchema, profileId: idSchema, present: z.boolean() }),
+  z.object({ action: z.literal("correct_break"), sessionId: idSchema, breakId: idSchema, startLocal: clockSchema, endLocal: clockSchema }),
   z.object({ action: z.literal("start_break"), sessionId: idSchema }),
   z.object({ action: z.literal("end_break"), sessionId: idSchema }),
   z.object({ action: z.literal("add_break"), sessionId: idSchema, startLocal: clockSchema, endLocal: clockSchema }),
@@ -231,6 +233,40 @@ export async function POST(request: Request) {
       return json({ ok: true, sessionId: id }, 201);
     }
 
+    // Explicit audited correction for a fixed break, including closed classes.
+    // Never rewrite original presence timestamps or silently change history.
+    if (cmd.action === "correct_break") {
+      const session = await getSession(db, cmd.sessionId);
+      await requireCourseAccess(db, actor, session.course_id);
+      if (session.status === "cancelled") throw new HttpError(409, "No puedes modificar una clase cancelada.");
+      const before = await db.prepare(
+        "SELECT id,start_at,end_at,kind FROM permanence_breaks WHERE id=? AND session_id=?"
+      ).bind(cmd.breakId, session.id).first<{id:string;start_at:string;end_at:string|null;kind:string}>();
+      if (!before || before.kind !== "fixed" || !before.end_at) {
+        throw new HttpError(404, "Solo puedes corregir descansos fijos finalizados.");
+      }
+      const startAt = localInstant(session.session_date, cmd.startLocal);
+      const endAt = localInstant(session.session_date, cmd.endLocal);
+      if (startAt < session.scheduled_start_at || endAt > session.scheduled_end_at || endAt <= startAt) {
+        throw new HttpError(400, "El descanso corregido debe quedar dentro del horario programado.");
+      }
+      const change = {
+        sessionId: session.id, before: { startAt: before.start_at, endAt: before.end_at },
+        after: { startAt, endAt }, at: now,
+      };
+      // D1 batch makes the modification and its audit trail atomic.
+      await db.batch([
+        db.prepare(
+          "UPDATE permanence_breaks SET start_at=?,end_at=? WHERE id=? AND session_id=? AND kind='fixed'"
+        ).bind(startAt, endAt, before.id, session.id),
+        db.prepare(
+          "INSERT INTO audit_log(id,actor_id,action,entity,entity_id,after_data) VALUES (?,?,?,?,?,?)"
+        ).bind(crypto.randomUUID(), actor.id, "attendance.break.corrected", "permanence_break",
+          before.id, JSON.stringify(change)),
+      ]);
+      return json({ ok: true });
+    }
+
     const session = await requireOpenSession(db, cmd.sessionId);
     await requireCourseAccess(db, actor, session.course_id);
     const action = cmd.action;
@@ -305,17 +341,25 @@ export async function POST(request: Request) {
           ).bind(actualArrival, firstPresence.id));
         } else {
           changes.push(db.prepare(
-            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
-          ).bind(crypto.randomUUID(), session.id, cmd.profileId, actualArrival, actor.id));
+            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,end_at,recorded_by) VALUES(?,?,?,?,?,?)"
+          ).bind(crypto.randomUUID(), session.id, cmd.profileId, actualArrival,
+            now >= session.scheduled_end_at ? session.scheduled_end_at : null, actor.id));
         }
       } else if (cmd.status === "present") {
-        const open = await db.prepare(
-          "SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? AND end_at IS NULL"
+        // Reconfirming a present mark must never forge a return after a real exit.
+        // The explicit "Registrar regreso" action is the only way to reopen presence.
+        const previouslyEntered = await db.prepare(
+          "SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? LIMIT 1"
         ).bind(session.id, cmd.profileId).first();
-        if (!open) {
+        if (!previouslyEntered) {
+          // A certified retrospective "Presente" mark is a static class record,
+          // not an open timer hours after the scheduled finish.
+          const retrospective = now >= session.scheduled_end_at;
           changes.push(db.prepare(
-            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
-          ).bind(crypto.randomUUID(), session.id, cmd.profileId, now, actor.id));
+            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,end_at,recorded_by) VALUES(?,?,?,?,?,?)"
+          ).bind(crypto.randomUUID(), session.id, cmd.profileId,
+            retrospective ? session.scheduled_start_at : now,
+            retrospective ? session.scheduled_end_at : null, actor.id));
         }
       } else {
         const open = await db.prepare(
@@ -339,20 +383,39 @@ export async function POST(request: Request) {
       return json({ ok: true });
     }
 
-    if (action === "toggle_presence") {
+    if (action === "toggle_presence" || action === "set_presence") {
       await requireStudent(db, cmd.profileId);
-      const previouslyOpen = await closePresence(db, session.id, cmd.profileId, now);
-      if (!previouslyOpen) {
-        await db.prepare(
-          "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
-        ).bind(crypto.randomUUID(), session.id, cmd.profileId, now, actor.id).run();
-        await db.prepare(
-          "INSERT INTO permanence_attendance(session_id,profile_id,status,recorded_by) VALUES(?,?,'present',?) " +
-          "ON CONFLICT(session_id,profile_id) DO UPDATE SET status = CASE WHEN status = 'late' THEN 'late' ELSE 'present' END,recorded_by=excluded.recorded_by,updated_at=CURRENT_TIMESTAMP"
-        ).bind(session.id, cmd.profileId, actor.id).run();
+      const open = await db.prepare(
+        "SELECT id FROM permanence_presence WHERE session_id=? AND profile_id=? AND end_at IS NULL LIMIT 1"
+      ).bind(session.id, cmd.profileId).first<{id:string}>();
+      const wantPresent = action === "set_presence" ? cmd.present : !open;
+      // Explicit desired state prevents a delayed/double-click from reversing a mark.
+      if (Boolean(open) === wantPresent) return json({ ok: true, unchanged: true });
+      if (wantPresent) {
+        if (Date.parse(now) >= Date.parse(session.scheduled_end_at)) {
+          throw new HttpError(409, "La hora programada ya terminó. Corrige el pase de lista en lugar de registrar una entrada posterior.");
+        }
+        const mark = await db.prepare(
+          "SELECT status FROM permanence_attendance WHERE session_id=? AND profile_id=?"
+        ).bind(session.id, cmd.profileId).first<{status:string}>();
+        const newStatus = mark?.status === "present" || mark?.status === "late"
+          ? mark.status : Date.parse(now) > Date.parse(session.scheduled_start_at) + 60_000 ? "late" : "present";
+        await db.batch([
+          db.prepare(
+            "INSERT INTO permanence_presence(id,session_id,profile_id,start_at,recorded_by) VALUES(?,?,?,?,?)"
+          ).bind(crypto.randomUUID(), session.id, cmd.profileId, now, actor.id),
+          db.prepare(
+            "INSERT INTO permanence_attendance(session_id,profile_id,status,recorded_by) VALUES(?,?,?,?) " +
+            "ON CONFLICT(session_id,profile_id) DO UPDATE SET status=excluded.status,recorded_by=excluded.recorded_by,updated_at=CURRENT_TIMESTAMP"
+          ).bind(session.id, cmd.profileId, newStatus, actor.id),
+        ]);
+        await audit(db, actor.id, "attendance.presence.set", "permanence_session", session.id,
+          { profileId: cmd.profileId, state: "in", status: newStatus, at: now });
+      } else {
+        await closePresence(db, session.id, cmd.profileId, now);
+        await audit(db, actor.id, "attendance.presence.set", "permanence_session", session.id,
+          { profileId: cmd.profileId, state: "out", at: now });
       }
-      await audit(db, actor.id, "attendance.presence.toggle", "permanence_session", session.id,
-        { profileId: cmd.profileId, state: previouslyOpen ? "out" : "in", at: now });
       return json({ ok: true });
     }
 

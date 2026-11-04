@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { calculatePermanencia, calculateSaldoPermanencia, type TimeWindow } from "@/lib/permanencia-math";
+import { accountingWindow, accountingPresence } from "@/lib/permanencia-session";
 import { suggestedPermanenceSchedule, type BreakMode } from "@/lib/permanencia-config";
 import { attendancePeriodBounds, type AttendancePeriod } from "@/lib/attendance-period";
 import { AttendanceHistoryChart } from "./attendance-history-chart";
@@ -34,6 +35,8 @@ type Command =
   | { action: "create_session"; courseId: string; date: string; startLocal: string; endLocal: string }
   | { action: "mark_attendance"; sessionId: string; profileId: string; status: Attendance["status"]; arrivalLocal?: string }
   | { action: "toggle_presence"; sessionId: string; profileId: string }
+  | { action: "set_presence"; sessionId: string; profileId: string; present: boolean }
+  | { action: "correct_break"; sessionId: string; breakId: string; startLocal: string; endLocal: string }
   | { action: "start_break" | "end_break" | "close_session"; sessionId: string }
   | { action: "add_break"; sessionId: string; startLocal: string; endLocal: string }
   | { action: "set_break_mode"; sessionId: string; mode: BreakMode }
@@ -70,12 +73,9 @@ function normalizeName(value: string) {
 }
 
 function sessionTime(session: Session, snapshot: Snapshot) {
-  const start = Date.parse(session.scheduled_start_at);
-  const end = session.status === "open"
-    ? Date.parse(session.scheduled_end_at)
-    : Date.parse(session.actual_end_at ?? session.scheduled_end_at);
-  if (session.status === "open" && Date.parse(snapshot.serverNow) <= start) return null;
-  return end > start ? new Date(end).toISOString() : null;
+  const interval = accountingWindow(session);
+  if (session.status === "open" && Date.parse(snapshot.serverNow) <= Date.parse(interval.startAt)) return null;
+  return interval.endAt;
 }
 
 function calculateForStudent(snapshot: Snapshot, session: Session, profileId: string) {
@@ -95,7 +95,7 @@ function calculateForStudent(snapshot: Snapshot, session: Session, profileId: st
     .map((b) => ({ startAt: b.start_at, endAt: b.end_at }));
   return calculateSaldoPermanencia({
     classStartAt: session.scheduled_start_at,
-    classEndAt: end, presence, officialBreaks,
+    classEndAt: end, presence: accountingPresence(session, presence), officialBreaks,
     now: snapshot.serverNow,
     closed: session.status === "closed",
     countInitialAbsence: attendanceStatus !== "present",
@@ -110,6 +110,8 @@ export function AttendancePanel() {
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [summaryQuery, setSummaryQuery] = useState("");
+  const [registerQuery, setRegisterQuery] = useState("");
+  const [registerFilter, setRegisterFilter] = useState("all");
   const [summaryCourseId, setSummaryCourseId] = useState("all");
   const [summaryOrder, setSummaryOrder] = useState<"name" | "low" | "high">("name");
   const [detail, setDetail] = useState<{ studentId: string; courseId: string } | null>(null);
@@ -118,7 +120,11 @@ export function AttendancePanel() {
   const [startLocal, setStartLocal] = useState("18:00");
   const [endLocal, setEndLocal] = useState("21:00");
   const [manualBreakStart, setManualBreakStart] = useState("19:30");
-  const [manualBreakEnd, setManualBreakEnd] = useState("19:45");
+  const [manualBreakEnd, setManualBreakEnd] = useState("19:50");
+  const [breakCorrection, setBreakCorrection] = useState<{
+    sessionId: string; breakId: string; startLocal: string; endLocal: string;
+  } | null>(null);
+  const lastAutoRefreshAt = useRef(0);
   const [lateDialog, setLateDialog] = useState<{
     sessionId: string; profileId: string; studentName: string;
     arrivalLocal: string; classStartLocal: string; classEndLocal: string;
@@ -180,6 +186,24 @@ export function AttendancePanel() {
     return () => controller.abort();
   }, [period, date, snapshot]);
 
+  // No interval, no polling and no ticking counter. Revalidate from D1 when
+  // the administrator returns to an open register; on-demand reads use server time.
+  useEffect(() => {
+    if (!snapshot?.sessions.some((session) => session.status === "open")) return;
+    const onReturn = () => {
+      if (document.hidden || busy || Date.now() - lastAutoRefreshAt.current < 15_000) return;
+      lastAutoRefreshAt.current = Date.now();
+      void refresh(date).catch((cause) =>
+        setError(cause instanceof Error ? cause.message : "No se pudo actualizar el registro."));
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [snapshot?.sessions, busy, date, refresh]);
+
   async function command(body: Command): Promise<boolean> {
     setBusy(true);
     setError(null);
@@ -231,21 +255,49 @@ export function AttendancePanel() {
   const selected = snapshot?.sessions.find((s) => s.id === selectedSessionId) ?? null;
   const selectedBreaks = snapshot?.breaks.filter((b) => b.session_id === selectedSessionId) ?? [];
   const activeBreak = selectedBreaks.find((b) => b.kind === "variable" && b.end_at === null);
+  const dayAccounting = snapshot?.sessions.filter((session) => session.status !== "cancelled")
+    .map((session) => calculatePermanencia({
+      classStartAt: session.scheduled_start_at,
+      classEndAt: accountingWindow(session).endAt,
+      presence: [],
+      officialBreaks: snapshot.breaks.filter((rest) => rest.session_id === session.id)
+        .map((rest) => ({ startAt: rest.start_at, endAt: rest.end_at })),
+      now: snapshot.serverNow,
+    })) ?? [];
+  const dayTotals = dayAccounting.reduce((sum, entry) => ({
+    scheduled: sum.scheduled + entry.scheduledMinutes,
+    breaks: sum.breaks + entry.officialBreakMinutes,
+    required: sum.required + entry.requiredMinutes,
+  }), { scheduled: 0, breaks: 0, required: 0 });
+  const selectedAccounting = snapshot && selected ? calculatePermanencia({
+    classStartAt: selected.scheduled_start_at,
+    classEndAt: accountingWindow(selected).endAt,
+    presence: [],
+    officialBreaks: selectedBreaks.map((rest) => ({ startAt: rest.start_at, endAt: rest.end_at })),
+    now: snapshot.serverNow,
+  }) : null;
   const courseById = useMemo(() => new Map(snapshot?.courses.map((c) => [c.id, c.name]) ?? []), [snapshot]);
   const weekday = new Date(date + "T12:00:00-06:00").getDay() || 7;
   const suggested = suggestedPermanenceSchedule.filter((slot) => slot.weekday === weekday);
 
-  const studentStats = useMemo(() => {
-    if (!snapshot || !selected) return [];
-    return snapshot.students.map((student) => {
-      const attendance = snapshot.attendance.find((a) => a.session_id === selected.id && a.profile_id === student.id);
-      const records = snapshot.presence.filter((p) => p.session_id === selected.id && p.profile_id === student.id);
-      const currentPresence = records.some((p) => p.end_at === null);
-      return { ...student, attendance, currentPresence, hasEntered: records.length > 0,
-        stats: calculateForStudent(snapshot, selected, student.id) };
-    });
-  }, [snapshot, selected]);
+  // The register is small; direct derivation avoids stale memoized attendance
+  // and lets React Compiler optimize without requiring a running timer.
+  const studentStats = !snapshot || !selected ? [] : snapshot.students.map((student) => {
+    const attendance = snapshot.attendance.find((a) => a.session_id === selected.id && a.profile_id === student.id);
+    const records = snapshot.presence.filter((p) => p.session_id === selected.id && p.profile_id === student.id);
+    const currentPresence = records.some((p) => p.end_at === null);
+    return { ...student, attendance, currentPresence, hasEntered: records.length > 0,
+      stats: calculateForStudent(snapshot, selected, student.id) };
+  });
 
+  const visibleStudentStats = studentStats.filter((row) => {
+    const query = normalizeName(registerQuery);
+    const matchesText = !query || normalizeName([row.full_name, row.control_number ?? ""].join(" ")).includes(query);
+    const matchesStatus = registerFilter === "all" ||
+      (registerFilter === "unmarked" && !row.attendance) ||
+      row.attendance?.status === registerFilter;
+    return matchesText && matchesStatus;
+  });
   const marked = studentStats.filter((s) => s.attendance).length;
   const present = studentStats.filter((s) => s.attendance?.status === "present" || s.attendance?.status === "late").length;
 
@@ -355,6 +407,13 @@ export function AttendancePanel() {
             <div><strong>{snapshot.sessions.filter((s) => s.status === "closed").length}</strong><span>Sesiones cerradas</span></div>
           </section>
 
+          <section className="attendanceTimeOverview" aria-label="Desglose del tiempo programado del día">
+            <div><span>Clases programadas</span><strong>{dayTotals.scheduled.toFixed(1)} min</strong></div>
+            <div><span>Descansos oficiales</span><strong>− {dayTotals.breaks.toFixed(1)} min</strong></div>
+            <div className="attendanceTimeTotal"><span>Minutos exigibles</span><strong>{dayTotals.required.toFixed(1)} min</strong></div>
+            <p>Tiempo exigible = duración programada − unión de descansos registrados. No depende de la hora en que se pulsa «Finalizar clase».</p>
+          </section>
+
           <section className="attendanceSection">
             <h3>Clases del día</h3>
             <div className="attendanceSessionTabs">
@@ -454,6 +513,16 @@ export function AttendancePanel() {
                   </button>}
               </div>
 
+              {selectedAccounting && <div className="attendanceTimeOverview attendanceSessionAccounting">
+                <div><span>Duración programada</span><strong>{selectedAccounting.scheduledMinutes.toFixed(1)} min</strong></div>
+                <div><span>Descansos registrados</span><strong>− {selectedAccounting.officialBreakMinutes.toFixed(1)} min</strong></div>
+                <div className="attendanceTimeTotal"><span>Tiempo exigible</span><strong>{selectedAccounting.requiredMinutes.toFixed(1)} min</strong></div>
+                <p>El cierre del registro no añade minutos fuera del horario.
+                  {accountingWindow(selected).closedLate ? " Esta clase se cerró después del horario: el excedente no se cuenta." : ""}
+                  {accountingWindow(selected).closedEarly ? " Se cerró el pase antes del horario final: los presentes sin salida explícita se certifican hasta el fin programado." : ""}
+                </p>
+              </div>}
+
               <div className="attendanceBreakControls">
                 <div>
                   <strong>Descansos oficiales</strong>
@@ -478,8 +547,17 @@ export function AttendancePanel() {
                     {activeBreak ? "Terminar descanso" : "Iniciar descanso"}
                   </button>
                 )}
-                {selectedBreaks.length > 0 && <ul>{selectedBreaks.map((rest) =>
-                  <li key={rest.id}>{rest.kind === "variable" ? "Variable" : "Manual"}: {formatClock(rest.start_at)}–{rest.end_at ? formatClock(rest.end_at) : "en curso"}</li>)}</ul>}
+                {selectedBreaks.length > 0 && <ul className="attendanceBreakList">{selectedBreaks.map((rest) =>
+                  <li key={rest.id}>
+                    <span>{rest.kind === "variable" ? "Variable" : "Horario fijo"}: {formatClock(rest.start_at)}–{rest.end_at ? formatClock(rest.end_at) : "en curso"}
+                      {rest.end_at ? " · " + Math.max(0, (Date.parse(rest.end_at) - Date.parse(rest.start_at)) / 60000).toFixed(1) + " min" : " · pendiente de finalizar"}</span>
+                    {rest.kind === "fixed" && rest.end_at &&
+                      <button type="button" disabled={busy} onClick={() =>
+                        setBreakCorrection({ sessionId: selected.id, breakId: rest.id,
+                          startLocal: formatClock(rest.start_at), endLocal: formatClock(rest.end_at!) })}>
+                        Corregir horario
+                      </button>}
+                  </li>)}</ul>}
                 {selected.status === "open" && selected.break_mode !== "none" && (
                   <div className="attendanceForm">
                     <span>Agregar descanso por horario</span>
@@ -495,18 +573,36 @@ export function AttendancePanel() {
               <div className="attendanceSectionTitle">
                 <h3>Pase de lista y permanencia</h3>
                 <span>{marked} marcados · {present} presentes o con retardo</span>
+                <small className="attendanceSnapshotLabel">Corte: {formatClock(snapshot.serverNow)} (CDMX)</small>
                 <button type="button" disabled={busy} onClick={() => void refresh(date).catch((cause) => setError(cause instanceof Error ? cause.message : "Error al actualizar."))}>Actualizar saldos</button>
               </div>
-              <p className="attendanceHint">El saldo inicia con la duración exigible completa. «Presente» no genera una ausencia por pasar lista tarde. Al seleccionar «Retardo», registra la hora real de llegada en la ventana emergente; el descuento se calcula desde el inicio de clase hasta esa hora. Las salidas y regresos se descuentan por separado; los descansos oficiales no penalizan.</p>
+              <div className="attendanceRegisterFilters">
+                <label>Buscar alumno
+                  <input type="search" value={registerQuery} onChange={(event) => setRegisterQuery(event.target.value)}
+                    placeholder="Nombre o número de control" />
+                </label>
+                <label>Estado del pase
+                  <select value={registerFilter} onChange={(event) => setRegisterFilter(event.target.value)}>
+                    <option value="all">Todos</option>
+                    <option value="unmarked">Sin marcar</option>
+                    <option value="present">Presentes</option>
+                    <option value="late">Retardos</option>
+                    <option value="absent">Ausentes</option>
+                    <option value="excused">Justificadas</option>
+                  </select>
+                </label>
+                <span role="status">{visibleStudentStats.length} de {studentStats.length} alumnos</span>
+              </div>
+              <p className="attendanceHint">Una entrada registrada después del inicio se identifica como retardo, salvo que se haya confirmado explícitamente «Presente». El saldo inicia con la duración exigible completa. «Presente» no genera una ausencia por pasar lista tarde. Al seleccionar «Retardo», registra la hora real de llegada en la ventana emergente; el descuento se calcula desde el inicio de clase hasta esa hora. Las salidas y regresos se descuentan por separado; los descansos oficiales no penalizan.</p>
               <div className="attendanceTableScroll">
-                <table className="attendanceTable">
+                <table className="attendanceTable attendanceRegisterTable">
                   <thead><tr><th>Alumno</th><th>Pase de lista</th><th>Entrada / regreso</th><th>Salidas</th><th>Ausencia</th><th>{selected.status === "open" ? "Saldo de minutos" : "Minutos presentes"}</th><th>{selected.status === "open" ? "Máximo posible" : "Permanencia"}</th></tr></thead>
-                  <tbody>{studentStats.map((row) => (
+                  <tbody>{visibleStudentStats.map((row) => (
                     <tr key={row.id}>
-                      <td><button type="button" className="attendanceStudentLink"
+                      <td data-label="Alumno"><button type="button" className="attendanceStudentLink"
                         onClick={() => setDetail({ studentId: row.id, courseId: selected.course_id })}>
                         {row.full_name}</button><small>{row.control_number ?? "Sin número de control"}</small></td>
-                      <td><div className="attendanceStatusButtons">
+                      <td data-label="Pase de lista"><div className="attendanceStatusButtons">
                         {(["present", "late", "absent", "excused"] as Attendance["status"][]).map((status) =>
                           <button type="button" key={status}
                             disabled={busy || selected.status !== "open"}
@@ -518,20 +614,21 @@ export function AttendancePanel() {
                             {statusLabels[status]}
                           </button>)}
                       </div></td>
-                      <td><button type="button" disabled={busy || selected.status !== "open"}
+                      <td data-label="Entrada / regreso"><button type="button" disabled={busy || selected.status !== "open"}
                         className={row.currentPresence ? "attendanceOut" : "attendanceIn"}
-                        onClick={() => void command({ action: "toggle_presence", sessionId: selected.id, profileId: row.id })}>
+                        onClick={() => void command({ action: "set_presence", sessionId: selected.id,
+                          profileId: row.id, present: !row.currentPresence })}>
                         {row.currentPresence ? "Registrar salida" : row.hasEntered ? "Registrar regreso" : "Registrar entrada"}
                       </button></td>
-                      <td>{row.stats ? row.stats.exitCount : "—"}</td>
-                      <td>{row.stats ? row.stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
-                      <td>{row.stats ? row.stats.remainingMinutes.toFixed(1) + " min" : "—"}</td>
-                      <td><strong>{percentLabel(row.stats?.percentage ?? null)}</strong></td>
+                      <td data-label="Salidas">{row.stats ? row.stats.exitCount : "—"}</td>
+                      <td data-label="Ausencia">{row.stats ? row.stats.absentMinutes.toFixed(1) + " min" : "—"}</td>
+                      <td data-label="Saldo / Permanencia">{row.stats ? row.stats.remainingMinutes.toFixed(1) + " min" : "—"}</td>
+                      <td data-label="Porcentaje"><strong>{percentLabel(row.stats?.percentage ?? null)}</strong></td>
                     </tr>
                   ))}</tbody>
                 </table>
               </div>
-              {selected.status === "open" && <p className="attendanceHint">Mientras la sesión está abierta, el saldo representa los minutos y porcentaje máximos que aún se pueden alcanzar; no acredita tiempo futuro como ya asistido. Pulsa «Actualizar saldos» para reflejar una salida todavía en curso. Al finalizar la clase se obtiene la permanencia real.</p>}
+              {selected.status === "open" && <p className="attendanceHint">No hay contador perpetuo: los eventos se guardan en D1 y los saldos se recalculan al registrar cambios, volver a la pestaña o pulsar «Actualizar saldos». Mientras la sesión está abierta, el saldo representa los minutos y porcentaje máximos que aún se pueden alcanzar; no acredita tiempo futuro como ya asistido. Pulsa «Actualizar saldos» para reflejar una salida todavía en curso. Al finalizar la clase se obtiene la permanencia real.</p>}
             </section>
           )}
 
@@ -608,6 +705,32 @@ export function AttendancePanel() {
             <p className="attendanceHint">Selecciona un alumno para ver su asistencia clase por clase y fecha. Los porcentajes de clases abiertas son máximos provisionales, no tiempo futuro acreditado.</p>
           </section>
         </>
+      )}
+      {breakCorrection && (
+        <div className="attendanceModalBackdrop">
+          <div className="attendanceModal" role="dialog" aria-modal="true"
+            aria-labelledby="attendanceBreakCorrectionTitle">
+            <form onSubmit={(event) => {
+              event.preventDefault();
+              if (!window.confirm("¿Confirmas la corrección del descanso oficial? Cambiará el cálculo histórico de asistencia y quedará registrado en la auditoría.")) return;
+              const correction = breakCorrection;
+              void command({ action: "correct_break", sessionId: correction.sessionId,
+                breakId: correction.breakId, startLocal: correction.startLocal,
+                endLocal: correction.endLocal }).then((ok) => { if (ok) setBreakCorrection(null); });
+            }}>
+              <h3 id="attendanceBreakCorrectionTitle">Corregir descanso oficial</h3>
+              <p>Modifica únicamente el horario del descanso seleccionado. Se recalcularán los saldos al consultarlos; las entradas y salidas originales no cambiarán.</p>
+              <label>Desde<input type="time" value={breakCorrection.startLocal}
+                onChange={(event) => setBreakCorrection((current) => current ? { ...current, startLocal: event.target.value } : null)} required /></label>
+              <label>Hasta<input type="time" value={breakCorrection.endLocal}
+                onChange={(event) => setBreakCorrection((current) => current ? { ...current, endLocal: event.target.value } : null)} required /></label>
+              <div className="attendanceModalActions">
+                <button type="button" disabled={busy} onClick={() => setBreakCorrection(null)}>Cancelar</button>
+                <button type="submit" disabled={busy}>Guardar corrección auditada</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
       {detail && <StudentHistoryDialog
         studentId={detail.studentId} monthDate={date}

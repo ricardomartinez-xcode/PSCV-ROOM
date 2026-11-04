@@ -135,3 +135,52 @@
 .attendanceDetailFilters>label{display:grid;gap:4px;font-size:12px;font-weight:750}
 .attendanceDetailFilters input,.attendanceDetailFilters select{min-height:39px;min-width:145px;
  padding:7px 9px;border:1px solid #bdcddd;border-radius:8px;background:var(--card,#fff);color:inherit}
+
+
+/* Reliable attendance accounting at-a-glance, without a continuous timer. */
+.attendanceTimeOverview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;
+ background:var(--card,#fff);border:1px solid var(--border,#dce6ee);border-radius:13px;padding:12px;min-width:0}
+.attendanceTimeOverview>div{display:grid;align-content:center;gap:5px;min-width:0;background:var(--surface-secondary,#f4f8fb);padding:12px;border-radius:10px}
+.attendanceTimeOverview>div span{font-size:11px;color:var(--muted,#62798c);font-weight:750;line-height:1.4}
+.attendanceTimeOverview>div strong{font-size:clamp(17px,2vw,23px);line-height:1.2;color:#164b6e;white-space:nowrap}
+.attendanceTimeOverview>.attendanceTimeTotal{background:#e9f6f6;border:1px solid #b5dedc}
+.attendanceTimeOverview>p{grid-column:1/-1;font-size:11px;color:var(--muted,#64798d);margin:0;line-height:1.5}
+.attendanceSessionAccounting{width:100%}
+.attendanceSnapshotLabel{font-size:11px;color:var(--muted,#60778b);font-weight:650}
+.attendanceBreakList{list-style:none!important;padding:0!important;display:grid;gap:6px}
+.attendanceBreakList li{display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;
+ padding:9px 11px;border-radius:9px;border:1px solid #d3e1e8;background:var(--card,#fff);font-size:12px}
+.attendanceBreakList button{min-height:36px}
+.attendanceRegisterTable th:first-child{position:sticky;left:0;z-index:2}
+.attendanceRegisterTable td:first-child{position:sticky;left:0;z-index:1;background:var(--card,#fff)}
+.attendanceRegisterTable tbody tr:hover td{background:var(--surface-secondary,#f4f9fc)}
+.attendanceStatusButtons button{min-height:34px}
+@media(max-width:720px){
+ .attendanceTimeOverview{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .attendanceTimeOverview>.attendanceTimeTotal{grid-column:1/-1}
+ .attendanceRegisterTable{display:block;width:100%;white-space:normal}
+ .attendanceRegisterTable thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .attendanceRegisterTable tbody{display:grid;gap:11px;padding:9px}
+ .attendanceRegisterTable tr{display:grid;gap:0;padding:4px 0;border:1px solid var(--border,#dce6ee);
+  border-radius:11px;background:var(--card,#fff);box-shadow:0 3px 10px rgba(22,56,85,.045)}
+ .attendanceRegisterTable td{display:grid;grid-template-columns:minmax(95px,37%) minmax(0,1fr);align-items:center;
+  gap:9px;padding:10px 11px;white-space:normal;overflow-wrap:anywhere}
+ .attendanceRegisterTable td:first-child{position:static;min-width:0;border-radius:11px 11px 0 0}
+ .attendanceRegisterTable td::before{content:attr(data-label);font-size:11px;color:var(--muted,#63788a);font-weight:800}
+ .attendanceRegisterTable .attendanceStatusButtons{min-width:0}
+ .attendanceRegisterTable .attendanceStatusButtons button{flex:1 1 70px}
+ .attendanceRegisterTable td:first-child .attendanceStudentLink{max-width:100%}
+}
+@media(max-width:380px){
+ .attendanceTimeOverview{grid-template-columns:1fr}
+ .attendanceTimeOverview>.attendanceTimeTotal{grid-column:auto}
+ .attendanceRegisterTable td{grid-template-columns:minmax(77px,31%) minmax(0,1fr);gap:6px}
+}
+
+.attendanceRegisterFilters{display:flex;align-items:end;flex-wrap:wrap;gap:10px;
+ padding:10px 12px;border-radius:11px;border:1px solid #dbe5ec;background:var(--surface-secondary,#f5f9fc)}
+.attendanceRegisterFilters label{display:grid;gap:5px;flex:1 1 175px;min-width:0;font-size:12px;font-weight:750;color:inherit}
+.attendanceRegisterFilters label:first-child{flex:2 1 225px}
+.attendanceRegisterFilters input,.attendanceRegisterFilters select{box-sizing:border-box;min-height:42px;width:100%;
+ padding:8px 11px;border:1px solid #c8d8e5;border-radius:10px;background:var(--card,#fff);color:inherit;font:inherit}
+.attendanceRegisterFilters>span{font-size:11px;color:var(--muted,#667b8d);padding:8px 0}

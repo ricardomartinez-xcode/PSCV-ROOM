@@ -1,0 +1,400 @@
+/*
+  PSCV Room unified experience.
+  Reuses the Administration/Materiales colors, spacing and interaction states.
+  This layer is presentational: no service, authentication or persistence changes.
+*/
+.pscvUnifiedWorkspace {
+  --pscv-bg: #f4f8fc;
+  --pscv-surface: #ffffff;
+  --pscv-text: #172b42;
+  --pscv-muted: #5c7086;
+  --pscv-border: #dce6f0;
+  --pscv-accent: #176c99;
+  --pscv-accent-hover: #105a86;
+  --pscv-accent-wash: #eaf5fc;
+  --pscv-shadow: 0 6px 22px rgba(19, 52, 84, .055);
+  --pscv-radius: 16px;
+  width: min(100%, 1440px);
+  max-width: 1440px;
+  min-height: 100dvh;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+  background: var(--pscv-bg);
+  color: var(--pscv-text);
+}
+.pscvUnifiedWorkspace * { box-sizing: border-box; }
+.pscvUnifiedWorkspace .screen { min-width: 0; background: var(--pscv-bg); }
+.pscvUnifiedWorkspace .screen > * { min-width: 0; }
+.pscvUnifiedWorkspace .topAppBar {
+  min-height: 64px;
+  height: 64px;
+  grid-template-columns: 38px 34px minmax(0,1fr) 38px 38px 38px;
+  gap: 8px;
+  padding: 0 clamp(12px,2.2vw,24px);
+  border-bottom: 1px solid var(--pscv-border);
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 3px 18px rgba(18,54,85,.045);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+}
+.pscvUnifiedWorkspace .topAppBar .barTitle { font-size: clamp(15px,1.6vw,19px); font-weight: 850; min-width: 0; }
+.pscvUnifiedWorkspace .iconButton { border: 1px solid transparent; color: #315f80; }
+.pscvUnifiedWorkspace .iconButton:hover { background: #edf5fb; border-color: #d4e4f1; }
+.pscvUnifiedWorkspace .barSearch { border: 1px solid #cddfeb; border-radius: 10px; background: #f5f9fc; }
+.pscvUnifiedWorkspace .bottomNav {
+  width: min(100%,1440px);
+  min-height: 72px;
+  height: calc(72px + env(safe-area-inset-bottom));
+  padding: 7px clamp(9px,1.8vw,22px) calc(7px + env(safe-area-inset-bottom));
+  gap: 6px;
+  border: 1px solid var(--pscv-border);
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: rgba(255,255,255,.98);
+  box-shadow: 0 -9px 32px rgba(16,56,89,.09);
+  overflow: visible;
+}
+.pscvUnifiedWorkspace .bottomNav button {
+  min-width: 0;
+  min-height: 52px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #657991;
+  font-size: 11px;
+  font-weight: 780;
+  line-height: 1.2;
+  gap: 4px;
+  transition: background-color .14s ease, color .14s ease;
+}
+.pscvUnifiedWorkspace .bottomNav button svg { width: 20px; height: 20px; }
+.pscvUnifiedWorkspace .bottomNav button.active,
+.pscvUnifiedWorkspace .bottomNav button[aria-current="page"] {
+  border-color: #c7e0ee;
+  background: #e8f4fb;
+  color: #165c86;
+  box-shadow: inset 0 -2px 0 #207ca6;
+}
+.pscvUnifiedWorkspace .bottomNav button:not(.active):hover { background: #f1f7fc; color: #135f8d; }
+.pscvUnifiedWorkspace .drawer { background: var(--pscv-surface); }
+.pscvUnifiedWorkspace .drawerItem { border-radius: 10px; }
+.pscvUnifiedWorkspace .drawerItem.active { background: var(--pscv-accent-wash); color: var(--pscv-accent-hover); }
+.pscvUnifiedWorkspace .systemBanner { border-radius: 12px; margin: 12px clamp(12px,2vw,24px); }
+
+/* Reusable page identity, matching the visual language of Admin and Materials. */
+.pscvSectionIntro {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: clamp(12px,2vw,24px) clamp(12px,2vw,24px) 0;
+  padding: clamp(17px,2.5vw,27px);
+  border: 1px solid #d5e5f1;
+  border-radius: 20px;
+  background: radial-gradient(circle at 92% -40%,rgba(100,172,231,.2),transparent 44%),
+    linear-gradient(115deg,#fff 0%,#f8fbfe 70%,#edf6fd 100%);
+  box-shadow: var(--pscv-shadow);
+}
+.pscvSectionIcon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  color: #146a96;
+  background: #dff0f8;
+}
+.pscvSectionIntroText { flex: 1 1 260px; display: grid; align-content: center; gap: 4px; min-width: 0; }
+.pscvSectionIntro .pscvSectionEyebrow {
+  margin: 0;
+  color: #27779f;
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: .095em;
+  text-transform: uppercase;
+}
+.pscvSectionIntro h1 { margin: 0; color: #142e49; font-size: clamp(23px,2.9vw,30px); line-height: 1.19; letter-spacing: -.035em; }
+.pscvSectionIntroText > p:last-child { margin: 2px 0 0; max-width: 660px; color: #5c7186; font-size: 13px; line-height: 1.5; }
+.pscvSectionPrimary,.pscvSectionSecondary,.pscvInlineCreate {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 43px;
+  border-radius: 11px;
+  padding: 10px 15px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pscvSectionPrimary { border: 1px solid #176a96; color: #fff; background: #176a96; }
+.pscvSectionPrimary:hover { background: #10567e; }
+.pscvSectionSecondary { border: 1px solid #c7dbe9; color: #225d85; background: #fff; }
+.pscvSectionSecondary:hover { background: #e8f3fb; }
+
+/* Metrics on calendar and tasks. */
+.pscvUnifiedWorkspace .workbenchOverview {
+  width: auto;
+  max-width: none;
+  margin: 12px clamp(12px,2vw,24px) 0;
+  padding: 0;
+  gap: 11px;
+  background: transparent;
+}
+.pscvUnifiedWorkspace .overviewMetric,.pscvUnifiedWorkspace .overviewNext {
+  min-width: 0;
+  border: 1px solid var(--pscv-border);
+  border-radius: 15px;
+  background: #fff;
+  box-shadow: 0 4px 17px rgba(18,49,83,.035);
+  padding: 12px 14px;
+}
+.pscvUnifiedWorkspace .overviewMetric:hover { background: #f0f8fd; border-color: #abd0e5; }
+.pscvUnifiedWorkspace .overviewMetric svg { color: #18759d; }
+.pscvUnifiedWorkspace .overviewMetric strong { color: #163d60; font-size: 24px; }
+.pscvUnifiedWorkspace .overviewMetric span,.pscvUnifiedWorkspace .overviewNext span,
+.pscvUnifiedWorkspace .overviewNext small { color: #6d8193; font-size: 11px; }
+.pscvUnifiedWorkspace .overviewNext strong { color: #213d57; font-size: 13px; }
+
+/* Calendar: larger desktop canvas; mobile agenda remains its original touch-first view. */
+.pscvUnifiedWorkspace .adaptiveCalendar {
+  width: auto;
+  max-width: none;
+  margin: 14px clamp(12px,2vw,24px) 0;
+  padding: 0 0 18px;
+  background: transparent;
+}
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarPane {
+  width: 100%;
+  border: 1px solid var(--pscv-border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--pscv-shadow);
+}
+.pscvUnifiedWorkspace .adaptiveCalendar .viewTabs {
+  height: auto;
+  min-height: 69px;
+  padding: 12px 18px;
+  background: #fff;
+  border-bottom: 1px solid #e7edf5;
+}
+.pscvCalendarContext { display: grid; align-items: start; gap: 3px; min-width: 0; }
+.pscvCalendarContext strong { font-size: 14px; color: #1c4869; }
+.pscvCalendarContext span { display: block; font-size: 11px; color: #73859a; }
+.pscvUnifiedWorkspace .adaptiveCalendar .monthHead {
+  min-height: 65px;
+  height: 65px;
+  background: #fff;
+}
+.pscvUnifiedWorkspace .adaptiveCalendar .monthHead h2 { color: #173c5e; font-size: clamp(17px,2vw,23px); letter-spacing: -.03em; }
+.pscvUnifiedWorkspace .adaptiveCalendar .monthHead button {
+  border: 1px solid #d7e5f0;
+  color: #17698e;
+  background: #f4f9fc;
+}
+.pscvUnifiedWorkspace .adaptiveCalendar .weekdays { background: #eef6fc; border-bottom: 1px solid #d6e6f0; }
+.pscvUnifiedWorkspace .adaptiveCalendar .dayCell { transition: background-color .12s ease; }
+.pscvUnifiedWorkspace .adaptiveCalendar .dayCell:hover { background-color: #f6fbff; }
+.pscvUnifiedWorkspace .adaptiveCalendar .dayNumber.today { background: #146b9d; color: #fff; border-radius: 9px; }
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarEvent { border-radius: 8px; }
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarAgendaDay { border: 1px solid var(--pscv-border); border-radius: 13px; background: #fff; overflow: hidden; }
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarAgendaDayHead { background: #f2f8fc; }
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarAgendaItem { border-radius: 9px; }
+.pscvUnifiedWorkspace .adaptiveCalendar .calendarAgendaEmpty { color: #687d92; }
+
+/* Tasks: structured filters and discrete, scannable task rows. */
+.pscvUnifiedWorkspace .taskListWorkspace {
+  display: grid;
+  gap: 13px;
+  width: auto;
+  max-width: none;
+  margin: 14px clamp(12px,2vw,24px) 0;
+  padding: 0 0 20px;
+  background: transparent;
+  border: 0;
+}
+.pscvUnifiedWorkspace .taskListWorkspace .listScreen { display: grid; gap: 14px; border: 0; box-shadow: none; padding: 0; background: transparent; }
+.pscvTaskToolbar { display: grid; gap: 12px; background: #fff; border: 1px solid var(--pscv-border); border-radius: 17px; padding: 16px; box-shadow: var(--pscv-shadow); }
+.pscvTaskToolbarHeading { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pscvTaskToolbarHeading > div { display: grid; gap: 4px; }
+.pscvTaskToolbarHeading strong { font-size: 16px; color: #1b3d59; }
+.pscvTaskToolbarHeading span { font-size: 11px; color: #74869a; }
+.pscvFilterReset { border: 1px solid #cbddec; border-radius: 10px; background: #f6fafd; color: #265d85; min-height: 36px; padding: 8px 12px; font-weight: 800; font-size: 11px; cursor: pointer; }
+.pscvFilterReset:not(:disabled):hover { background: #e6f3fc; }
+.pscvFilterReset:disabled { cursor: not-allowed; opacity: .48; }
+.pscvUnifiedWorkspace .taskListFilters { background: transparent; padding: 0; margin: 0; border: 0; gap: 10px; }
+.pscvUnifiedWorkspace .taskListFilters label { font-size: 11px; color: #4c6781; font-weight: 760; }
+.pscvUnifiedWorkspace .taskListFilters input,.pscvUnifiedWorkspace .taskListFilters select { background: #f9fbfd; border: 1px solid #ccdae8; border-radius: 10px; min-height: 43px; }
+.pscvTaskQuickFilters { display: flex; gap: 7px; flex-wrap: wrap; }
+.pscvTaskQuickFilters button { border: 1px solid #d2e0eb; border-radius: 999px; background: #f8fbfe; color: #526c84; min-height: 35px; padding: 8px 13px; font-weight: 780; font-size: 11px; cursor: pointer; }
+.pscvTaskQuickFilters button:hover { background: #edf5fc; }
+.pscvTaskQuickFilters button.active { border-color: #176c99; background: #176c99; color: #fff; }
+.pscvUnifiedWorkspace .taskListWorkspace .typeGroup { border: 1px solid var(--pscv-border); border-radius: 17px; padding: 0 13px 13px; background: #fff; overflow: hidden; box-shadow: var(--pscv-shadow); }
+.pscvUnifiedWorkspace .typeGroup .groupTitle { display: flex; align-items: center; gap: 9px; height: auto; min-height: 54px; margin: 0 0 11px; padding: 10px 3px; background: #fff; font-size: 16px; font-weight: 850; border-bottom: 1px solid #e8eef4; letter-spacing: -.015em; }
+.pscvUnifiedWorkspace .typeGroup .groupTitle svg { width: 19px; height: 19px; }
+.pscvUnifiedWorkspace .taskListWorkspace .dataRow {
+  margin: 0 0 8px;
+  min-height: 75px;
+  border: 1px solid #dce6ef;
+  border-left-width: 4px !important;
+  border-radius: 12px;
+  padding: 11px 13px;
+  gap: 10px;
+  box-shadow: none;
+  background: #fff;
+}
+.pscvUnifiedWorkspace .taskListWorkspace .dataRow:last-child { margin-bottom: 0; }
+.pscvUnifiedWorkspace .taskListWorkspace .dataRow:hover { border-color: #a9cbe3; box-shadow: 0 5px 17px rgba(28,65,96,.065); background: #fbfdff; }
+.pscvUnifiedWorkspace .taskListWorkspace .rowMain { gap: 4px; }
+.pscvUnifiedWorkspace .taskListWorkspace .rowMain strong { font-size: 13px; color: #213e57; line-height: 1.3; white-space: normal; }
+.pscvUnifiedWorkspace .taskListWorkspace .rowMain span { font-size: 11px; color: #708398; }
+.pscvUnifiedWorkspace .taskListWorkspace .rowDue { font-size: 11px; color: #59738a; }
+.pscvUnifiedWorkspace .taskListWorkspace .rowSide { gap: 9px; }
+.pscvUnifiedWorkspace .taskListWorkspace .days { font-size: 11px; }
+.pscvUnifiedWorkspace .taskListWorkspace .openIcon,.pscvUnifiedWorkspace .taskListWorkspace .miniAction { display: inline-grid; place-items: center; width: 33px; height: 33px; border-radius: 10px; }
+.pscvInlineCreate { justify-self: start; border: 1px solid #bed5e5; background: #fff; color: #176b96; }
+.pscvInlineCreate:hover { background: #e9f5fc; }
+.pscvUnifiedWorkspace .taskListWorkspace .emptyLibrary { padding: 25px; border: 1px dashed #bed1e3; border-radius: 15px; }
+
+/* Attendance: keep the live register and charts fully functional, restyle only. */
+.pscvUnifiedWorkspace .attendancePage { width: auto; max-width: none; margin: 0; padding: 16px clamp(12px,2vw,24px) 60px; gap: 15px; }
+.pscvUnifiedWorkspace .attendanceHeading,
+.pscvUnifiedWorkspace .attendanceSection,
+.pscvUnifiedWorkspace .attendanceSummary > div,
+.pscvUnifiedWorkspace .attendanceTimeOverview,
+.pscvUnifiedWorkspace .attendanceAnalysisFilters {
+  background: #fff;
+  border: 1px solid var(--pscv-border);
+  border-radius: 16px;
+  box-shadow: 0 4px 19px rgba(19,51,79,.04);
+}
+.pscvUnifiedWorkspace .attendanceHeading { padding: clamp(14px,2vw,20px); }
+.pscvUnifiedWorkspace .attendanceHeading h2 { color: #193951; font-size: clamp(17px,2vw,22px); }
+.pscvUnifiedWorkspace .attendanceHeading label { min-width: min(250px,100%); color: #476077; }
+.pscvUnifiedWorkspace .attendanceHeading input { background: #f8fbfd; }
+.pscvUnifiedWorkspace .attendanceSummary { gap: 11px; }
+.pscvUnifiedWorkspace .attendanceSummary > div { padding: 16px; }
+.pscvUnifiedWorkspace .attendanceSummary strong { color: #17517b; font-size: 25px; }
+.pscvUnifiedWorkspace .attendanceSummary span { color: #71869a; font-size: 11px; }
+.pscvUnifiedWorkspace .attendanceDate { color: #526b80; font-size: 12px; font-weight: 800; }
+.pscvUnifiedWorkspace .attendanceSection { padding: clamp(14px,2vw,20px); gap: 14px; }
+.pscvUnifiedWorkspace .attendanceSection h3 { font-size: clamp(15px,1.9vw,19px); color: #1b3d59; letter-spacing: -.02em; }
+.pscvUnifiedWorkspace .attendanceSectionTitle p { font-size: 12px; }
+.pscvUnifiedWorkspace .attendanceSessionTabs button,
+.pscvUnifiedWorkspace .attendanceHistorySessions button { border-color: #d4e3ef; border-radius: 11px; padding: 12px; }
+.pscvUnifiedWorkspace .attendanceSessionTabs button:hover,
+.pscvUnifiedWorkspace .attendanceHistorySessions button:hover { border-color: #91bfde; background: #f1f9fd; }
+.pscvUnifiedWorkspace .attendanceSessionTabs .active { border-color: #167394; color: #156f92; background: #e9f6fa; }
+.pscvUnifiedWorkspace .attendanceTimeOverview { padding: 12px; }
+.pscvUnifiedWorkspace .attendanceTimeOverview > div { background: #f6f9fd; }
+.pscvUnifiedWorkspace .attendanceTimeOverview .attendanceTimeTotal { background: #e6f5f5; }
+.pscvUnifiedWorkspace .attendanceAnalysisFilters { padding: 13px; }
+.pscvUnifiedWorkspace .attendancePeriodTabs button { min-height: 38px; }
+.pscvUnifiedWorkspace .attendancePeriodTabs button[aria-pressed="true"] { border-color: #176a94; color: #fff; background: #176a94; }
+.pscvUnifiedWorkspace .attendanceTableScroll { border-radius: 12px; }
+.pscvUnifiedWorkspace .attendanceTable th { color: #46647b; background: #eef5fb; }
+.pscvUnifiedWorkspace .attendanceTable tbody tr:hover { background: #f6fbfe; }
+.pscvUnifiedWorkspace .attendanceCourseCard { background: #fff; border-radius: 13px; border-color: #d5e3ee; }
+.pscvUnifiedWorkspace .attendanceHistoryFigure { border-color: #d6e3ee; border-radius: 13px; }
+.pscvUnifiedWorkspace .attendanceHistoryGraphTrack { border-bottom-color: #8ba9bc; }
+.pscvUnifiedWorkspace .attendanceRegisterFilters { background: #f6fafc; }
+.pscvUnifiedWorkspace .attendanceModal { border-radius: 18px; }
+
+/* Shared group, settings and schedule surfaces. */
+.pscvUnifiedWorkspace .groupScreen { width: auto; max-width: none; margin: 0; padding: 16px clamp(12px,2vw,24px) 62px; gap: 13px; }
+.pscvUnifiedWorkspace .groupToolbar,
+.pscvUnifiedWorkspace .groupMemberForm,
+.pscvUnifiedWorkspace .groupFilterToolbar,
+.pscvUnifiedWorkspace .groupTableWrap {
+  border-radius: 16px;
+  border: 1px solid var(--pscv-border);
+  box-shadow: var(--pscv-shadow);
+  background: #fff;
+}
+.pscvUnifiedWorkspace .groupToolbar { padding: 18px; }
+.pscvUnifiedWorkspace .groupToolbar strong { color: #1d3b55; font-size: 17px; }
+.pscvUnifiedWorkspace .groupFilterToolbar { padding: 14px; }
+.pscvUnifiedWorkspace .memberTable th { color: #365a77; background: #eef5fb; }
+.pscvUnifiedWorkspace .memberTable td { background: #fff; }
+.pscvUnifiedWorkspace .memberTable tbody tr:hover td { background: #f5faff; }
+.pscvUnifiedWorkspace .groupColumnFilters summary { border-radius: 10px; }
+.pscvUnifiedWorkspace .settingsScreen { width: auto; max-width: none; margin: 0; padding: 16px clamp(12px,2vw,24px) 70px; }
+.pscvUnifiedWorkspace .settingsCard { background: #fff; border: 1px solid var(--pscv-border); border-radius: 18px; box-shadow: var(--pscv-shadow); padding: clamp(17px,2.5vw,26px); }
+.pscvUnifiedWorkspace .settingsCard h2 { color: #1a3e5b; font-size: 22px; letter-spacing: -.02em; }
+.pscvSettingsDescription { margin: 5px 0 18px; font-size: 12px; line-height: 1.5; color: #687e92; }
+.pscvUnifiedWorkspace .settingsGrid { gap: 15px; }
+.pscvUnifiedWorkspace .settingsGrid label { color: #44627b; font-size: 12px; font-weight: 750; }
+.pscvUnifiedWorkspace .settingsGrid select { border: 1px solid #c8dceb; border-radius: 10px; min-height: 43px; background: #f9fbfd; }
+.pscvUnifiedWorkspace .scheduleScreen { width: auto; max-width: none; margin: 0; padding: clamp(12px,2vw,24px) clamp(12px,2vw,24px) 70px; }
+.pscvUnifiedWorkspace .scheduleHero {
+  border: 1px solid #d7e5f0;
+  border-radius: 20px;
+  background: linear-gradient(115deg,#fff,#f0f7fd);
+  box-shadow: var(--pscv-shadow);
+}
+.pscvUnifiedWorkspace .scheduleHero h2 { color: #193c57; font-size: clamp(22px,2.8vw,29px); }
+.pscvUnifiedWorkspace .weeklySchedule,
+.pscvUnifiedWorkspace .scheduleScreen > section:last-child { border: 1px solid #dce7f1; border-radius: 16px; background: #fff; padding: clamp(12px,2vw,20px); box-shadow: var(--pscv-shadow); }
+.pscvUnifiedWorkspace .professorCard { border: 1px solid #d9e5ef; border-radius: 14px; box-shadow: none; }
+.pscvUnifiedWorkspace .taskDetailScreen { padding: clamp(12px,2vw,24px); background: var(--pscv-bg); }
+.pscvUnifiedWorkspace .detailSheet,.pscvUnifiedWorkspace .detailToolbar { border: 1px solid var(--pscv-border); border-radius: 16px; box-shadow: var(--pscv-shadow); background: #fff; }
+
+/* Content never becomes unselectable behind decorative layers. */
+.pscvUnifiedWorkspace .pscvSectionIntro,
+.pscvUnifiedWorkspace .pscvTaskToolbar,
+.pscvUnifiedWorkspace .attendanceSection { position: relative; z-index: auto; }
+@media (min-width: 1000px) {
+  .pscvUnifiedWorkspace .taskListWorkspace .rowMain strong { font-size: 14px; }
+}
+@media (max-width: 780px) {
+  .pscvUnifiedWorkspace .topAppBar { min-height: 57px; height: 57px; grid-template-columns: 33px 27px minmax(0,1fr) 33px 33px 33px; gap: 5px; padding-inline: 9px; }
+  .pscvUnifiedWorkspace .bottomNav { gap: 2px; padding-inline: 5px; }
+  .pscvUnifiedWorkspace .bottomNav button { min-height: 53px; font-size: 10px; padding: 4px 2px; }
+  .pscvUnifiedWorkspace .pscvSectionIntro { gap: 11px; border-radius: 15px; }
+  .pscvSectionIcon { width: 43px; height: 43px; flex-basis: 43px; border-radius: 12px; }
+  .pscvUnifiedWorkspace .pscvSectionIntro h1 { font-size: 22px; }
+  .pscvUnifiedWorkspace .workbenchOverview { gap: 8px; }
+  .pscvUnifiedWorkspace .overviewMetric { padding: 11px; }
+  .pscvUnifiedWorkspace .overviewMetric strong { font-size: 21px; }
+  .pscvUnifiedWorkspace .adaptiveCalendar .calendarPane { border-radius: 14px; }
+  .pscvUnifiedWorkspace .adaptiveCalendar .viewTabs { padding: 12px; }
+  .pscvUnifiedWorkspace .attendanceSummary strong { font-size: 21px; }
+  .pscvUnifiedWorkspace .attendancePage { padding-bottom: 80px; }
+}
+@media (max-width: 560px) {
+  .pscvUnifiedWorkspace .pscvSectionIntro { margin: 10px 10px 0; padding: 14px; }
+  .pscvUnifiedWorkspace .pscvSectionIntroText { flex-basis: calc(100% - 57px); }
+  .pscvUnifiedWorkspace .pscvSectionIntroText > p:last-child { font-size: 12px; }
+  .pscvUnifiedWorkspace .pscvSectionPrimary,.pscvUnifiedWorkspace .pscvSectionSecondary { width: 100%; }
+  .pscvUnifiedWorkspace .workbenchOverview { margin-inline: 10px; }
+  .pscvUnifiedWorkspace .adaptiveCalendar { margin: 12px 10px 0; }
+  .pscvUnifiedWorkspace .taskListWorkspace { margin: 12px 10px 0; }
+  .pscvUnifiedWorkspace .attendancePage,.pscvUnifiedWorkspace .groupScreen,.pscvUnifiedWorkspace .settingsScreen { padding-inline: 10px; }
+  .pscvUnifiedWorkspace .attendanceSummary { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .pscvUnifiedWorkspace .attendanceSummary > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .pscvUnifiedWorkspace .attendanceAnalysisFilters { padding: 11px; }
+  .pscvUnifiedWorkspace .attendanceSection { padding: 13px; }
+  .pscvUnifiedWorkspace .pscvTaskToolbar { padding: 12px; }
+  .pscvUnifiedWorkspace .pscvTaskQuickFilters button { flex: 1 1 auto; }
+  .pscvUnifiedWorkspace .taskListWorkspace .typeGroup { padding: 0 10px 10px; }
+  .pscvUnifiedWorkspace .taskListWorkspace .dataRow { padding: 11px; }
+  .pscvUnifiedWorkspace .taskListWorkspace .rowSide { justify-items: end; }
+  .pscvUnifiedWorkspace .bottomNav button svg { width: 19px; height: 19px; }
+  .pscvUnifiedWorkspace .scheduleScreen { padding-inline: 10px; }
+}
+@media (max-width: 385px) {
+  .pscvUnifiedWorkspace .bottomNav button { font-size: 9px; }
+  .pscvUnifiedWorkspace .pscvSectionIntro h1 { font-size: 20px; }
+  .pscvUnifiedWorkspace .pscvSectionIntroText { flex-basis: calc(100% - 54px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pscvUnifiedWorkspace .bottomNav button,.pscvUnifiedWorkspace .taskListWorkspace .dataRow,
+  .pscvUnifiedWorkspace .adaptiveCalendar .dayCell { transition: none; }
+}
+@media (forced-colors: active) {
+  .pscvUnifiedWorkspace .pscvSectionIntro,.pscvUnifiedWorkspace .pscvTaskToolbar,
+  .pscvUnifiedWorkspace .attendanceSection,.pscvUnifiedWorkspace .typeGroup,
+  .pscvUnifiedWorkspace .groupToolbar { border: 1px solid CanvasText; }
+  .pscvTaskQuickFilters button.active,.pscvUnifiedWorkspace .bottomNav button.active { outline: 2px solid Highlight; }
+}

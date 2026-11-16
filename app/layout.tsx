@@ -8,6 +8,7 @@ import "./calendar-responsive.css";
 import "./material-admin-controls.css";
 import "./schedule-grid.css";
 import "./admin-experience.css";
+import "./pscv-unified.css";
 
 export const metadata: Metadata = {
   title: "PSCV Room 2.0",

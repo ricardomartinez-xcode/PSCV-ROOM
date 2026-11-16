@@ -76,7 +76,7 @@ export function AttendanceStudentPanel() {
 
   return <div className="attendancePage">
     <header className="attendanceHeading">
-      <div><h2>Mi asistencia</h2><p>El saldo empieza con todos los minutos exigibles y disminuye con los retardos y las salidas registradas.</p></div>
+      <div><h2>Mi historial de asistencia</h2><p>El saldo empieza con todos los minutos exigibles y disminuye con los retardos y las salidas registradas.</p></div>
       <label>Fecha <input type="date" value={date} onChange={(event) => {
         if (event.target.value) setDate(event.target.value);
       }} /></label>

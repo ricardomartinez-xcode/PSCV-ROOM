@@ -716,6 +716,20 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
     ? shownTasks.find((task) => task.id === selectedTaskId) ?? null
     : null;
   const activeNavTab = tab === "taskDetail" ? detailOrigin : tab;
+  const workspaceIntro = activeNavTab === "calendar"
+    ? { eyebrow: "Organización académica", title: "Calendario y agenda", description: "Revisa tus actividades, eventos y fechas importantes en un solo lugar.", icon: CalendarDays }
+    : activeNavTab === "tasks"
+    ? { eyebrow: "Seguimiento académico", title: "Tareas y actividades", description: "Encuentra pendientes, filtra por materia y consulta los detalles de cada entrega.", icon: ListTodo }
+    : activeNavTab === "attendance"
+    ? { eyebrow: "Control académico", title: "Registro de asistencia", description: "Consulta clases, tiempos y evolución de asistencia desde una vista organizada.", icon: ClipboardCheck }
+    : activeNavTab === "completed"
+    ? { eyebrow: "Historial académico", title: "Actividades entregadas", description: "Consulta las tareas finalizadas sin mezclarlas con los pendientes.", icon: CheckCircle2 }
+    : activeNavTab === "group"
+    ? { eyebrow: "Personas y grupos", title: "Lista de grupo", description: "Gestiona alumnos, columnas y filtros sin perder de vista los encabezados.", icon: Users }
+    : activeNavTab === "prefs"
+    ? { eyebrow: "Cuenta y experiencia", title: "Preferencias", description: "Adapta la visualización de la plataforma a tus necesidades.", icon: Settings }
+    : null;
+  const IntroIcon = workspaceIntro?.icon;
   const unreadNotifications = notifications.filter((notification) => !notification.read_at).length;
   const notificationDetailOpen = Boolean(notificationDetail);
 
@@ -752,7 +766,7 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
   }
 
   return (
-    <main className={`mobileApp density-${prefs.taskDensity} ${shellRole === "admin" ? "adminShell" : ""}`}>
+    <main className={`mobileApp pscvUnifiedWorkspace density-${prefs.taskDensity} ${shellRole === "admin" ? "adminShell" : ""}`}>
       <a className="skipLink" href="#main-content">Saltar al contenido</a>
       <header className="topAppBar" inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
         <button className="iconButton" aria-label="Abrir navegación" title="Navegación" onClick={() => setDrawerOpen(true)} type="button"><Menu size={23} /></button>
@@ -824,6 +838,26 @@ export function AppShellV5({ initialTasks, initialMembers }: Props) {
       />
 
       <section className="screen" id="main-content" tabIndex={-1} inert={drawerOpen || notificationOpen || notificationDetailOpen ? true : undefined}>
+        {workspaceIntro && IntroIcon && tab !== "taskDetail" ? (
+          <header className="pscvSectionIntro">
+            <span className="pscvSectionIcon" aria-hidden="true"><IntroIcon size={24} /></span>
+            <div className="pscvSectionIntroText">
+              <p className="pscvSectionEyebrow">{workspaceIntro.eyebrow}</p>
+              <h1>{workspaceIntro.title}</h1>
+              <p>{workspaceIntro.description}</p>
+            </div>
+            {capabilities.canEditTasks && (activeNavTab === "calendar" || activeNavTab === "tasks") ? (
+              <button className="pscvSectionPrimary" type="button" onClick={() =>
+                openTaskForm(activeNavTab, activeNavTab === "calendar" ? dateKeyInTimeZone() : undefined)
+              }><Plus size={17} aria-hidden="true" /> Nueva actividad</button>
+            ) : null}
+            {activeNavTab === "completed" ? (
+              <button className="pscvSectionSecondary" type="button" onClick={() => go("tasks")}>
+                <ArrowLeft size={16} aria-hidden="true" /> Volver a tareas
+              </button>
+            ) : null}
+          </header>
+        ) : null}
         {tab === "calendar" ? (
           <>
             <WorkspaceOverview tasks={visibleTasks} completedCount={completedTasks.length} membersCount={members.length} canViewCompleted={canViewCompleted} canManageGroup={capabilities.canManageGroup} onGo={go} />
@@ -1298,6 +1332,7 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
   });
   const agendaDays = calendarDays.filter((entry) => entry.day && entry.dayTasks.length);
   const openDay = calendarDays.find((entry) => entry.key === expandedDay);
+  const monthActivityCount = new Set(calendarDays.flatMap((entry) => entry.dayTasks.map((task) => task.id))).size;
   const dayHeading = (day: number) => new Intl.DateTimeFormat("es-MX", {
     weekday: "long", day: "numeric", month: "long",
   }).format(new Date(year, month, day));
@@ -1310,8 +1345,9 @@ function Calendar({ tasks, cursor, setCursor, selectedTask, onSelect, onCreateDa
     <div className={["calendarWorkspace", "adaptiveCalendar", mobileView === "month" ? "showMobileMonth" : "showMobileAgenda"].join(" ")}>
       <section className="calendarPane">
         <div className="viewTabs">
-          <strong>Calendario</strong>
-          <button type="button" onClick={() => setCursor(new Date())}>Hoy</button>
+          <div className="pscvCalendarContext"><strong>Vista mensual</strong>
+            <span>{monthActivityCount} {monthActivityCount === 1 ? "actividad" : "actividades"} en este mes</span></div>
+          <button type="button" onClick={() => { setExpandedDay(null); setCursor(new Date()); }}>Ir a hoy</button>
         </div>
         <div className="monthHead">
           <button aria-label="Mes anterior" onClick={() => { setExpandedDay(null); setCursor(new Date(year, month - 1, 15)); }} type="button">‹</button>
@@ -1671,27 +1707,68 @@ function TaskList({
   const [taskQuery, setTaskQuery] = useState("");
   const [taskCourse, setTaskCourse] = useState("all");
   const [taskType, setTaskType] = useState("all");
+  const [taskTime, setTaskTime] = useState("all");
+  const [taskPriority, setTaskPriority] = useState("all");
+  const [taskSort, setTaskSort] = useState("due");
   const courseNames = Array.from(new Set(tasks.map((task) => task.course))).sort((a,b) => a.localeCompare(b,"es"));
   const filteredTasks = tasks.filter((task) => (
     (taskCourse === "all" || task.course === taskCourse) &&
     (taskType === "all" || task.itemKind === taskType) &&
+    (taskPriority === "all" || task.priority === taskPriority) &&
+    (taskTime === "all" ||
+      (taskTime === "today" && task.daysRemaining === 0) ||
+      (taskTime === "week" && task.daysRemaining >= 0 && task.daysRemaining <= 7) ||
+      (taskTime === "overdue" && task.daysRemaining < 0)) &&
     [task.title, task.course, task.deliveryType]
       .some((value) => value.toLocaleLowerCase("es").includes(taskQuery.trim().toLocaleLowerCase("es")))
-  ));
+  )).sort((a, b) => taskSort === "course"
+    ? a.course.localeCompare(b.course, "es") || a.dueDate.localeCompare(b.dueDate)
+    : taskSort === "priority"
+    ? priorityRank(a.priority) - priorityRank(b.priority) || a.dueDate.localeCompare(b.dueDate)
+    : a.dueDate.localeCompare(b.dueDate) || a.dueTime.localeCompare(b.dueTime));
   const grouped = groupTasks(filteredTasks);
+  const resetTaskFilters = () => {
+    setTaskQuery(""); setTaskCourse("all"); setTaskType("all");
+    setTaskTime("all"); setTaskPriority("all"); setTaskSort("due");
+  };
   return (
     <div className={`taskListWorkspace ${completedOnly ? "completedOnly" : ""}`}>
       <div className="listScreen">
-        <div className="adminListFilters taskListFilters">
-          <label>Buscar actividad<input type="search" value={taskQuery} onChange={(event) => setTaskQuery(event.target.value)}
-            placeholder="Nombre o materia" /></label>
-          <label>Materia<select value={taskCourse} onChange={(event) => setTaskCourse(event.target.value)}>
-            <option value="all">Todas</option>{courseNames.map((course) => <option value={course} key={course}>{course}</option>)}
-          </select></label>
-          <label>Tipo<select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
-            <option value="all">Todas</option><option value="task">Tareas</option><option value="event">Eventos</option>
-          </select></label>
-          <span role="status">{filteredTasks.length} de {tasks.length} actividades</span>
+        <div className="pscvTaskToolbar" aria-label="Filtros de tareas y actividades">
+          <div className="pscvTaskToolbarHeading">
+            <div><strong>Explorar actividades</strong><span role="status">{filteredTasks.length} de {tasks.length} actividades</span></div>
+            <button type="button" className="pscvFilterReset" onClick={resetTaskFilters}
+              disabled={!taskQuery && taskCourse === "all" && taskType === "all" &&
+                taskTime === "all" && taskPriority === "all" && taskSort === "due"}>
+              Limpiar filtros
+            </button>
+          </div>
+          <div className="adminListFilters taskListFilters">
+            <label>Buscar actividad<input type="search" value={taskQuery} onChange={(event) => setTaskQuery(event.target.value)}
+              placeholder="Nombre, materia o tipo" /></label>
+            <label>Materia<select value={taskCourse} onChange={(event) => setTaskCourse(event.target.value)}>
+              <option value="all">Todas</option>{courseNames.map((course) => <option value={course} key={course}>{course}</option>)}
+            </select></label>
+            <label>Tipo<select value={taskType} onChange={(event) => setTaskType(event.target.value)}>
+              <option value="all">Todas</option><option value="task">Tareas</option><option value="event">Eventos</option>
+            </select></label>
+            <label>Prioridad<select value={taskPriority} onChange={(event) => setTaskPriority(event.target.value)}>
+              <option value="all">Todas</option>
+              {Array.from(new Set(tasks.map((task) => task.priority).filter((value): value is string => Boolean(value))))
+                .sort((a, b) => priorityRank(a) - priorityRank(b))
+                .map((value) => <option key={value} value={value}>{value}</option>)}
+            </select></label>
+            <label>Ordenar por<select value={taskSort} onChange={(event) => setTaskSort(event.target.value)}>
+              <option value="due">Fecha próxima</option><option value="course">Materia</option>
+              <option value="priority">Prioridad</option>
+            </select></label>
+          </div>
+          <div className="pscvTaskQuickFilters" role="group" aria-label="Filtrar por fecha">
+            {([["all", "Todas"], ["today", "Para hoy"], ["week", "Próximos 7 días"], ["overdue", "Vencidas"]] as const)
+              .map(([value, label]) => <button type="button" key={value}
+                className={taskTime === value ? "active" : ""} aria-pressed={taskTime === value}
+                onClick={() => setTaskTime(value)}>{label}</button>)}
+          </div>
         </div>
         {deliveryTypes.map((type) => {
           const rows = grouped.get(type) ?? [];
@@ -1718,9 +1795,8 @@ function TaskList({
         {!filteredTasks.length ? <section className="emptyLibrary"><strong>{completedOnly ? "Sin tareas entregadas" : "Sin tareas activas"}</strong><p>{completedOnly ? "Cuando marques una tarea como entregada aparecerá aquí." : "Las tareas entregadas se muestran solamente en Entregadas."}</p></section> : null}
       </div>
       {onCreate ? (
-        <button className="taskCreateDock" onClick={onCreate} type="button">
-          <Plus size={18} />
-          <span>Nueva actividad</span>
+        <button className="pscvInlineCreate" onClick={onCreate} type="button">
+          <Plus size={18} aria-hidden="true" /> Nueva actividad
         </button>
       ) : null}
     </div>
@@ -2068,7 +2144,7 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
     <div className="groupScreen">
       <section className="groupToolbar">
         <div>
-          <strong>Lista de grupo</strong>
+          <strong>Directorio del grupo</strong>
           <span>{memberRows.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Sin sincronización remota"}</span>
         </div>
         <label>
@@ -2189,8 +2265,9 @@ function Preferences({ profile, d1Client, onProfile, onError }: { profile: Profi
   return (
     <div className="settingsScreen">
       <section className="settingsCard">
-        <p className="eyebrow">Alumno</p>
-        <h2>Preferencias</h2>
+        <p className="eyebrow">Personalización</p>
+        <h2>Cómo quieres ver PSCV Room</h2>
+        <p className="pscvSettingsDescription">Estos ajustes cambian la presentación de tu cuenta, no los datos compartidos del grupo.</p>
         <div className="settingsGrid">
           <label>Vista<select value={prefs.calendarView} onChange={(event) => void update("calendarView", event.target.value as UserPreferences["calendarView"])}><option value="month">Mes</option><option value="week">Semana</option><option value="day">Día</option></select></label>
           <label>Densidad<select value={prefs.taskDensity} onChange={(event) => void update("taskDensity", event.target.value as CardSize)}><option value="compact">Compacta</option><option value="medium">Media</option><option value="large">Grande</option></select></label>
@@ -2267,6 +2344,10 @@ function titleFor(tab: Tab) {
   return tab === "calendar" ? "Calendario" : tab === "tasks" ? "Tareas" : tab === "materials" ? "Materiales" : tab === "schedule" ? "Horario de clases" : tab === "attendance" ? "Asistencia" : tab === "completed" ? "Entregadas" : tab === "group" ? "Lista de grupo" : tab === "prefs" ? "Preferencias" : tab === "taskDetail" ? "Detalle de tarea" : "Configuración";
 }
 function monthCells(year: number, month: number) { const first = new Date(year, month, 1).getDay(); const total = new Date(year, month + 1, 0).getDate(); const cells: Array<number | null> = Array(first).fill(null).concat(Array.from({ length: total }, (_, index) => index + 1)); while (cells.length % 7 !== 0) cells.push(null); return cells; }
+function priorityRank(value: string | undefined) {
+  const priority = (value ?? "").toLocaleLowerCase("es");
+  return priority === "alta" || priority === "urgente" ? 0 : priority === "media" ? 1 : 2;
+}
 function groupTasks(tasks: UiTask[]) { const map = new Map<DeliveryType, UiTask[]>(); tasks.forEach((task) => map.set(task.deliveryType, [...(map.get(task.deliveryType) ?? []), task])); return map; }
 function filterTasks(tasks: UiTask[], query: string) { const q = query.toLowerCase().trim(); return q ? tasks.filter((task) => [task.title, task.course, task.materialNeeded, task.notes].some((value) => value?.toLowerCase().includes(q))) : tasks; }
 function formatTaskTime(value: string) { return value.slice(0, 5); }

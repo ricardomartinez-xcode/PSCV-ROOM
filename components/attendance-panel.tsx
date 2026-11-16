@@ -394,7 +394,7 @@ export function AttendancePanel() {
   return (
     <div className="attendancePage">
       <header className="attendanceHeading">
-        <div><h2>Asistencia</h2><p>El saldo comienza con todos los minutos exigibles y solo disminuye al registrar ausencias, retardos o salidas. No se acumula desde cero.</p></div>
+        <div><h2>Asistencia del día</h2><p>El saldo comienza con todos los minutos exigibles y solo disminuye al registrar ausencias, retardos o salidas. No se acumula desde cero.</p></div>
         <label>Fecha <input type="date" value={date} onChange={(e) => { if (e.target.value) setDate(e.target.value); }} /></label>
       </header>
       <p className="attendanceDate">{dayLabel(date)}</p>

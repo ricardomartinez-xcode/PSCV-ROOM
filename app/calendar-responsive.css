@@ -230,7 +230,9 @@
   .adaptiveCalendar .calendarPane .calendarEvent strong { font-size: 9px; }
 }
 
-@media (max-width: 760px) {
+/* iOS may report a wide layout viewport in desktop-site mode.
+   Portrait touch devices should still receive the accessible mobile agenda. */
+@media (max-width: 760px), (hover: none) and (pointer: coarse) and (orientation: portrait) and (max-width: 1100px) {
   .adaptiveCalendar { padding: 9px 9px calc(90px + env(safe-area-inset-bottom)); }
   .adaptiveCalendar .calendarPane { border-radius: 13px; }
   .adaptiveCalendar .calendarMobileMode {

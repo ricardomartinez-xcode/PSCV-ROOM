@@ -1881,7 +1881,12 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
   const [columns, setColumns] = useState<BooleanGroupColumn[]>(fixedBooleanColumns);
   const [values, setValues] = useState<GroupValueStore>({});
   const [newColumnLabel, setNewColumnLabel] = useState("");
+  const [columnBusy, setColumnBusy] = useState(false);
+  const [columnMessage, setColumnMessage] = useState<string | null>(null);
+  const [columnLoadError, setColumnLoadError] = useState<string | null>(null);
+  const [groupMobileView, setGroupMobileView] = useState<"cards" | "table">("cards");
   const [editingColumnId, setEditingColumnId] = useState<string | null>(null);
+  const [editingColumnSource, setEditingColumnSource] = useState<"header" | "manager">("manager");
   const [editingLabel, setEditingLabel] = useState("");
   const [storageReady, setStorageReady] = useState(false);
   const [usingRemote, setUsingRemote] = useState(false);
@@ -1963,11 +1968,14 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
         setColumns(remoteColumns.length ? remoteColumns : fixedBooleanColumns);
         setValues(toGroupValueStore((valueRes.data ?? []) as GroupValueRow[]));
         setUsingRemote(true);
+        setColumnLoadError(null);
         setStorageReady(true);
         return;
       }
 
-      onError(columnRes.error?.message ?? valueRes.error?.message ?? null);
+      const loadMessage = columnRes.error?.message ?? valueRes.error?.message ?? "No se pudieron consultar las columnas.";
+      onError(loadMessage);
+      setColumnLoadError(loadMessage);
       setColumns(fixedBooleanColumns);
       setValues({});
       setUsingRemote(false);
@@ -1975,6 +1983,7 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
       return;
     }
 
+    setColumnLoadError(null);
     try {
       const raw = window.localStorage.getItem("pscv-group-columns-v2");
       if (raw) {
@@ -2004,35 +2013,55 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
     window.localStorage.setItem("pscv-group-columns-v2", JSON.stringify({ columns: columns.filter((column) => !column.fixed), values }));
   }, [columns, values, storageReady, usingRemote]);
 
-  async function addColumn() {
+  async function addColumn(event?: React.FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
+    if (role !== "admin" || columnBusy) return;
     const label = newColumnLabel.trim();
-    if (!label) return;
-    const sortOrder = Math.max(0, ...columns.map((column) => column.sortOrder ?? 0)) + 10;
-
-    if (usingRemote && d1Client) {
-      const { data, error } = await d1Client
-        .from("group_columns")
-        .insert({ label, sort_order: sortOrder, created_by: profile?.id ?? null })
-        .select("id,source_key,label,fixed,sort_order")
-        .single();
-      if (error) {
-        onError(error.message);
-        return;
-      }
-      if (data) setColumns((current) => [...current, toGroupColumn(data as GroupColumnRow)]);
-    } else {
-      setColumns((current) => [...current, { id: `custom-${Date.now()}`, label, sortOrder }]);
+    if (!label) { setColumnMessage("Escribe un nombre para la columna."); return; }
+    if (!storageReady) { setColumnMessage("Todavía se están cargando las columnas."); return; }
+    if (columns.some((column) => column.label.trim().toLocaleLowerCase("es") === label.toLocaleLowerCase("es"))) {
+      setColumnMessage("Ya existe una columna con ese nombre.");
+      return;
+    }
+    if (d1Client && !usingRemote) {
+      setColumnMessage("No se pudo conectar con las columnas de D1. Reintenta la sincronización antes de crearla.");
+      return;
     }
 
-    setNewColumnLabel("");
+    setColumnBusy(true);
+    setColumnMessage(null);
+    try {
+      const sortOrder = Math.max(0, ...columns.map((column) => column.sortOrder ?? 0)) + 10;
+      if (usingRemote && d1Client) {
+        const { data, error } = await d1Client.from("group_columns")
+          .insert({ label, sort_order: sortOrder, created_by: profile?.id ?? null })
+          .select("id,source_key,label,fixed,sort_order").single();
+        if (error || !data) throw new Error(error?.message ?? "No se recibió confirmación de la columna.");
+        setColumns((current) => [...current, toGroupColumn(data as GroupColumnRow)]);
+        setColumnMessage("Columna «" + label + "» creada y guardada en D1.");
+      } else {
+        setColumns((current) => [...current, { id: `custom-${crypto.randomUUID()}`, label, sortOrder }]);
+        setColumnMessage("Columna «" + label + "» creada únicamente en este dispositivo.");
+      }
+      setNewColumnLabel("");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "No se pudo crear la columna.";
+      setColumnMessage(message);
+      onError(message);
+    } finally {
+      setColumnBusy(false);
+    }
   }
 
-  function startEditing(column: BooleanGroupColumn) {
+  function startEditing(column: BooleanGroupColumn, source: "header" | "manager") {
+    if (role !== "admin") return;
+    setEditingColumnSource(source);
     setEditingColumnId(column.id);
     setEditingLabel(column.label);
   }
 
   async function saveColumnLabel(id: string) {
+    if (role !== "admin") return;
     const label = editingLabel.trim();
     if (label) {
       if (usingRemote && d1Client) {
@@ -2054,8 +2083,10 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
   }
 
   async function removeColumn(id: string) {
+    if (role !== "admin") return;
     const column = columns.find((item) => item.id === id);
-    if (column?.fixed) return;
+    if (!column || column.fixed) return;
+    if (!window.confirm("¿Eliminar la columna «" + column.label + "» y sus valores asociados? Esta operación no se puede deshacer.")) return;
 
     if (usingRemote && d1Client) {
       const { error } = await d1Client
@@ -2091,6 +2122,7 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
   }
 
   async function toggleCell(member: UiGroupMember, column: BooleanGroupColumn) {
+    if (role !== "admin") return;
     const key = memberKey(member);
     const nextValue = !cellValue(member, column);
     setValues((current) => ({
@@ -2147,10 +2179,7 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
           <strong>Directorio del grupo</strong>
           <span>{memberRows.length} alumnos · {usingRemote ? "Sincronizada en D1" : "Sin sincronización remota"}</span>
         </div>
-        <label>
-          <input value={newColumnLabel} onChange={(event) => setNewColumnLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void addColumn(); }} placeholder="Nuevo encabezado" />
-          <button onClick={() => void addColumn()} type="button"><Plus size={16} />Columna</button>
-        </label>
+        <span className="groupToolbarCount">{columns.length} columnas · {memberRows.length} alumnos</span>
       </section>
       {canManageMembers ? (
         <form className="groupMemberForm" onSubmit={saveMember}>
@@ -2188,7 +2217,65 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
         <button type="button" onClick={() => { setGroupSearch(""); setGroupFilters({}); }}>Limpiar filtros</button>
         <span role="status">{filteredMembers.length} de {memberRows.length} alumnos</span>
       </div>
-      <div className="tableWrap groupTableWrap" role="region" aria-label="Lista de grupo" tabIndex={0}>
+      <div className="groupColumnWorkspace">
+        {role === "admin" ? (
+          <details className="groupColumnManager">
+            <summary><Plus size={18} aria-hidden="true" /> Administrar columnas ({columns.length})
+              <span>Agregar, renombrar o quitar columnas</span>
+            </summary>
+            <form className="groupColumnCreateForm" onSubmit={(event) => void addColumn(event)}>
+              <label htmlFor="groupNewColumnLabel">Nombre de la nueva columna
+                <input id="groupNewColumnLabel" value={newColumnLabel}
+                  onChange={(event) => { setNewColumnLabel(event.target.value); setColumnMessage(null); }}
+                  placeholder="Por ejemplo: Pago de material" maxLength={120} disabled={columnBusy} />
+              </label>
+              <button type="submit" disabled={columnBusy || !newColumnLabel.trim() || !storageReady}>
+                <Plus size={16} aria-hidden="true" /> {columnBusy ? "Guardando…" : "Agregar columna"}
+              </button>
+              {columnMessage ? <p role="status" className="groupColumnMessage">{columnMessage}</p> : null}
+              {columnLoadError ? <div className="groupColumnError" role="alert">
+                No se pudieron cargar las columnas de D1: {columnLoadError}
+                <button type="button" disabled={columnBusy} onClick={() => void loadGroupConfig()}>Reintentar conexión</button>
+              </div> : null}
+              <p className="groupColumnHint">Las columnas se muestran completas en tarjetas. Puedes editarlas aquí sin desplazarte por la tabla.</p>
+            </form>
+            <div className="groupColumnManagementList" aria-label="Columnas actuales">
+              {columns.map((column) => (
+                <div className="groupColumnManagementRow" key={column.id}>
+                  {editingColumnId === column.id && editingColumnSource === "manager" ? (
+                    <>
+                      <input aria-label={"Nuevo nombre de " + column.label}
+                        value={editingLabel} onChange={(event) => setEditingLabel(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void saveColumnLabel(column.id); } }} />
+                      <button type="button" onClick={() => void saveColumnLabel(column.id)}>Guardar nombre</button>
+                      <button type="button" onClick={() => { setEditingColumnId(null); setEditingLabel(""); }}>Cancelar</button>
+                    </>
+                  ) : (
+                    <>
+                      <strong title={column.label}>{column.label}</strong>
+                      <button type="button" onClick={() => startEditing(column, "manager")}>Renombrar</button>
+                      {!column.fixed ? <button type="button" className="groupColumnDelete" onClick={() => void removeColumn(column.id)}>Eliminar</button> : null}
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : <p className="groupColumnReadOnly">{columns.length} columnas disponibles · Solo las cuentas autorizadas pueden modificarlas.</p>}
+        <div className="groupMobileViewToggle" role="group" aria-label="Vista de lista de grupo">
+          <button type="button" className={groupMobileView === "cards" ? "active" : ""}
+            aria-pressed={groupMobileView === "cards"} onClick={() => setGroupMobileView("cards")}>
+            Tarjetas
+          </button>
+          <button type="button" className={groupMobileView === "table" ? "active" : ""}
+            aria-pressed={groupMobileView === "table"} onClick={() => setGroupMobileView("table")}>
+            Tabla
+          </button>
+        </div>
+      </div>
+      <p className="groupViewHelp">En tarjetas puedes leer completos los encabezados. En tabla, desliza horizontalmente para consultar más columnas.</p>
+      <div className={`tableWrap groupTableWrap ${groupMobileView === "cards" ? "groupViewCards" : "groupViewTable"}`}
+        role="region" aria-label="Lista de grupo" tabIndex={0}>
         <table className="appTable memberTable">
           <thead>
             <tr>
@@ -2199,7 +2286,7 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
               {columns.map((column) => (
                 <th className="booleanHeader" key={column.id}>
                   <div className="groupColumnHeader">
-                    {editingColumnId === column.id ? (
+                    {editingColumnId === column.id && editingColumnSource === "header" ? (
                       <input
                         value={editingLabel}
                         onChange={(event) => setEditingLabel(event.target.value)}
@@ -2208,10 +2295,16 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
                         autoFocus
                       />
                     ) : (
-                      <span>{column.label}</span>
+                      <span title={column.label}>{column.label}</span>
                     )}
-                    <button aria-label={`Editar ${column.label}`} title="Editar encabezado" onClick={() => startEditing(column)} type="button"><Edit3 size={14} /></button>
-                    {column.fixed ? <span className="headerSpacer" /> : <button aria-label={`Eliminar ${column.label}`} title="Eliminar columna" onClick={() => void removeColumn(column.id)} type="button"><Trash2 size={14} /></button>}
+                    {role === "admin" ? (
+                      <>
+                        <button aria-label={`Editar ${column.label}`} title="Editar encabezado"
+                          onClick={() => startEditing(column, "header")} type="button"><Edit3 size={14} /></button>
+                        {!column.fixed ? <button aria-label={`Eliminar ${column.label}`} title="Eliminar columna"
+                          onClick={() => void removeColumn(column.id)} type="button"><Trash2 size={14} /></button> : null}
+                      </>
+                    ) : null}
                   </div>
                 </th>
               ))}
@@ -2223,12 +2316,14 @@ function Group({ members, d1Client, role, canManageMembers, profile, onMembersCh
                 <td data-label="No. Control">{member.controlNumber}</td>
                 <td data-label="Correo electrónico">{member.email}</td>
                 <td data-label="Nombre completo">{member.fullName}</td>
-                {canManageMembers ? <td data-label="Acciones" className="memberActionsCell"><button type="button" onClick={() => editMember(member)} aria-label={`Editar ${member.fullName}`}><Edit3 size={14} /></button><button type="button" onClick={() => void removeMember(member)} aria-label={`Eliminar ${member.fullName}`} disabled={memberBusy}><Trash2 size={14} /></button></td> : null}
+                {canManageMembers ? <td data-label="Acciones" className="memberActionsCell"><span className="groupMemberActionButtons"><button type="button" onClick={() => editMember(member)} aria-label={`Editar ${member.fullName}`}><Edit3 size={14} /></button><button type="button" onClick={() => void removeMember(member)} aria-label={`Eliminar ${member.fullName}`} disabled={memberBusy}><Trash2 size={14} /></button></span></td> : null}
                 {columns.map((column) => {
                   const checked = cellValue(member, column);
                   return (
                     <td data-label={column.label} className="booleanCell" key={column.id}>
-                      <button className={`boolToggle ${checked ? "on" : ""}`} aria-pressed={checked} onClick={() => void toggleCell(member, column)} type="button">
+                      <button className={`boolToggle ${checked ? "on" : ""}`} aria-pressed={checked}
+                        aria-label={`${column.label}: ${checked ? "Sí" : "No"} para ${member.fullName}`}
+                        onClick={() => void toggleCell(member, column)} disabled={role !== "admin"} type="button">
                         {checked ? <Check size={14} /> : <X size={14} />}
                         <span>{checked ? "Sí" : "No"}</span>
                       </button>

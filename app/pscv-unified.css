@@ -487,3 +487,89 @@
     max-height: clamp(81px, calc((100dvh - 455px) / 5), 112px);
   }
 }
+
+/* Group columns: visible creation form, full headings and spreadsheet fallback. */
+.pscvUnifiedWorkspace .groupColumnWorkspace { display:flex;flex-wrap:wrap;gap:10px;align-items:start }
+.pscvUnifiedWorkspace .groupColumnManager { flex:1 1 300px;min-width:0;border:1px solid var(--pscv-border);border-radius:14px;background:#fff;box-shadow:var(--pscv-shadow);overflow:hidden }
+.pscvUnifiedWorkspace .groupColumnManager summary { min-height:53px;display:flex;align-items:center;gap:9px;padding:12px 15px;font-size:13px;font-weight:820;color:#19577c;cursor:pointer }
+.pscvUnifiedWorkspace .groupColumnManager summary span { margin-left:auto;color:#6d8395;font-size:11px;font-weight:600;text-align:right }
+.pscvUnifiedWorkspace .groupColumnCreateForm { display:flex;flex-wrap:wrap;gap:10px;padding:14px;border-top:1px solid #e5edf4;align-items:end }
+.pscvUnifiedWorkspace .groupColumnCreateForm label { flex:1 1 210px;display:grid;gap:6px;font-size:12px;font-weight:750;color:#426079;min-width:0 }
+.pscvUnifiedWorkspace .groupColumnCreateForm input { box-sizing:border-box;width:100%;min-height:44px;border:1px solid #c8dbe9;border-radius:10px;background:#f9fcfe;color:#1b344b;padding:9px 11px;font:inherit }
+.pscvUnifiedWorkspace .groupColumnCreateForm>button { display:flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:9px 14px;border:1px solid #16698e;border-radius:10px;background:#176c99;color:#fff;font-size:12px;font-weight:800;cursor:pointer }
+.pscvUnifiedWorkspace .groupColumnCreateForm>button:disabled { opacity:.5;cursor:not-allowed }
+.pscvUnifiedWorkspace .groupColumnMessage,.pscvUnifiedWorkspace .groupColumnError,.pscvUnifiedWorkspace .groupColumnHint { flex:1 1 100%;margin:0;font-size:12px;line-height:1.45 }
+.pscvUnifiedWorkspace .groupColumnMessage { color:#246e4f;font-weight:750 }
+.pscvUnifiedWorkspace .groupColumnError { color:#a23636 }
+.pscvUnifiedWorkspace .groupColumnError button { display:block;min-height:38px;margin-top:8px;padding:8px;border:1px solid #af6666;border-radius:9px;background:#fff;color:#a23636;cursor:pointer }
+.pscvUnifiedWorkspace .groupColumnHint,.pscvUnifiedWorkspace .groupColumnReadOnly,.pscvUnifiedWorkspace .groupViewHelp { color:#687e92;font-size:12px }
+.pscvUnifiedWorkspace .groupColumnReadOnly { margin:0;padding:13px;border:1px solid var(--pscv-border);border-radius:12px;background:#fff }
+.pscvUnifiedWorkspace .groupViewHelp { margin:-3px 0 0;line-height:1.45 }
+.pscvUnifiedWorkspace .groupMobileViewToggle { display:none }
+.pscvUnifiedWorkspace .groupToolbarCount { color:#61778f;font-size:12px }
+.pscvUnifiedWorkspace .groupTableWrap { max-width:100%;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch }
+.pscvUnifiedWorkspace .groupTableWrap .memberTable { width:max-content;min-width:100%;table-layout:auto }
+.pscvUnifiedWorkspace .groupTableWrap .memberTable th { height:auto;min-height:57px;vertical-align:middle;white-space:normal }
+.pscvUnifiedWorkspace .groupTableWrap .memberTable .booleanHeader { width:230px;min-width:210px;max-width:290px;overflow:visible }
+.pscvUnifiedWorkspace .groupTableWrap .groupColumnHeader { display:flex;align-items:center;gap:6px;min-height:44px }
+.pscvUnifiedWorkspace .groupTableWrap .groupColumnHeader span { flex:1;min-width:0;overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;line-height:1.35;text-align:left }
+.pscvUnifiedWorkspace .groupTableWrap .groupColumnHeader button { flex:0 0 34px;width:34px;min-height:38px;height:38px;border-radius:9px }
+.pscvUnifiedWorkspace .groupTableWrap .groupColumnHeader input { flex:1;min-width:0;width:auto }
+.pscvUnifiedWorkspace .groupTableWrap .memberTable td.booleanCell { min-width:210px;width:230px }
+.pscvUnifiedWorkspace .groupTableWrap .memberTable td.booleanCell button:disabled { opacity:.85;cursor:default }
+
+/* Include iOS portrait/touch viewport cases that report desktop CSS widths. */
+@media (max-width:760px), (hover:none) and (pointer:coarse) and (orientation:portrait) and (max-width:1100px) {
+  .pscvUnifiedWorkspace .groupColumnWorkspace { display:grid;grid-template-columns:minmax(0,1fr) }
+  .pscvUnifiedWorkspace .groupColumnManager { width:100% }
+  .pscvUnifiedWorkspace .groupColumnManager summary { flex-wrap:wrap }
+  .pscvUnifiedWorkspace .groupColumnManager summary span { flex:1 1 100%;margin-left:0;text-align:left }
+  .pscvUnifiedWorkspace .groupColumnCreateForm>button { flex:1 1 100% }
+  .pscvUnifiedWorkspace .groupMobileViewToggle { display:flex;gap:5px;padding:5px;background:#f1f7fb;border:1px solid #cbdde9;border-radius:12px }
+  .pscvUnifiedWorkspace .groupMobileViewToggle button { flex:1;min-height:43px;border:1px solid transparent;border-radius:9px;background:transparent;color:#4a6881;font-size:12px;font-weight:800;cursor:pointer }
+  .pscvUnifiedWorkspace .groupMobileViewToggle button.active { background:#fff;border-color:#c7e0ed;color:#155f87;box-shadow:0 2px 8px rgba(20,58,92,.08) }
+  .pscvUnifiedWorkspace .groupFilterToolbar { align-items:stretch }
+  .pscvUnifiedWorkspace .groupFilterToolbar>label { flex:1 1 180px;min-width:0 }
+  .pscvUnifiedWorkspace .groupFilterToolbar>.groupColumnFilters { flex:1 1 100% }
+  .pscvUnifiedWorkspace .groupFilterFields { position:static;box-sizing:border-box;width:100%;max-height:none;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));margin-top:8px;box-shadow:none }
+  /* Card view displays every full data-label, with no horizontal clipping. */
+  .pscvUnifiedWorkspace .groupTableWrap.groupViewCards { max-height:none;overflow:visible!important;border:0!important;background:transparent!important;box-shadow:none!important }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable { display:block!important;width:100%!important;min-width:0!important;border:0 }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable thead { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable tbody { display:grid;gap:12px }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable tr { display:grid;gap:0;min-width:0;overflow:hidden;background:#fff;border:1px solid #d6e4ee;border-radius:14px;box-shadow:0 5px 14px rgba(24,52,80,.04) }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td,
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td.memberActionsCell,
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td.booleanCell {
+    position:static;display:grid;grid-template-columns:minmax(105px,40%) minmax(0,1fr);
+    align-items:center;gap:10px;width:auto!important;min-width:0!important;max-width:none!important;
+    height:auto!important;min-height:47px;padding:10px 12px!important;
+    overflow:visible;text-overflow:clip;white-space:normal;overflow-wrap:anywhere;
+    text-align:left;border-bottom:1px solid #ecf1f6;
+  }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td::before { display:block;content:attr(data-label);min-width:0;color:#365b77;font-size:12px;font-weight:830;line-height:1.4;white-space:normal;overflow-wrap:anywhere }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td.memberActionsCell::before { flex:none }
+  .pscvUnifiedWorkspace .groupViewCards .memberTable td:last-child { border-bottom:0 }
+  /* Table mode restores native table layout and horizontal scrolling on all phones. */
+  .pscvUnifiedWorkspace .groupTableWrap.groupViewTable { max-height:min(75dvh,850px);overflow-x:auto!important;overflow-y:auto!important;border:1px solid #d7e5ef!important;background:#fff!important }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable { display:table!important;min-width:100%!important;width:max-content!important;table-layout:auto }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable thead { display:table-header-group!important;position:static!important;width:auto!important;height:auto!important;overflow:visible!important;clip-path:none!important;white-space:normal!important }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable tbody { display:table-row-group!important }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable tr { display:table-row!important;border:0;box-shadow:none;overflow:visible }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable td { display:table-cell!important;position:static!important;min-width:0;width:auto;height:auto;padding:10px 12px!important;overflow:visible!important;white-space:nowrap;vertical-align:middle }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable td::before { display:none!important;content:none!important }
+  .pscvUnifiedWorkspace .groupViewTable .memberTable .booleanHeader,
+  .pscvUnifiedWorkspace .groupViewTable .memberTable .booleanCell { min-width:210px;width:230px }
+}
+
+.pscvUnifiedWorkspace .groupMemberActionButtons { display:inline-flex;align-items:center;flex-wrap:wrap;gap:8px;min-width:0 }
+.pscvUnifiedWorkspace .groupMemberActionButtons button { display:grid;place-items:center;min-width:36px;min-height:36px;border:1px solid #cfdfeb;border-radius:9px;background:#fff;color:#1c6894 }
+
+.pscvUnifiedWorkspace .groupColumnManagementList { display:grid;gap:0;padding:0 12px 12px;border-top:1px solid #e8eff6 }
+.pscvUnifiedWorkspace .groupColumnManagementRow { display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;padding:11px 3px;border-bottom:1px solid #edf2f7 }
+.pscvUnifiedWorkspace .groupColumnManagementRow:last-child { border:0 }
+.pscvUnifiedWorkspace .groupColumnManagementRow strong { flex:1 1 150px;min-width:0;color:#213e55;font-size:12px;line-height:1.45;overflow-wrap:anywhere }
+.pscvUnifiedWorkspace .groupColumnManagementRow input { flex:1 1 165px;min-height:39px;min-width:0;border:1px solid #c6d9e8;border-radius:9px;padding:8px 10px;font-size:12px }
+.pscvUnifiedWorkspace .groupColumnManagementRow button { flex:0 0 auto;min-height:38px;border:1px solid #cdddea;border-radius:9px;padding:8px 10px;background:#f9fcfe;color:#246086;font-size:11px;font-weight:750;cursor:pointer }
+.pscvUnifiedWorkspace .groupColumnManagementRow button.groupColumnDelete { color:#a03d3d;border-color:#e5c7c7 }
+@media (max-width:440px) { .pscvUnifiedWorkspace .groupColumnManagementRow strong { flex-basis:100% } }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, BookOpen, ChevronRight, ExternalLink, Eye, FileText, FolderOpen, Info, LayoutGrid, List, Search, UploadCloud, X } from "lucide-react";
+import { ArrowUpDown, BookOpen, ChevronRight, Download, ExternalLink, FileText, FolderOpen, Info, LayoutGrid, List, Search, UploadCloud, X } from "lucide-react";
+import { MaterialPdfThumbnail } from "@/components/material-pdf-thumbnail";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
 import { materialDisplayName } from "@/lib/material-display-name";
@@ -29,6 +30,7 @@ type LibraryMaterial = {
   preview_url: string | null;
   thumbnail_url: string | null;
   public_url: string | null;
+  download_url?: string | null;
   r2_key: string | null;
   file_name: string | null;
   content_type: string | null;
@@ -462,13 +464,28 @@ export function MaterialLibrary({ previewSize, globalQuery = "", onManage }: Mat
   );
 }
 
+function safeMaterialUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes(String.fromCharCode(92))) return raw;
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
 function MaterialCard({ material, view }: { material: LibraryMaterial; view: "grid" | "list" }) {
   const section = material.section ? normalizeSection(material.section) : null;
   const color = section?.color ?? "#2563eb";
-  const previewUrl = material.preview_url ?? material.thumbnail_url ?? material.source_url;
-  const openUrl = material.public_url ?? material.preview_url ?? material.source_url;
+  const previewUrl = safeMaterialUrl(material.preview_url ?? material.source_url);
+  const downloadUrl = material.r2_key
+    ? safeMaterialUrl(material.download_url ?? material.public_url)
+    : null;
   const type = material.material_type ?? material.content_type?.split("/").at(-1)?.toUpperCase() ?? "PDF";
   const isPdf = (material.content_type ?? material.file_name ?? material.title).toLowerCase().includes("pdf");
+  const isImage = material.content_type?.startsWith("image/") ?? false;
+  const openUrl = previewUrl && (!material.r2_key || isPdf || isImage) ? previewUrl : null;
   const size = formatBytes(material.size_bytes);
   const displayName = materialDisplayName(material.title);
   const displayFileName = material.file_name ? materialDisplayName(material.file_name) : "Sin clasificación";
@@ -488,11 +505,15 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
       <div className="materialActions">
         {openUrl ? (
           <a className="materialOpenAction" href={openUrl} aria-label={`Abrir ${displayName}`}
-            target="_blank" rel="noopener noreferrer"><ExternalLink size={15} aria-hidden="true" /><span>Abrir</span></a>
+            target="_blank" rel="noopener noreferrer">
+            <ExternalLink size={15} aria-hidden="true" /><span>Abrir</span>
+          </a>
         ) : null}
-        {previewUrl && previewUrl !== openUrl ? (
-          <a href={previewUrl} aria-label={`Previsualizar ${displayName}`}
-            target="_blank" rel="noopener noreferrer"><Eye size={15} aria-hidden="true" /><span>Vista previa</span></a>
+        {downloadUrl ? (
+          <a className="materialDownloadAction" href={downloadUrl}
+            aria-label={`Descargar ${displayName}`}>
+            <Download size={15} aria-hidden="true" /><span>Descargar</span>
+          </a>
         ) : null}
       </div>
       <details className="materialDetails">
@@ -509,12 +530,15 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
 }
 
 function MaterialThumbnail({ material, previewUrl, isPdf, type }: { material: LibraryMaterial; previewUrl: string | null; isPdf: boolean; type: string }) {
-  const imageUrl = material.thumbnail_url ?? (material.content_type?.startsWith("image/") ? previewUrl : null);
-
+  const imageUrl = safeMaterialUrl(material.thumbnail_url)
+    ?? (material.content_type?.startsWith("image/") ? previewUrl : null);
   if (imageUrl) {
     return <div className="materialThumb hasPreview"><img src={imageUrl} alt="" loading="lazy" /></div>;
   }
-
+  if (isPdf && material.r2_key && previewUrl) {
+    return <MaterialPdfThumbnail key={material.id} url={previewUrl}
+      fileName={materialDisplayName(material.title)} fileSize={material.size_bytes} />;
+  }
   return (
     <div className="materialThumb" aria-hidden="true">
       <FileText size={20} />

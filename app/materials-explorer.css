@@ -360,3 +360,116 @@
   background: #eaf6fc;
   color: #105b80;
 }
+
+/* Material action words must never inherit the old 36px icon-only spans.
+   The issue was visible on iPhone when 'Descargar' spilled out of the button. */
+.materialsExplorer .materialCardV2 .materialActions {
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+.materialsExplorer .materialCardV2 .materialActions a.materialOpenAction,
+.materialsExplorer .materialCardV2 .materialActions a.materialDownloadAction {
+  box-sizing: border-box;
+  flex: 1 1 103px;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  width: auto;
+  padding: 9px 10px;
+  gap: 7px;
+  white-space: nowrap;
+  line-height: 1.25;
+}
+.materialsExplorer .materialCardV2 .materialActions a span {
+  box-sizing: content-box;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: nowrap;
+  overflow: visible;
+  font-size: inherit;
+}
+.materialsExplorer .materialCardV2 .materialActions a svg { flex: 0 0 auto; }
+
+.materialsExplorer .materialDownloadPanel {
+  box-sizing: border-box;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+  padding: 12px;
+  display: grid;
+  gap: 9px;
+  border: 1px solid #cbddea;
+  border-radius: 12px;
+  background: #f2f8fc;
+}
+.materialsExplorer .materialDownloadPanelHeading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.materialsExplorer .materialDownloadPanel strong {
+  font-size: 12px;
+  color: #1b4a68;
+}
+.materialsExplorer .materialDownloadPanel p {
+  margin: 0;
+  color: #42617b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.materialsExplorer .materialDownloadPanel .materialDownloadHint { color: #698096; }
+.materialsExplorer .materialDownloadPanel button.materialSaveIOS,
+.materialsExplorer .materialDownloadPanel a.materialDownloadFallback {
+  box-sizing: border-box;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #216b95;
+  border-radius: 10px;
+  padding: 9px 12px;
+  color: #fff;
+  background: #216b95;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+.materialsExplorer .materialDownloadPanel a.materialDownloadFallback {
+  color: #216b95;
+  background: #fff;
+  border-color: #cbddea;
+}
+.materialsExplorer .materialDownloadPanel button.materialDownloadClose {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  min-height: 32px;
+  border: 1px solid #c5d8e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #345e80;
+  cursor: pointer;
+}
+@media (max-width: 480px) {
+  .materialsExplorer .materialCardV2 .materialActions {
+    grid-column: 1 / -1;
+  }
+  .materialsExplorer .materialCardV2 .materialActions a.materialOpenAction,
+  .materialsExplorer .materialCardV2 .materialActions a.materialDownloadAction {
+    flex-basis: 112px;
+  }
+}

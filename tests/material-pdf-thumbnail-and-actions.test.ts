@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const library = readFileSync(new URL("../components/material-library.tsx", import.meta.url), "utf8");
+const mobileDownload = readFileSync(new URL("../components/material-download-action.tsx", import.meta.url), "utf8");
 const thumbnail = readFileSync(new URL("../components/material-pdf-thumbnail.tsx", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../app/materials-explorer.css", import.meta.url), "utf8");
 const fileRoute = readFileSync(new URL("../app/api/materials/[id]/file/route.ts", import.meta.url), "utf8");
@@ -13,9 +14,10 @@ test("opening is inline, downloading is attachment, not two visually identical l
   assert.match(library, /const previewUrl = safeMaterialUrl\(material\.preview_url/);
   assert.match(library, /const downloadUrl = material\.r2_key/);
   assert.match(library, /className="materialOpenAction" href=\{openUrl\}/);
-  assert.match(library, /className="materialDownloadAction" href=\{downloadUrl\}/);
+  assert.match(library, /<MaterialDownloadAction url=\{downloadUrl\}/);
+  assert.match(mobileDownload, /className="materialDownloadAction" href=\{url\}/);
   assert.match(library, /<span>Abrir<\/span>/);
-  assert.match(library, /<span>Descargar<\/span>/);
+  assert.match(mobileDownload, /<span>Descargar<\/span>/);
   assert.doesNotMatch(library, /<span>Vista previa<\/span>/);
   assert.match(fileRoute, /mode === "download" \? "attachment" : "inline"/);
   assert.match(catalog, /download_url: signedDownloadUrl/);

@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, BookOpen, ChevronRight, Download, ExternalLink, FileText, FolderOpen, Info, LayoutGrid, List, Search, UploadCloud, X } from "lucide-react";
+import { ArrowUpDown, BookOpen, ChevronRight, ExternalLink, FileText, FolderOpen, Info, LayoutGrid, List, Search, UploadCloud, X } from "lucide-react";
+import { MaterialDownloadAction } from "@/components/material-download-action";
 import { MaterialPdfThumbnail } from "@/components/material-pdf-thumbnail";
 import { seedMaterials } from "@/lib/seed";
 import { hasD1BrowserConfig } from "@/lib/d1/client";
@@ -510,10 +511,8 @@ function MaterialCard({ material, view }: { material: LibraryMaterial; view: "gr
           </a>
         ) : null}
         {downloadUrl ? (
-          <a className="materialDownloadAction" href={downloadUrl}
-            aria-label={`Descargar ${displayName}`}>
-            <Download size={15} aria-hidden="true" /><span>Descargar</span>
-          </a>
+          <MaterialDownloadAction url={downloadUrl} fileName={material.file_name ?? displayName}
+            contentType={material.content_type} fileSize={material.size_bytes} />
         ) : null}
       </div>
       <details className="materialDetails">
